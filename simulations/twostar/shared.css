@@ -1,0 +1,11 @@
+body { font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Noto Sans TC", sans-serif; margin: 24px; line-height: 1.6; }
+.grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+.card { border: 1px solid #ddd; border-radius: 8px; padding: 16px; background: #fff; }
+label { display: inline-block; min-width: 150px; }
+input { width: 120px; margin: 6px 0; }
+button { padding: 8px 16px; margin-top: 8px; }
+canvas { border: 1px solid #ddd; border-radius: 4px; background: #fafafa; }
+.row { display:flex; gap:16px; align-items:center; flex-wrap:wrap; }
+.legend { font-size: 13px; color: #555; }
+.dash { stroke-dasharray: 6 6; }
+.code { background:#f6f8fa; border:1px solid #e1e4e8; border-radius:6px; padding:12px; }
