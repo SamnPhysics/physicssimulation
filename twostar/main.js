@@ -10,6 +10,11 @@ class TwoStarSimulation extends Simulation {
         this.eclipseLabel = document.getElementById('eclipseLabel');
         this.orbitStatus = document.getElementById('orbitStatus');
 
+        if (!this.orbitCanvas || !this.lightCurveCanvas || !this.spectrumCanvas) {
+            console.error("找不到對應的 Canvas 元素，請檢查 HTML 結構。");
+            return;
+        }
+
         this.starA = { 
             color: '#60a5fa', radius: 32, brightness: 100, mass: 3.0, distFromCenter: 0 
         };
@@ -44,8 +49,12 @@ class TwoStarSimulation extends Simulation {
         if (d >= r1 + r2) return 0;
         if (d <= Math.abs(r1 - r2)) return Math.PI * Math.min(r1, r2)**2;
         const r1Sq = r1**2, r2Sq = r2**2;
-        const angle1 = 2 * Math.acos((r1Sq + d**2 - r2Sq) / (2 * r1 * d));
-        const angle2 = 2 * Math.acos((r2Sq + d**2 - r1Sq) / (2 * r2 * d));
+        let cos1 = (r1Sq + d**2 - r2Sq) / (2 * r1 * d);
+        let cos2 = (r2Sq + d**2 - r1Sq) / (2 * r2 * d);
+        cos1 = Math.max(-1, Math.min(1, cos1));
+        cos2 = Math.max(-1, Math.min(1, cos2));
+        const angle1 = 2 * Math.acos(cos1);
+        const angle2 = 2 * Math.acos(cos2);
         return 0.5 * (r2Sq * (angle2 - Math.sin(angle2)) + r1Sq * (angle1 - Math.sin(angle1)));
     }
 
@@ -80,27 +89,31 @@ class TwoStarSimulation extends Simulation {
             
             if (zB_3d < zA_3d) { 
                 blockedFlux = overlap * this.starA.brightness;
-                statusText = "主極小 (Primary Eclipse)
-橘星(前/暗) 遮 藍星(後/亮)";
+                statusText = "主極小 (Primary Eclipse)\n橘星(前/暗) 遮 藍星(後/亮)";
                 statusColor = "text-red-400";
             } else {
                 blockedFlux = overlap * this.starB.brightness;
-                statusText = "次極小 (Secondary Eclipse)
-藍星(前/亮) 遮 橘星(後/暗)";
+                statusText = "次極小 (Secondary Eclipse)\n藍星(前/亮) 遮 橘星(後/暗)";
                 statusColor = "text-yellow-300";
             }
         }
         
         if (statusText) {
-            this.eclipseLabel.classList.remove('hidden');
-            this.eclipseLabel.querySelector('span').innerText = statusText;
-            this.eclipseLabel.querySelector('span').className = `text-lg font-bold drop-shadow-md px-3 py-1 rounded bg-black/60 border border-white/20 whitespace-pre-line text-center ${statusColor}`;
-            this.orbitStatus.classList.remove('hidden');
-            this.orbitStatus.innerText = statusText.replace('
-', ' - ');
+            if (this.eclipseLabel) {
+                this.eclipseLabel.classList.remove('hidden');
+                const span = this.eclipseLabel.querySelector('span');
+                if (span) {
+                    span.innerText = statusText;
+                    span.className = `text-lg font-bold drop-shadow-md px-3 py-1 rounded bg-black/60 border border-white/20 whitespace-pre-line text-center ${statusColor}`;
+                }
+            }
+            if (this.orbitStatus) {
+                this.orbitStatus.classList.remove('hidden');
+                this.orbitStatus.innerText = statusText.replace('\n', ' - ');
+            }
         } else {
-            this.eclipseLabel.classList.add('hidden');
-            this.orbitStatus.classList.add('hidden');
+            if (this.eclipseLabel) this.eclipseLabel.classList.add('hidden');
+            if (this.orbitStatus) this.orbitStatus.classList.add('hidden');
         }
 
         const currentFlux = (this.maxFlux - blockedFlux) / this.maxFlux;
@@ -272,8 +285,12 @@ class TwoStarSimulation extends Simulation {
 
     resizeCanvases() {
         [this.orbitCanvas, this.lightCurveCanvas, this.spectrumCanvas].forEach(canvas => {
-            canvas.width = canvas.clientWidth * 2;
-            canvas.height = canvas.clientHeight * 2;
+            if (canvas) {
+                const cw = canvas.clientWidth || 800; // 提供預設寬度防呆
+                const ch = canvas.clientHeight || 400; // 提供預設高度防呆
+                canvas.width = cw * 2;
+                canvas.height = ch * 2;
+            }
         });
         this.stepSimulation(true);
     }
@@ -284,49 +301,41 @@ class TwoStarSimulation extends Simulation {
 
     bindEvents() {
         window.addEventListener('resize', () => this.resizeCanvases());
-        document.getElementById('toggleBtn').onclick = () => {
-            this.pause();
-        };
-        document.getElementById('resetBtn').onclick = () => {
-            this.systemAngle = this.INITIAL_ANGLE;
-            this.fluxHistory = [];
-            this.velAHistory = [];
-            this.velBHistory = [];
-            this.stepSimulation(true);
-            if (!this.running) {
-                this.start();
-            }
-        };
+        
+        const toggleBtn = document.getElementById('toggleBtn');
+        if (toggleBtn) toggleBtn.onclick = () => this.pause();
 
-        document.getElementById('speedRange').oninput = (e) => this.speedMultiplier = parseFloat(e.target.value);
+        const resetBtn = document.getElementById('resetBtn');
+        if (resetBtn) {
+            resetBtn.onclick = () => {
+                this.systemAngle = this.INITIAL_ANGLE;
+                this.fluxHistory = [];
+                this.velAHistory = [];
+                this.velBHistory = [];
+                this.stepSimulation(true);
+                if (this.paused || !this.running) {
+                    this.start();
+                }
+            };
+        }
+
+        const speedRange = document.getElementById('speedRange');
+        if (speedRange) speedRange.oninput = (e) => this.speedMultiplier = parseFloat(e.target.value);
         
         const updateZoom = () => {
-             document.getElementById('lcScaleDisplay').textContent = `x${this.lcScale.toFixed(1)}`;
-             document.getElementById('spScaleDisplay').textContent = `x${this.spScale.toFixed(1)}`;
+             const lcDisplay = document.getElementById('lcScaleDisplay');
+             if (lcDisplay) lcDisplay.textContent = `x${this.lcScale.toFixed(1)}`;
+             const spDisplay = document.getElementById('spScaleDisplay');
+             if (spDisplay) spDisplay.textContent = `x${this.spScale.toFixed(1)}`;
         };
-        document.getElementById('lcZoomIn').onclick = () => { if(this.lcScale < 5) this.lcScale+=0.5; updateZoom(); };
-        document.getElementById('lcZoomOut').onclick = () => { if(this.lcScale > 0.5) this.lcScale-=0.5; updateZoom(); };
-        document.getElementById('spZoomIn').onclick = () => { if(this.spScale < 5) this.spScale+=0.5; updateZoom(); };
-        document.getElementById('spZoomOut').onclick = () => { if(this.spScale > 0.5) this.spScale-=0.5; updateZoom(); };
-    }
-
-    start() {
-        if (!this.running) {
-            this.running = true;
-            this.rafId = requestAnimationFrame(() => this.loop());
-        }
-    }
-
-    pause() {
-        this.running = !this.running;
-        if(this.running) {
-            this.rafId = requestAnimationFrame(() => this.loop());
-        } else {
-            if (this.rafId) {
-                cancelAnimationFrame(this.rafId);
-                this.rafId = null;
-            }
-        }
+        const lcZIn = document.getElementById('lcZoomIn');
+        if (lcZIn) lcZIn.onclick = () => { if(this.lcScale < 5) this.lcScale+=0.5; updateZoom(); };
+        const lcZOut = document.getElementById('lcZoomOut');
+        if (lcZOut) lcZOut.onclick = () => { if(this.lcScale > 0.5) this.lcScale-=0.5; updateZoom(); };
+        const spZIn = document.getElementById('spZoomIn');
+        if (spZIn) spZIn.onclick = () => { if(this.spScale < 5) this.spScale+=0.5; updateZoom(); };
+        const spZOut = document.getElementById('spZoomOut');
+        if (spZOut) spZOut.onclick = () => { if(this.spScale > 0.5) this.spScale-=0.5; updateZoom(); };
     }
 }
 
