@@ -1,0 +1,92 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8" />
+  <title>自由落體模擬（空氣阻力 + RK4）</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link rel="stylesheet" href="shared.css">
+</head>
+<body>
+  <h1>自由落體模擬（空氣阻力 + RK4 + 終端速度）</h1>
+
+  <div class="grid">
+    <div class="card">
+      <h2>參數</h2>
+      <div id="params-container">
+        <div class="row">
+          <label>質量 m (kg)</label><input id="m" type="number" step="0.1" value="1.0">
+        </div>
+        <div class="row">
+          <label>空氣阻力係數 C_D</label><input id="cd" type="number" step="0.01" value="0.47">
+        </div>
+        <div class="row">
+          <label>截面積 A (m²)</label><input id="A" type="number" step="0.001" value="0.01">
+        </div>
+        <div class="row">
+          <label>空氣密度 ρ (kg/m³)</label><input id="rho" type="number" step="0.001" value="1.225">
+        </div>
+        <div class="row">
+          <label>起始高度 h₀ (m)</label><input id="h0" type="number" step="1" value="100">
+        </div>
+        <div class="row">
+          <label>時間步長 Δt (s)</label><input id="dt" type="number" step="0.001" value="0.01">
+        </div>
+        <div class="row">
+          <label>重力加速度 g (m/s²)</label><input id="g" type="number" step="0.01" value="9.81">
+        </div>
+      </div>
+      <button id="run">開始模擬</button>
+      <button id="pause">暫停/繼續</button>
+      <button id="reset">重置</button>
+    </div>
+
+    <div class="card">
+      <h2>原理與方程式（即時 LaTeX）</h2>
+      <div id="eq" class="code">
+        當物體僅受重力與二次方阻力作用（向下為正），運動方程為：
+        
+
+\[
+          m\frac{dv}{dt} = mg - \frac{1}{2}ho C_D A\, v\,|v|,
+          \qquad
+          \frac{dh}{dt} = -v.
+        \]
+
+
+        其中空氣阻力大小遵循
+        
+
+\[
+          F_D = \frac{1}{2}ho C_D A v^2.
+        \]
+
+
+        當加速度趨近於零（力平衡）時的終端速度：
+        
+
+\[
+          v_T = \sqrt{\frac{2 m g}{ho C_D A}}.
+        \]
+
+
+      </div>
+    </div>
+  </div>
+
+  <div class="grid" style="margin-top:20px;">
+    <div class="card">
+      <h2>下落動畫</h2>
+      <canvas id="anim" width="420" height="520"></canvas>
+    </div>
+    <div class="card">
+      <h2>速度曲線 v(t)</h2>
+      <canvas id="chart" width="520" height="320"></canvas>
+      <div id="chart-legend" class="legend">藍色：數值解 v(t)（RK4）；灰虛線：終端速度 v_T</div>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+  <script src="simulation.js"></script>
+  <script src="main.js"></script>
+</body>
+</html>

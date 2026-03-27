@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8" />
+  <title>模擬標題</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link rel="stylesheet" href="shared.css">
+</head>
+<body>
+  <h1>模擬標題</h1>
+
+  <div class="grid">
+    <div class="card">
+      <h2>參數</h2>
+      <div id="params-container">
+        <!-- 參數將由 JavaScript 動態生成 -->
+      </div>
+      <button id="run">開始模擬</button>
+      <button id="pause">暫停/繼續</button>
+      <button id="reset">重置</button>
+    </div>
+
+    <div class="card">
+      <h2>原理與方程式</h2>
+      <div id="equations-container" class="code">
+        <!-- 方程式將由 JavaScript 動態生成 -->
+      </div>
+    </div>
+  </div>
+
+  <div class="grid" style="margin-top:20px;">
+    <div class="card">
+      <h2>動畫</h2>
+      <canvas id="anim" width="420" height="520"></canvas>
+    </div>
+    <div class="card">
+      <h2>圖表</h2>
+      <canvas id="chart" width="520" height="320"></canvas>
+      <div id="chart-legend" class="legend"></div>
+    </div>
+  </div>
+
+  <script src="simulation.js"></script>
+  <script src="main.js"></script>
+</body>
+</html>

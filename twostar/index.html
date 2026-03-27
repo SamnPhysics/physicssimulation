@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>雙星系統綜合模擬：光度與光譜 (Binary Star Photometry & Spectroscopy)</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body {
+            background-color: #0f172a;
+            color: #e2e8f0;
+            font-family: 'Noto Sans TC', sans-serif;
+            overflow-x: hidden;
+        }
+        canvas {
+            touch-action: none;
+        }
+        .monitor-panel {
+            background: rgba(30, 41, 59, 0.7);
+            border: 1px solid #334155;
+            backdrop-filter: blur(5px);
+        }
+        .zoom-btn {
+            background-color: rgba(51, 65, 85, 0.8);
+            color: #e2e8f0;
+            width: 24px;
+            height: 24px;
+            border-radius: 4px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            font-size: 14px;
+            cursor: pointer;
+            border: 1px solid #475569;
+            transition: all 0.2s;
+        }
+        .zoom-btn:hover {
+            background-color: rgba(71, 85, 105, 1);
+            border-color: #64748b;
+        }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col items-center justify-center p-2 lg:p-4">
+
+    <header class="text-center mb-4">
+        <h1 class="text-2xl lg:text-3xl font-bold text-blue-400">雙星系統綜合模擬</h1>
+        <p class="text-slate-400 text-xs lg:text-sm">教學模式：觀察光變曲線的主/次極小與光譜位移的關係</p>
+    </header>
+
+    <div class="flex flex-col lg:flex-row gap-4 w-full max-w-7xl h-[85vh]">
+        
+        <!-- 左側：視覺模擬與控制 -->
+        <div class="flex-none lg:w-[35%] flex flex-col gap-4">
+            <div class="monitor-panel rounded-xl p-4 flex-1 flex flex-col shadow-lg">
+                <h2 class="text-lg font-semibold mb-2 text-center border-b border-slate-600 pb-2">1. 雙星軌道視圖 (俯視角度)</h2>
+                <div class="relative w-full flex-1 bg-black rounded-lg overflow-hidden border border-slate-700 min-h-[250px]">
+                    <canvas id="orbitCanvas" class="absolute top-0 left-0 w-full h-full"></canvas>
+                    <div class="absolute top-2 left-2 text-xs text-slate-500 bg-black/50 px-2 rounded">
+                        透視：下方為前 (近)，上方為後 (遠)
+                    </div>
+                    <!-- 即時狀態顯示 -->
+                    <div id="orbitStatus" class="absolute bottom-2 right-2 text-xs font-bold text-white bg-black/60 px-2 py-1 rounded border border-slate-600 hidden">
+                        狀態
+                    </div>
+                </div>
+                <div class="mt-2 flex justify-center gap-4 text-xs">
+                    <div class="flex items-center gap-2">
+                        <span class="w-3 h-3 rounded-full bg-blue-400 shadow-[0_0_10px_#60a5fa]"></span>
+                        <span>主星 (亮/熱/藍)</span>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <span class="w-3 h-3 rounded-full bg-orange-500 shadow-[0_0_10px_#f97316]"></span>
+                        <span>伴星 (暗/冷/橘)</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="monitor-panel rounded-xl p-4 shadow-lg shrink-0">
+                <div class="flex flex-col gap-3">
+                    <div class="flex gap-2">
+                        <button id="toggleBtn" class="flex-1 bg-blue-600 hover:bg-blue-500 text-white px-4 py-2 rounded-lg transition font-medium shadow-lg border-b-4 border-blue-800 active:border-b-0 active:translate-y-1">
+                            暫停 / 開始
+                        </button>
+                        <button id="resetBtn" class="bg-slate-600 hover:bg-slate-500 text-white px-4 py-2 rounded-lg transition font-medium shadow-lg border-b-4 border-slate-800 active:border-b-0 active:translate-y-1" title="重置模擬">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
+                        </button>
+                    </div>
+                    <div class="flex items-center gap-2 bg-slate-800 p-2 rounded-lg">
+                        <label for="speedRange" class="text-sm whitespace-nowrap">演化速度:</label>
+                        <input type="range" id="speedRange" min="0.2" max="2.0" step="0.1" value="0.5" class="w-full accent-blue-500 cursor-pointer">
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 右側：圖表區 -->
+        <div class="flex-1 flex flex-col gap-4">
+            
+            <!-- 圖表 1: 光變曲線 -->
+            <div class="monitor-panel rounded-xl p-3 flex-1 flex flex-col shadow-lg relative">
+                <h2 class="text-base font-semibold mb-1 text-center text-yellow-400">2. 相對亮度變化圖 (Light Curve)</h2>
+                <div class="flex-1 w-full bg-slate-900 rounded-lg border border-slate-700 relative overflow-hidden group">
+                    <canvas id="lightCurveCanvas" class="w-full h-full"></canvas>
+                    
+                    <div class="absolute top-2 left-2 flex items-center gap-1 z-10 bg-black/30 p-1 rounded backdrop-blur-sm">
+                        <button id="lcZoomOut" class="zoom-btn">-</button>
+                        <span id="lcScaleDisplay" class="text-xs font-mono w-10 text-center text-slate-300">x1.0</span>
+                        <button id="lcZoomIn" class="zoom-btn">+</button>
+                    </div>
+
+                    <!-- 掩星標籤 -->
+                    <div id="eclipseLabel" class="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 pointer-events-none text-center hidden">
+                         <span class="text-lg font-bold text-white drop-shadow-[0_2px_2px_rgba(0,0,0,0.8)] px-2 py-1 rounded bg-black/40 backdrop-blur-sm border border-white/20"></span>
+                    </div>
+
+                    <div class="absolute top-2 right-2 text-xs text-yellow-500 font-mono text-right">
+                        Y軸: 相對亮度<br>
+                        (1.0 = 雙星總和)
+                    </div>
+                </div>
+            </div>
+
+            <!-- 圖表 2: 光譜/徑向速度 -->
+            <div class="monitor-panel rounded-xl p-3 flex-1 flex flex-col shadow-lg relative">
+                <h2 class="text-base font-semibold mb-1 text-center text-green-400">3. 光譜波長變化圖 (Radial Velocity)</h2>
+                <div class="flex-1 w-full bg-slate-900 rounded-lg border border-slate-700 relative overflow-hidden group">
+                    <canvas id="spectrumCanvas" class="w-full h-full"></canvas>
+                    
+                    <div class="absolute top-2 left-2 flex items-center gap-1 z-10 bg-black/30 p-1 rounded backdrop-blur-sm">
+                        <button id="spZoomOut" class="zoom-btn">-</button>
+                        <span id="spScaleDisplay" class="text-xs font-mono w-10 text-center text-slate-300">x1.0</span>
+                        <button id="spZoomIn" class="zoom-btn">+</button>
+                    </div>
+
+                    <div class="absolute top-2 right-2 flex flex-col items-end gap-1 pointer-events-none">
+                        <div class="flex items-center gap-3 text-xs font-bold bg-black/40 p-1.5 rounded border border-slate-600/50 backdrop-blur-sm">
+                            <div class="flex items-center gap-1 text-blue-400">
+                                <span class="w-2.5 h-2.5 rounded-full bg-blue-400"></span>
+                                主星位移
+                            </div>
+                            <div class="flex items-center gap-1 text-orange-400">
+                                <span class="w-2.5 h-2.5 rounded-full bg-orange-500"></span>
+                                伴星位移
+                            </div>
+                        </div>
+                        <div class="text-[10px] text-slate-400 font-mono text-right mt-1">
+                            Y軸: 波長位移 Δλ<br>
+                            (上: 紅移/遠離 | 下: 藍移/靠近)
+                        </div>
+                    </div>
+                </div>
+                <div class="text-center text-xs text-slate-400 font-mono mt-1">
+                    X 軸: 時間 (右側為現在) &rarr;
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="simulation.js"></script>
+    <script src="main.js"></script>
+</body>
+</html>

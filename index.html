@@ -3,9 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>我的 GitHub 主頁</title>
+    <title>物理模擬專案</title>
     <style>
-        /* 這裡放的是簡單的 CSS 樣式，讓網頁看起來更整潔 */
         body {
             font-family: "Helvetica Neue", Arial, "LiHei Pro", sans-serif;
             line-height: 1.6;
@@ -16,7 +15,7 @@
             display: flex;
             justify-content: center;
             align-items: center;
-            height: 100vh; /* 讓內容垂直置中 */
+            height: 100vh;
         }
         .container {
             max-width: 600px;
@@ -27,14 +26,19 @@
             text-align: center;
         }
         h1 {
-            color: #24292e; /* GitHub 的經典深色 */
+            color: #24292e;
         }
-        p {
-            color: #586069;
+        ul {
+            list-style-type: none;
+            padding: 0;
+        }
+        li {
+            margin: 10px 0;
         }
         a {
             color: #0366d6;
             text-decoration: none;
+            font-size: 1.2em;
         }
         a:hover {
             text-decoration: underline;
@@ -44,10 +48,13 @@
 <body>
 
     <div class="container">
-        <h1>歡迎來到我的 GitHub 主頁！👋</h1>
-        <p>這是我使用 GitHub Pages 建立的第一個網頁。</p>
-        <p>您可以在這裡修改文字，加入您的自我介紹、專案連結或是履歷。</p>
-        <p>前往 <a href="https://github.com/" target="_blank">我的 GitHub 專案庫</a> 看看吧！</p>
+        <h1>物理模擬專案</h1>
+        <p>這是一個包含多個物理模擬的專案。請選擇一個模擬來開始：</p>
+        <ul>
+            <li><a href="freefall/index.html">自由落體模擬</a></li>
+            <li><a href="twostar/index.html">雙星系統模擬</a></li>
+            <li><a href="wirelesscharge/index.html">無線充電模擬</a></li>
+        </ul>
     </div>
 
 </body>

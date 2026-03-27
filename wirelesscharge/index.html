@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>無線充電與電磁感應模擬 (RWD自適應版)</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body { margin: 0; padding: 0; background-color: #f8fafc; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; user-select: none; }
+        #canvas-container { touch-action: none; }
+        .diagram-label {
+            position: absolute;
+            background: rgba(255, 255, 255, 0.95);
+            padding: 6px 10px;
+            font-size: 14px;
+            color: #1e293b;
+            border: 1px solid #cbd5e1;
+            border-radius: 6px;
+            pointer-events: none;
+            white-space: nowrap;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+            z-index: 10;
+            transition: font-size 0.2s;
+        }
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+    </style>
+</head>
+<body class="absolute inset-0 w-full h-full flex flex-col lg:flex-row overflow-hidden bg-slate-50 text-slate-800">
+
+    <div id="canvas-container" class="relative w-full h-[55%] lg:h-full lg:flex-1 overflow-hidden shrink-0">
+        
+        <div class="absolute top-4 left-4 lg:top-6 lg:left-6 z-20 pointer-events-none">
+            <h1 class="text-xl lg:text-3xl font-bold text-slate-800 drop-shadow-md bg-white/50 px-2 py-1 rounded backdrop-blur-sm">無線充電物理模擬</h1>
+            <p class="text-xs lg:text-sm text-slate-600 mt-1 drop-shadow bg-white/50 px-2 py-0.5 rounded w-max backdrop-blur-sm">法拉第電磁感應定律應用</p>
+        </div>
+
+        <canvas id="simCanvas" class="w-full h-full block"></canvas>
+
+        <div id="label-pad" class="diagram-label">無線充電板</div>
+        <div id="label-tx" class="diagram-label">發射<br>線圈</div>
+        <div id="label-rx" class="diagram-label">接收線圈</div>
+        <div id="label-field" class="diagram-label">對外形成隨時間<br>變化的磁場 (AC)</div>
+        
+        <div id="label-phone" class="diagram-label flex flex-col items-center gap-1">
+            <span>內建接收線圈的手機</span>
+            <div class="flex items-center gap-2 bg-slate-100 px-2 py-1 rounded w-full justify-center border border-slate-200 shadow-inner mt-1">
+                <span class="text-[10px] font-bold text-slate-600">電量</span>
+                <div class="relative w-8 h-3 border-2 border-slate-700 rounded-sm p-[1px] flex items-center">
+                    <div class="absolute -right-1.5 top-[1px] w-1 h-1.5 bg-slate-700 rounded-r-sm"></div>
+                    <div id="battery-fill" class="h-full bg-red-500 rounded-sm transition-all" style="width: 20%;"></div>
+                    <div id="battery-lightning" class="absolute inset-0 flex items-center justify-center text-yellow-500 font-bold drop-shadow-md hidden" style="font-size: 8px;">⚡</div>
+                </div>
+                <span id="battery-text" class="text-[10px] font-bold text-red-500 min-w-[2rem] text-right">20%</span>
+            </div>
+        </div>
+    </div>
+
+    <div class="w-full h-[45%] lg:h-auto lg:max-h-[96%] lg:w-[380px] bg-white border-t lg:border border-slate-200 shadow-[0_-10px_20px_-5px_rgba(0,0,0,0.1)] lg:shadow-xl z-30 flex flex-col shrink-0 lg:self-start lg:mt-6 lg:mr-6 lg:rounded-2xl lg:overflow-hidden">
+        
+        <div class="overflow-y-auto p-5 flex flex-col gap-5 min-h-0">
+            
+            <div class="bg-blue-50 text-blue-800 p-3 rounded-lg text-sm border border-blue-100 shadow-sm shrink-0">
+                💡 <strong>操作提示：</strong>請在左側/上方畫面中<strong class="text-blue-600">上下拖曳手機</strong>，並嘗試調整下方參數。
+            </div>
+
+            <div class="flex flex-col gap-2 shrink-0">
+                <label class="text-sm font-bold text-slate-700">1. 饋入電源模式</label>
+                <div class="flex bg-slate-100 p-1 rounded-lg border border-slate-200">
+                    <button id="btn-mode-ac" class="flex-1 py-1.5 text-sm font-semibold rounded-md bg-white shadow text-blue-600 transition-all">交流電 (AC)</button>
+                    <button id="btn-mode-dc" class="flex-1 py-1.5 text-sm font-semibold rounded-md text-slate-500 hover:text-slate-700 transition-all">直流電 (DC)</button>
+                </div>
+            </div>
+
+            <div class="flex flex-col gap-2 shrink-0">
+                <div class="flex justify-between items-center">
+                    <label class="text-sm font-bold text-slate-700">2. 動畫播放速度</label>
+                    <span id="speedLabel" class="text-xs font-mono font-bold bg-slate-100 px-2 py-0.5 rounded text-slate-600">1.0x</span>
+                </div>
+                <input type="range" id="speedSlider" min="1" max="30" value="10" class="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-blue-500">
+            </div>
+
+            <div class="flex flex-col gap-2 shrink-0">
+                <div class="flex justify-between items-center">
+                    <label class="text-sm font-bold text-slate-700">3. 發射端電流強度</label>
+                    <span id="currentLabel" class="text-xs font-mono font-bold bg-slate-100 px-2 py-0.5 rounded text-blue-600">80%</span>
+                </div>
+                <input type="range" id="currentSlider" min="0" max="100" value="80" class="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-blue-500">
+            </div>
+
+            <div class="flex flex-col gap-2 shrink-0">
+                <label class="text-sm font-bold text-slate-700">4. 磁場距離衰減模型</label>
+                <label class="flex items-center space-x-3 bg-yellow-50 p-2.5 rounded-lg border border-yellow-200 cursor-pointer hover:bg-yellow-100 transition-colors shadow-sm">
+                    <input type="checkbox" id="physicsToggle" class="form-checkbox h-5 w-5 text-yellow-600 rounded focus:ring-yellow-500" checked>
+                    <span class="text-sm font-bold text-yellow-800">啟用「真實物理非線性衰減」</span>
+                </label>
+            </div>
+
+            <div id="principle-panel" class="mt-2 bg-slate-50 border-2 border-pink-400 p-4 rounded-xl shadow-sm shrink-0">
+            </div>
+
+        </div>
+
+        <div class="p-4 border-t border-slate-200 bg-slate-50 shrink-0">
+            <button id="resetSettingsBtn" class="w-full py-2.5 bg-slate-800 hover:bg-black text-white font-bold rounded-lg shadow transition-colors active:scale-95">
+                ⟲ 重置所有設定
+            </button>
+        </div>
+    </div>
+
+    <script src="simulation.js"></script>
+    <script src="main.js"></script>
+</body>
+</html>

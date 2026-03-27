@@ -1,0 +1,541 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>雙正弦波比較模擬</title>
+    <!-- 使用 Tailwind CSS 進行快速樣式設定 -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- 引入 KaTeX 數學公式庫 -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+    
+    <style>
+        /* 自定義滑桿樣式 */
+        input[type=range] {
+            -webkit-appearance: none;
+            width: 100%;
+            background: transparent;
+        }
+        input[type=range]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            height: 16px;
+            width: 16px;
+            border-radius: 50%;
+            background: #4F46E5;
+            cursor: pointer;
+            margin-top: -6px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.3);
+        }
+        input[type=range]::-webkit-slider-runnable-track {
+            width: 100%;
+            height: 4px;
+            cursor: pointer;
+            background: #E5E7EB;
+            border-radius: 2px;
+        }
+        /* 紅色滑桿 */
+        .range-red input[type=range]::-webkit-slider-thumb {
+            background: #EF4444;
+        }
+        /* 灰色/黑色滑桿 (用於速率) */
+        .range-gray input[type=range]::-webkit-slider-thumb {
+            background: #4B5563;
+        }
+        /* 數學標籤樣式 */
+        .math-label {
+            position: absolute;
+            padding: 4px 8px;
+            background-color: rgba(255, 255, 255, 0.9);
+            border-radius: 6px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            font-size: 0.9rem;
+            pointer-events: none; /* 讓滑鼠事件穿透，不影響 Canvas 操作 */
+            transform: translateY(-50%); /* 垂直置中 */
+            white-space: nowrap;
+            transition: opacity 0.1s;
+            border: 1px solid rgba(0,0,0,0.05);
+        }
+    </style>
+</head>
+<body class="bg-gray-50 text-gray-800 font-sans h-screen flex flex-col overflow-hidden">
+
+    <!-- 標題區 -->
+    <header class="bg-white shadow-sm z-10 p-4 flex justify-between items-center shrink-0">
+        <div>
+            <h1 class="text-xl font-bold text-gray-900">雙正弦波參數比較</h1>
+            <p class="text-xs text-gray-500 mt-1">公式: <span id="header-formula"></span></p>
+        </div>
+        <!-- 按鈕已移至側邊欄 -->
+    </header>
+
+    <!-- 主要內容區：畫布與控制項 -->
+    <main class="flex-1 flex flex-col md:flex-row overflow-hidden">
+        
+        <!-- 畫布區域 (左側/上方) -->
+        <div class="relative flex-1 bg-white flex items-center justify-center p-4 border-b md:border-b-0 md:border-r border-gray-200">
+            <!-- Canvas -->
+            <canvas id="waveCanvas" class="w-full h-full shadow-inner bg-gray-50 rounded-lg border border-gray-200 cursor-crosshair"></canvas>
+            
+            <!-- 數學標籤容器 (浮動層) -->
+            <div id="labels-container" class="absolute top-4 left-4 right-4 bottom-4 pointer-events-none overflow-hidden rounded-lg">
+                <!-- 這些 div 會被 JS 動態控制位置和內容 -->
+                <div id="label-y1" class="math-label text-indigo-700 hidden" style="border-left: 3px solid #4F46E5;"></div>
+                <div id="label-y2" class="math-label text-red-600 hidden" style="border-left: 3px solid #EF4444;"></div>
+                <div id="label-sum" class="math-label text-purple-700 hidden" style="border-left: 3px solid #9333EA;"></div>
+            </div>
+
+            <!-- 圖例 -->
+            <div class="absolute top-6 right-6 bg-white/90 p-3 rounded-lg shadow-sm border border-gray-100 text-xs backdrop-blur-sm pointer-events-none z-20">
+                <div class="flex items-center mb-1">
+                    <span class="w-3 h-3 rounded-full bg-indigo-600 mr-2"></span>
+                    <span>波形 1 (藍色)</span>
+                </div>
+                <div class="flex items-center mb-1">
+                    <span class="w-3 h-3 rounded-full bg-red-500 mr-2"></span>
+                    <span>波形 2 (紅色)</span>
+                </div>
+                <div class="flex items-center">
+                    <span class="w-3 h-3 rounded-full bg-purple-600 mr-2"></span>
+                    <span>疊加波形 (紫色)</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- 控制面板 (右側/下方) -->
+        <div class="w-full md:w-80 bg-gray-50 p-6 overflow-y-auto shrink-0 shadow-lg md:shadow-none z-10 flex flex-col gap-4">
+            
+            <!-- 波形 1 控制 (藍色) -->
+            <div class="p-4 bg-white rounded-xl shadow-sm border-l-4 border-indigo-500">
+                <h2 class="font-bold text-indigo-700 mb-4 flex items-center">
+                    波形 1 參數
+                </h2>
+                
+                <!-- 振幅 A1 -->
+                <div class="mb-4">
+                    <div class="flex justify-between text-sm mb-1">
+                        <label class="font-medium text-gray-700">振幅 (A)</label>
+                        <span id="val-amp1" class="text-indigo-600 font-mono">50</span>
+                    </div>
+                    <input type="range" id="amp1" min="0" max="100" value="50" step="1">
+                </div>
+
+                <!-- 波數 k1 -->
+                <div class="mb-4">
+                    <div class="flex justify-between text-sm mb-1">
+                        <label class="font-medium text-gray-700">波數 (k)</label>
+                        <span id="val-k1" class="text-indigo-600 font-mono">0.05</span>
+                    </div>
+                    <input type="range" id="k1" min="0.01" max="0.2" value="0.05" step="0.01">
+                </div>
+
+                <!-- 角速度 w1 -->
+                <div>
+                    <div class="flex justify-between text-sm mb-1">
+                        <label class="font-medium text-gray-700">角速度 (ω)</label>
+                        <span id="val-w1" class="text-indigo-600 font-mono">0.10</span>
+                    </div>
+                    <!-- 修改 min 為 -0.5 -->
+                    <input type="range" id="w1" min="-0.5" max="0.5" value="0.10" step="0.01">
+                </div>
+            </div>
+
+            <!-- 波形 2 控制 (紅色) -->
+            <div class="p-4 bg-white rounded-xl shadow-sm border-l-4 border-red-500 range-red">
+                <h2 class="font-bold text-red-600 mb-4 flex items-center">
+                    波形 2 參數
+                </h2>
+                
+                <!-- 振幅 A2 -->
+                <div class="mb-4">
+                    <div class="flex justify-between text-sm mb-1">
+                        <label class="font-medium text-gray-700">振幅 (A)</label>
+                        <span id="val-amp2" class="text-red-500 font-mono">50</span>
+                    </div>
+                    <input type="range" id="amp2" min="0" max="100" value="50" step="1">
+                </div>
+
+                <!-- 波數 k2 -->
+                <div class="mb-4">
+                    <div class="flex justify-between text-sm mb-1">
+                        <label class="font-medium text-gray-700">波數 (k)</label>
+                        <span id="val-k2" class="text-red-500 font-mono">0.05</span>
+                    </div>
+                    <input type="range" id="k2" min="0.01" max="0.2" value="0.05" step="0.01">
+                </div>
+
+                <!-- 角速度 w2 -->
+                <div>
+                    <div class="flex justify-between text-sm mb-1">
+                        <label class="font-medium text-gray-700">角速度 (ω)</label>
+                        <span id="val-w2" class="text-red-500 font-mono">0.10</span>
+                    </div>
+                    <!-- 修改 min 為 -0.5 -->
+                    <input type="range" id="w2" min="-0.5" max="0.5" value="0.10" step="0.01">
+                </div>
+            </div>
+
+            <!-- 全域動畫控制 (新增) -->
+            <div class="p-4 bg-white rounded-xl shadow-sm border border-gray-300 range-gray mt-auto">
+                <h2 class="font-bold text-gray-700 mb-3 text-sm flex justify-between">
+                    <span>動畫控制</span>
+                    <span class="text-xs font-normal bg-gray-100 px-2 py-0.5 rounded text-gray-600 border border-gray-200">Global</span>
+                </h2>
+                
+                <!-- 演化速率 -->
+                <div class="mb-4">
+                    <div class="flex justify-between text-sm mb-1">
+                        <label class="font-medium text-gray-700">演化速率 (Speed)</label>
+                        <span id="val-speed" class="text-gray-800 font-mono">1.0</span>
+                    </div>
+                    <!-- 範圍從 0 (暫停) 到 3 (快轉) -->
+                    <input type="range" id="anim-speed" min="0" max="3" value="1" step="0.1">
+                </div>
+
+                <!-- 按鈕區 (同一行) -->
+                <div class="flex gap-2">
+                    <button id="toggle-anim" class="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white py-2 rounded-lg text-sm transition shadow font-medium">
+                        暫停 / 播放
+                    </button>
+                    <button id="reset-btn" class="flex-1 bg-white border border-gray-300 hover:bg-gray-50 text-gray-700 py-2 rounded-lg text-sm transition shadow-sm font-medium">
+                        重置參數
+                    </button>
+                </div>
+            </div>
+
+        </div>
+    </main>
+
+    <script>
+        // 渲染標題公式
+        document.addEventListener("DOMContentLoaded", function() {
+            katex.render("y = A \\cdot \\sin(k \\cdot x - \\omega \\cdot t)", document.getElementById("header-formula"), {
+                throwOnError: false
+            });
+        });
+
+        // 初始化 Canvas
+        const canvas = document.getElementById('waveCanvas');
+        const ctx = canvas.getContext('2d');
+        
+        // 數學標籤元素
+        const labels = {
+            y1: document.getElementById('label-y1'),
+            y2: document.getElementById('label-y2'),
+            sum: document.getElementById('label-sum')
+        };
+        const labelsContainer = document.getElementById('labels-container');
+        
+        // 狀態管理
+        let time = 0;
+        let isAnimating = true;
+        let animationId;
+        
+        // 滑鼠互動狀態
+        let mouseX = -1;
+        let isMouseOver = false;
+        
+        // 參數初始值
+        const defaultParams = {
+            wave1: { amp: 50, k: 0.05, w: 0.10 },
+            wave2: { amp: 50, k: 0.05, w: 0.10 },
+            speed: 1.0 // 新增：預設速率
+        };
+        
+        // 當前參數 (複製一份)
+        const params = JSON.parse(JSON.stringify(defaultParams));
+
+        // DOM 元素快取
+        const controls = {
+            wave1: {
+                amp: document.getElementById('amp1'),
+                k: document.getElementById('k1'),
+                w: document.getElementById('w1'),
+                valAmp: document.getElementById('val-amp1'),
+                valK: document.getElementById('val-k1'),
+                valW: document.getElementById('val-w1'),
+            },
+            wave2: {
+                amp: document.getElementById('amp2'),
+                k: document.getElementById('k2'),
+                w: document.getElementById('w2'),
+                valAmp: document.getElementById('val-amp2'),
+                valK: document.getElementById('val-k2'),
+                valW: document.getElementById('val-w2'),
+            },
+            global: {
+                speed: document.getElementById('anim-speed'),
+                valSpeed: document.getElementById('val-speed'),
+                toggleBtn: document.getElementById('toggle-anim'),
+                resetBtn: document.getElementById('reset-btn')
+            }
+        };
+
+        // 設定 Canvas 尺寸 (響應式)
+        function resizeCanvas() {
+            const parent = canvas.parentElement;
+            // 這裡不使用 clientWidth，因為 padding 的關係會有點誤差，直接讓 container 決定
+            canvas.width = parent.clientWidth - 32; // -32 是因為 parent 有 p-4 (16px * 2)
+            canvas.height = parent.clientHeight - 32;
+        }
+        window.addEventListener('resize', resizeCanvas);
+        resizeCanvas();
+
+        // 監聽滑鼠移動
+        canvas.addEventListener('mousemove', (e) => {
+            isMouseOver = true;
+            mouseX = e.offsetX;
+        });
+
+        // 監聽滑鼠離開
+        canvas.addEventListener('mouseleave', () => {
+            isMouseOver = false;
+            mouseX = -1;
+            // 隱藏所有標籤
+            labels.y1.classList.add('hidden');
+            labels.y2.classList.add('hidden');
+            labels.sum.classList.add('hidden');
+        });
+
+        // 監聽器設定函數
+        function setupListeners(waveKey, controlObj) {
+            controlObj.amp.addEventListener('input', (e) => {
+                params[waveKey].amp = parseFloat(e.target.value);
+                controlObj.valAmp.textContent = params[waveKey].amp;
+            });
+            controlObj.k.addEventListener('input', (e) => {
+                params[waveKey].k = parseFloat(e.target.value);
+                controlObj.valK.textContent = params[waveKey].k.toFixed(2);
+            });
+            controlObj.w.addEventListener('input', (e) => {
+                params[waveKey].w = parseFloat(e.target.value);
+                controlObj.valW.textContent = params[waveKey].w.toFixed(2);
+            });
+        }
+
+        setupListeners('wave1', controls.wave1);
+        setupListeners('wave2', controls.wave2);
+
+        // 新增：速率控制監聽
+        controls.global.speed.addEventListener('input', (e) => {
+            params.speed = parseFloat(e.target.value);
+            controls.global.valSpeed.textContent = params.speed.toFixed(1);
+        });
+
+        // 播放/暫停按鈕
+        controls.global.toggleBtn.addEventListener('click', () => {
+            isAnimating = !isAnimating;
+            // 更新按鈕文字狀態 (可選)
+            // controls.global.toggleBtn.textContent = isAnimating ? "暫停" : "播放";
+            if (isAnimating) animate();
+        });
+
+        // 重置按鈕
+        controls.global.resetBtn.addEventListener('click', () => {
+            // 重置數據
+            Object.assign(params, JSON.parse(JSON.stringify(defaultParams)));
+            
+            // 更新 Wave UI
+            ['wave1', 'wave2'].forEach(key => {
+                controls[key].amp.value = params[key].amp;
+                controls[key].valAmp.textContent = params[key].amp;
+                
+                controls[key].k.value = params[key].k;
+                controls[key].valK.textContent = params[key].k;
+                
+                controls[key].w.value = params[key].w;
+                controls[key].valW.textContent = params[key].w.toFixed(2);
+            });
+
+            // 更新 Global UI
+            controls.global.speed.value = params.speed;
+            controls.global.valSpeed.textContent = params.speed.toFixed(1);
+            
+            time = 0; // 重置時間
+            
+            // 確保重置後繼續播放
+            if (!isAnimating) {
+                isAnimating = true;
+                animate();
+            }
+        });
+
+        // 繪製單個波形
+        function drawWave(p, color, centerY) {
+            ctx.beginPath();
+            ctx.strokeStyle = color;
+            ctx.lineWidth = 3;
+            
+            for (let x = 0; x < canvas.width; x++) {
+                // 公式：y = A * sin(k*x - ω*time)
+                const y = p.amp * Math.sin(p.k * x - p.w * time);
+                
+                if (x === 0) {
+                    ctx.moveTo(x, centerY + y); 
+                } else {
+                    ctx.lineTo(x, centerY + y);
+                }
+            }
+            ctx.stroke();
+        }
+
+        // 輔助函數：在指定位置畫圓點
+        function drawPoint(x, y, color) {
+            ctx.beginPath();
+            ctx.arc(x, y, 5, 0, Math.PI * 2);
+            ctx.fillStyle = color;
+            ctx.fill();
+            ctx.strokeStyle = 'white';
+            ctx.lineWidth = 2;
+            ctx.stroke();
+        }
+
+        // 用來顯示標籤的函數
+        function updateLabel(element, text, x, y, alignLeft) {
+            // 渲染 LaTeX
+            try {
+                katex.render(text, element, { throwOnError: false });
+            } catch (e) {
+                element.textContent = text;
+            }
+            
+            element.classList.remove('hidden');
+            
+            // 設定位置
+            // 如果靠左顯示（滑鼠在右側邊緣），x 座標要減去偏移
+            const offsetX = alignLeft ? -10 : 15; 
+            
+            element.style.top = `${y}px`;
+            
+            if (alignLeft) {
+                element.style.left = 'auto';
+                element.style.right = `${canvas.width - x + 15}px`; // 使用 right 定位避免閃爍
+            } else {
+                element.style.right = 'auto';
+                element.style.left = `${x + 15}px`;
+            }
+        }
+
+        // 動畫主迴圈
+        function animate() {
+            if (!isAnimating) {
+                // 暫停時不更新
+            }
+
+            // 清空畫布
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            const width = canvas.width;
+            const height = canvas.height;
+            
+            // 將畫布分為上中下三部分
+            const centerY1 = height * 0.166; 
+            const centerY2 = height * 0.5;   
+            const centerY3 = height * 0.833; 
+
+            // 繪製背景網格
+            ctx.strokeStyle = '#E5E7EB';
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+            for (let x = 0; x < width; x += 50) {
+                ctx.moveTo(x, 0);
+                ctx.lineTo(x, height);
+            }
+            ctx.stroke();
+
+            // 繪製三條水平中心軸線
+            ctx.strokeStyle = '#9CA3AF';
+            ctx.lineWidth = 2;
+            ctx.setLineDash([5, 5]);
+            ctx.beginPath();
+            [centerY1, centerY2, centerY3].forEach(y => {
+                ctx.moveTo(0, y);
+                ctx.lineTo(width, y);
+            });
+            ctx.stroke();
+            ctx.setLineDash([]);
+
+            // 繪製標籤 (靜態文字也移除 canvas 繪製，這裡僅保留圖例)
+            // 這裡如果想要用 KaTeX 繪製標籤，也可以，但 Canvas fillText 效能較好且這部分是靜態的
+            ctx.font = "14px Arial";
+            ctx.fillStyle = "#4F46E5";
+            ctx.fillText("波形 1", 10, 20);
+            
+            ctx.fillStyle = "#EF4444";
+            ctx.fillText("波形 2", 10, height / 3 + 20);
+            
+            ctx.fillStyle = "#9333EA"; 
+            ctx.fillText("疊加 (Wave 1 + Wave 2)", 10, height * 2 / 3 + 20);
+
+            // 繪製波形 1 (藍色)
+            drawWave(params.wave1, '#4F46E5', centerY1); 
+            
+            // 繪製波形 2 (紅色)
+            drawWave(params.wave2, '#EF4444', centerY2); 
+
+            // 繪製疊加波形 (紫色)
+            ctx.beginPath();
+            ctx.strokeStyle = '#9333EA'; 
+            ctx.lineWidth = 3;
+            for (let x = 0; x < width; x++) {
+                const y1 = params.wave1.amp * Math.sin(params.wave1.k * x - params.wave1.w * time);
+                const y2 = params.wave2.amp * Math.sin(params.wave2.k * x - params.wave2.w * time);
+                const y = y1 + y2;
+                if (x === 0) ctx.moveTo(x, centerY3 + y);
+                else ctx.lineTo(x, centerY3 + y);
+            }
+            ctx.stroke();
+
+            // === 游標互動邏輯 ===
+            if (isMouseOver && mouseX >= 0 && mouseX <= width) {
+                ctx.beginPath();
+                ctx.strokeStyle = '#6B7280'; 
+                ctx.lineWidth = 2;
+                ctx.setLineDash([5, 5]);
+                ctx.moveTo(mouseX, 0);
+                ctx.lineTo(mouseX, height);
+                ctx.stroke();
+                ctx.setLineDash([]); 
+
+                const valY1 = params.wave1.amp * Math.sin(params.wave1.k * mouseX - params.wave1.w * time);
+                const valY2 = params.wave2.amp * Math.sin(params.wave2.k * mouseX - params.wave2.w * time);
+                const valYSum = valY1 + valY2;
+
+                drawPoint(mouseX, centerY1 + valY1, '#4F46E5');
+                drawPoint(mouseX, centerY2 + valY2, '#EF4444');
+                drawPoint(mouseX, centerY3 + valYSum, '#9333EA');
+
+                // 更新 KaTeX 標籤
+                // 判斷是否靠右側邊緣
+                const alignLeft = (mouseX > width - 150);
+
+                // 更新標籤內容與位置
+                // 數值取反 (-val) 是為了符合視覺直覺 (向上為正)，如果需要原始物理值可移除負號
+                updateLabel(labels.y1, `y_1 = ${(-valY1).toFixed(1)}`, mouseX, centerY1 + valY1, alignLeft);
+                updateLabel(labels.y2, `y_2 = ${(-valY2).toFixed(1)}`, mouseX, centerY2 + valY2, alignLeft);
+                
+                // 總和標籤
+                updateLabel(labels.sum, `y_{total} = y_1 + y_2 = ${(-valYSum).toFixed(1)}`, mouseX, centerY3 + valYSum, alignLeft);
+
+            } else {
+                // 如果滑鼠不在範圍內，確保標籤隱藏
+                labels.y1.classList.add('hidden');
+                labels.y2.classList.add('hidden');
+                labels.sum.classList.add('hidden');
+            }
+
+            // 更新時間 (僅在播放時)
+            if (isAnimating) {
+                // 修改：使用 params.speed 控制時間增加量
+                time += params.speed;
+            }
+            
+            animationId = requestAnimationFrame(animate);
+        }
+
+        // 啟動動畫
+        animate();
+
+    </script>
+</body>
+</html>

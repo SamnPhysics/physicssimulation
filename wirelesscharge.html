@@ -1,0 +1,658 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>無線充電與電磁感應模擬 (RWD自適應版)</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body { margin: 0; padding: 0; background-color: #f8fafc; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; user-select: none; }
+        /* 畫布區域禁止預設的觸控滑動行為，確保拖曳順暢 */
+        #canvas-container { touch-action: none; }
+        
+        /* 標籤樣式 */
+        .diagram-label {
+            position: absolute;
+            background: rgba(255, 255, 255, 0.95);
+            padding: 6px 10px;
+            font-size: 14px;
+            color: #1e293b;
+            border: 1px solid #cbd5e1;
+            border-radius: 6px;
+            pointer-events: none;
+            white-space: nowrap;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+            z-index: 10;
+            transition: font-size 0.2s;
+        }
+        
+        /* 自訂卷軸樣式 */
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+    </style>
+</head>
+<body class="absolute inset-0 w-full h-full flex flex-col lg:flex-row overflow-hidden bg-slate-50 text-slate-800">
+
+    <!-- ================= 左側/上方：Canvas 動畫區 ================= -->
+    <div id="canvas-container" class="relative w-full h-[55%] lg:h-full lg:flex-1 overflow-hidden shrink-0">
+        
+        <!-- 標題 (浮動於畫布左上) -->
+        <div class="absolute top-4 left-4 lg:top-6 lg:left-6 z-20 pointer-events-none">
+            <h1 class="text-xl lg:text-3xl font-bold text-slate-800 drop-shadow-md bg-white/50 px-2 py-1 rounded backdrop-blur-sm">無線充電物理模擬</h1>
+            <p class="text-xs lg:text-sm text-slate-600 mt-1 drop-shadow bg-white/50 px-2 py-0.5 rounded w-max backdrop-blur-sm">法拉第電磁感應定律應用</p>
+        </div>
+
+        <!-- 畫布本體 -->
+        <canvas id="simCanvas" class="w-full h-full block"></canvas>
+
+        <!-- HTML 動態標籤 -->
+        <div id="label-pad" class="diagram-label">無線充電板</div>
+        <div id="label-tx" class="diagram-label">發射<br>線圈</div>
+        <div id="label-rx" class="diagram-label">接收線圈</div>
+        <div id="label-field" class="diagram-label">對外形成隨時間<br>變化的磁場 (AC)</div>
+        
+        <!-- 手機標籤 (內含動態電池面板) -->
+        <div id="label-phone" class="diagram-label flex flex-col items-center gap-1">
+            <span>內建接收線圈的手機</span>
+            <div class="flex items-center gap-2 bg-slate-100 px-2 py-1 rounded w-full justify-center border border-slate-200 shadow-inner mt-1">
+                <span class="text-[10px] font-bold text-slate-600">電量</span>
+                <div class="relative w-8 h-3 border-2 border-slate-700 rounded-sm p-[1px] flex items-center">
+                    <div class="absolute -right-1.5 top-[1px] w-1 h-1.5 bg-slate-700 rounded-r-sm"></div>
+                    <div id="battery-fill" class="h-full bg-red-500 rounded-sm transition-all" style="width: 20%;"></div>
+                    <div id="battery-lightning" class="absolute inset-0 flex items-center justify-center text-yellow-500 font-bold drop-shadow-md hidden" style="font-size: 8px;">⚡</div>
+                </div>
+                <span id="battery-text" class="text-[10px] font-bold text-red-500 min-w-[2rem] text-right">20%</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- ================= 右側/下方：控制面板區 ================= -->
+    <!-- 修正點: 將 lg:self-center 改為 lg:self-start lg:mt-6 使其成為向上對齊的頂天浮動卡片 -->
+    <div class="w-full h-[45%] lg:h-auto lg:max-h-[96%] lg:w-[380px] bg-white border-t lg:border border-slate-200 shadow-[0_-10px_20px_-5px_rgba(0,0,0,0.1)] lg:shadow-xl z-30 flex flex-col shrink-0 lg:self-start lg:mt-6 lg:mr-6 lg:rounded-2xl lg:overflow-hidden">
+        
+        <!-- 面板內容 (可捲動) -->
+        <div class="overflow-y-auto p-5 flex flex-col gap-5 min-h-0">
+            
+            <!-- 操作提示 -->
+            <div class="bg-blue-50 text-blue-800 p-3 rounded-lg text-sm border border-blue-100 shadow-sm shrink-0">
+                💡 <strong>操作提示：</strong>請在左側/上方畫面中<strong class="text-blue-600">上下拖曳手機</strong>，並嘗試調整下方參數。
+            </div>
+
+            <!-- 控制群組 1：電源模式 -->
+            <div class="flex flex-col gap-2 shrink-0">
+                <label class="text-sm font-bold text-slate-700">1. 饋入電源模式</label>
+                <div class="flex bg-slate-100 p-1 rounded-lg border border-slate-200">
+                    <button id="btn-mode-ac" class="flex-1 py-1.5 text-sm font-semibold rounded-md bg-white shadow text-blue-600 transition-all">交流電 (AC)</button>
+                    <button id="btn-mode-dc" class="flex-1 py-1.5 text-sm font-semibold rounded-md text-slate-500 hover:text-slate-700 transition-all">直流電 (DC)</button>
+                </div>
+            </div>
+
+            <!-- 控制群組 2：播放速度 -->
+            <div class="flex flex-col gap-2 shrink-0">
+                <div class="flex justify-between items-center">
+                    <label class="text-sm font-bold text-slate-700">2. 動畫播放速度</label>
+                    <span id="speedLabel" class="text-xs font-mono font-bold bg-slate-100 px-2 py-0.5 rounded text-slate-600">1.0x</span>
+                </div>
+                <input type="range" id="speedSlider" min="1" max="30" value="10" class="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-blue-500">
+            </div>
+
+            <!-- 控制群組 3：充電電流 -->
+            <div class="flex flex-col gap-2 shrink-0">
+                <div class="flex justify-between items-center">
+                    <label class="text-sm font-bold text-slate-700">3. 發射端電流強度</label>
+                    <span id="currentLabel" class="text-xs font-mono font-bold bg-slate-100 px-2 py-0.5 rounded text-blue-600">80%</span>
+                </div>
+                <input type="range" id="currentSlider" min="0" max="100" value="80" class="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-blue-500">
+            </div>
+
+            <!-- 控制群組 4：物理衰減模式 -->
+            <div class="flex flex-col gap-2 shrink-0">
+                <label class="text-sm font-bold text-slate-700">4. 磁場距離衰減模型</label>
+                <label class="flex items-center space-x-3 bg-yellow-50 p-2.5 rounded-lg border border-yellow-200 cursor-pointer hover:bg-yellow-100 transition-colors shadow-sm">
+                    <input type="checkbox" id="physicsToggle" class="form-checkbox h-5 w-5 text-yellow-600 rounded focus:ring-yellow-500" checked>
+                    <span class="text-sm font-bold text-yellow-800">啟用「真實物理非線性衰減」</span>
+                </label>
+            </div>
+
+            <!-- 原理狀態解說 -->
+            <div id="principle-panel" class="mt-2 bg-slate-50 border-2 border-pink-400 p-4 rounded-xl shadow-sm shrink-0">
+                <!-- 動態注入解說 -->
+            </div>
+
+        </div>
+
+        <!-- 面板底部：重置按鈕 -->
+        <!-- 加入 shrink-0 確保它永遠不會被擠壓，並穩穩吸附在控制面板最底 -->
+        <div class="p-4 border-t border-slate-200 bg-slate-50 shrink-0">
+            <button id="resetSettingsBtn" class="w-full py-2.5 bg-slate-800 hover:bg-black text-white font-bold rounded-lg shadow transition-colors active:scale-95">
+                ⟲ 重置所有設定
+            </button>
+        </div>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('simCanvas');
+        const ctx = canvas.getContext('2d');
+        const container = document.getElementById('canvas-container'); 
+        
+        // --- 物理與 UI 參數 ---
+        const btnModeAC = document.getElementById('btn-mode-ac');
+        const btnModeDC = document.getElementById('btn-mode-dc');
+        const speedSlider = document.getElementById('speedSlider');
+        const speedLabel = document.getElementById('speedLabel');
+        const currentSlider = document.getElementById('currentSlider');
+        const currentLabel = document.getElementById('currentLabel');
+        const resetSettingsBtn = document.getElementById('resetSettingsBtn');
+        const physicsToggle = document.getElementById('physicsToggle');
+
+        const batteryFill = document.getElementById('battery-fill');
+        const batteryText = document.getElementById('battery-text');
+        const batteryLightning = document.getElementById('battery-lightning');
+
+        // 系統變數
+        let width, height;
+        let time = 0;
+        let powerMode = 'AC';
+        let playbackSpeed = 1.0; 
+        let currentStrength = 0.8;
+        let batteryLevel = 20;
+        let isCharging = false;
+        let isTruePhysics = true;
+        let globalScale = 1;
+        
+        // 3D 投影設定
+        const ISO_SCALE = 0.5;
+        let cx, cy;
+
+        // 物件狀態
+        const pad = { radius: 100, height: 15, z: 0 };
+        const phone = {
+            width: 70, length: 140, thickness: 8,
+            z: 15, targetZ: 15, lastZ: 15,
+            angle: -Math.PI / 6,
+            isDragging: false
+        };
+
+        const labels = {
+            pad: document.getElementById('label-pad'),
+            tx: document.getElementById('label-tx'),
+            rx: document.getElementById('label-rx'),
+            phone: document.getElementById('label-phone'),
+            field: document.getElementById('label-field')
+        };
+        const principlePanel = document.getElementById('principle-panel');
+
+        // --- UI 事件監聽器 ---
+        function setModeUI(mode) {
+            powerMode = mode;
+            if (mode === 'AC') {
+                btnModeAC.className = "flex-1 py-1.5 text-sm font-semibold rounded-md bg-white shadow text-blue-600 transition-all";
+                btnModeDC.className = "flex-1 py-1.5 text-sm font-semibold rounded-md text-slate-500 hover:text-slate-700 transition-all";
+            } else {
+                btnModeAC.className = "flex-1 py-1.5 text-sm font-semibold rounded-md text-slate-500 hover:text-slate-700 transition-all";
+                btnModeDC.className = "flex-1 py-1.5 text-sm font-semibold rounded-md bg-white shadow text-red-600 transition-all";
+            }
+            updatePrinciplePanelText();
+        }
+
+        btnModeAC.addEventListener('click', () => setModeUI('AC'));
+        btnModeDC.addEventListener('click', () => setModeUI('DC'));
+
+        speedSlider.addEventListener('input', (e) => {
+            playbackSpeed = parseInt(e.target.value) / 10;
+            speedLabel.innerText = `${playbackSpeed.toFixed(1)}x`;
+        });
+
+        currentSlider.addEventListener('input', (e) => {
+            currentStrength = parseInt(e.target.value) / 100;
+            currentLabel.innerText = `${e.target.value}%`;
+            updatePrinciplePanelText();
+        });
+
+        physicsToggle.addEventListener('change', (e) => {
+            isTruePhysics = e.target.checked;
+            updatePrinciplePanelText();
+        });
+
+        resetSettingsBtn.addEventListener('click', () => {
+            batteryLevel = 20;
+            setModeUI('AC');
+            playbackSpeed = 1.0;
+            speedSlider.value = 10;
+            speedLabel.innerText = `1.0x`;
+            currentStrength = 0.8;
+            currentSlider.value = 80;
+            currentLabel.innerText = `80%`;
+            isTruePhysics = true;
+            physicsToggle.checked = true;
+            phone.targetZ = pad.height;
+            updatePrinciplePanelText();
+        });
+
+        function getScreenPos(x, y, z) {
+            return {
+                x: cx + x * globalScale,
+                y: cy + (y * ISO_SCALE - z) * globalScale
+            };
+        }
+
+        const resizeObserver = new ResizeObserver(entries => {
+            for (let entry of entries) {
+                width = entry.contentRect.width;
+                height = entry.contentRect.height;
+                canvas.width = width;
+                canvas.height = height;
+                
+                // 放寬放大限制與基準值，讓電腦大螢幕的動畫主體變更大
+                const scaleW = width / 550;
+                const scaleH = height / 500;
+                globalScale = Math.min(2.5, Math.max(0.35, Math.min(scaleW, scaleH)));
+                
+                cx = width / 2;
+                cy = height * (height < 500 ? 0.7 : 0.65); 
+                
+                updateLabels();
+            }
+        });
+        resizeObserver.observe(container);
+
+        let dragStartScreenY = 0;
+        let dragStartPhoneZ = 0;
+
+        function getPointerY(e) { return e.touches ? e.touches[0].clientY : e.clientY; }
+        function getPointerX(e) { return e.touches ? e.touches[0].clientX : e.clientX; }
+
+        function onPointerDown(e) {
+            if(e.target === canvas) e.preventDefault();
+            const rect = canvas.getBoundingClientRect();
+            const px = getPointerX(e) - rect.left;
+            const py = getPointerY(e) - rect.top;
+            
+            const phoneScreenPos = getScreenPos(0, 0, phone.z);
+            
+            if (Math.abs(px - phoneScreenPos.x) < phone.length * 0.7 * globalScale &&
+                Math.abs(py - phoneScreenPos.y) < phone.length * 0.6 * globalScale) {
+                phone.isDragging = true;
+                dragStartScreenY = py;
+                dragStartPhoneZ = phone.z;
+                canvas.style.cursor = 'grabbing';
+            }
+        }
+
+        function onPointerMove(e) {
+            const rect = canvas.getBoundingClientRect();
+            const px = getPointerX(e) - rect.left;
+            const py = getPointerY(e) - rect.top;
+
+            if (!phone.isDragging) {
+                const phoneScreenPos = getScreenPos(0, 0, phone.z);
+                if (Math.abs(px - phoneScreenPos.x) < phone.length * 0.7 * globalScale &&
+                    Math.abs(py - phoneScreenPos.y) < phone.length * 0.6 * globalScale) {
+                    canvas.style.cursor = 'grab';
+                } else {
+                    canvas.style.cursor = 'default';
+                }
+                return;
+            }
+            
+            const deltaY = py - dragStartScreenY;
+            phone.targetZ = dragStartPhoneZ - (deltaY / globalScale);
+            
+            if (phone.targetZ < pad.height) phone.targetZ = pad.height;
+            if (phone.targetZ > 250) phone.targetZ = 250;
+        }
+
+        function onPointerUp() {
+            phone.isDragging = false;
+            canvas.style.cursor = 'default';
+        }
+
+        canvas.addEventListener('mousedown', onPointerDown);
+        window.addEventListener('mousemove', onPointerMove);
+        window.addEventListener('mouseup', onPointerUp);
+        canvas.addEventListener('touchstart', onPointerDown, {passive: false});
+        window.addEventListener('touchmove', onPointerMove, {passive: false});
+        window.addEventListener('touchend', onPointerUp);
+
+        function drawCylinder(z, r, h, topColor, sideColor) {
+            const pBottom = getScreenPos(0, 0, z);
+            const pTop = getScreenPos(0, 0, z + h);
+            const scaledR = r * globalScale;
+
+            ctx.fillStyle = sideColor;
+            ctx.beginPath();
+            ctx.ellipse(pBottom.x, pBottom.y, scaledR, scaledR * ISO_SCALE, 0, 0, Math.PI);
+            ctx.lineTo(pTop.x - scaledR, pTop.y);
+            ctx.ellipse(pTop.x, pTop.y, scaledR, scaledR * ISO_SCALE, 0, Math.PI, 0, true);
+            ctx.closePath();
+            ctx.fill();
+
+            ctx.fillStyle = topColor;
+            ctx.beginPath();
+            ctx.ellipse(pTop.x, pTop.y, scaledR, scaledR * ISO_SCALE, 0, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.strokeStyle = '#cbd5e1';
+            ctx.lineWidth = 1;
+            ctx.stroke();
+        }
+
+        function drawFlatCoil(x, y, z, maxRadius, turns, color, glow = false) {
+            const pos = getScreenPos(x, y, z);
+            ctx.save();
+            ctx.translate(pos.x, pos.y);
+            ctx.scale(globalScale, ISO_SCALE * globalScale);
+            
+            ctx.strokeStyle = color;
+            ctx.lineWidth = 2;
+            if(glow) {
+                ctx.shadowBlur = 10;
+                ctx.shadowColor = color;
+            }
+
+            for(let i=1; i<=turns; i++) {
+                const r = maxRadius * (i / turns);
+                ctx.beginPath();
+                ctx.arc(0, 0, r, 0, Math.PI * 2);
+                ctx.stroke();
+            }
+            ctx.restore();
+        }
+
+        function drawMagneticFields(zBase, isFrontLayer) {
+            if (currentStrength === 0) return; 
+            
+            const isAC = (powerMode === 'AC');
+            const acPhase = Math.sin(time * 3); 
+            const baseAlpha = isAC ? Math.abs(acPhase) * 0.7 : 0.6;
+            const finalAlpha = baseAlpha * currentStrength;
+
+            const angles = [0, Math.PI/4, Math.PI/2, Math.PI*3/4, Math.PI, -Math.PI*3/4, -Math.PI/2, -Math.PI/4];
+            ctx.lineWidth = 2;
+
+            angles.forEach(angle => {
+                const isFront = Math.sin(angle) > -0.1; 
+                if (isFrontLayer !== isFront) return;
+
+                const numLoops = 3; 
+                for (let i = 0; i < numLoops; i++) {
+                    const rInner = 15 + i * 8;   
+                    const rOuter = 50 + i * 18;  
+                    const maxH = (45 + i * 30) * (0.4 + currentStrength * 0.6);
+
+                    ctx.beginPath();
+                    if (isAC) {
+                        ctx.setLineDash([12, 8]);
+                        ctx.lineDashOffset = time * 20 * Math.sign(acPhase);
+                    } else {
+                        ctx.setLineDash([]); 
+                    }
+                    
+                    ctx.strokeStyle = `rgba(239, 68, 68, ${Math.max(0, finalAlpha - i*0.15)})`;
+
+                    for (let t = 0; t <= Math.PI * 2; t += 0.05) {
+                        const r = (rInner + rOuter)/2 + (rOuter - rInner)/2 * Math.cos(t);
+                        const zLoop = zBase + maxH * Math.sin(t);
+                        const px = r * Math.cos(angle);
+                        const py = r * Math.sin(angle);
+                        
+                        const pos = getScreenPos(px, py, zLoop);
+                        if (t === 0) ctx.moveTo(pos.x, pos.y);
+                        else ctx.lineTo(pos.x, pos.y);
+                    }
+                    ctx.stroke();
+                }
+            });
+            ctx.setLineDash([]);
+        }
+
+        function drawIsoPhone(z, isReceivingCurrent, isWeakInduction) {
+            const thicknessLayers = phone.thickness;
+            const screenColor = '#0f172a';
+            const bodyColorSide = '#94a3b8';
+            const bodyColorTop = '#f8fafc';
+
+            ctx.save();
+            for (let i = 0; i <= thicknessLayers; i++) {
+                const layerZ = z + i;
+                const pos = getScreenPos(0, 0, layerZ);
+                
+                ctx.save();
+                ctx.translate(pos.x, pos.y);
+                ctx.scale(globalScale, ISO_SCALE * globalScale); 
+                ctx.rotate(phone.angle);
+                
+                ctx.beginPath();
+                ctx.roundRect(-phone.width/2, -phone.length/2, phone.width, phone.length, 12);
+
+                if (i < thicknessLayers) {
+                    ctx.fillStyle = bodyColorSide;
+                    ctx.fill();
+                    ctx.strokeStyle = '#64748b';
+                    ctx.lineWidth = 1;
+                    ctx.stroke();
+                } else {
+                    ctx.fillStyle = bodyColorTop;
+                    ctx.fill();
+                    ctx.strokeStyle = '#cbd5e1';
+                    ctx.lineWidth = 2;
+                    ctx.stroke();
+
+                    ctx.fillStyle = screenColor;
+                    ctx.beginPath();
+                    ctx.roundRect(-phone.width/2 + 4, -phone.length/2 + 12, phone.width - 8, phone.length - 24, 6);
+                    ctx.fill();
+
+                    // 接收線圈發光
+                    ctx.save();
+                    ctx.translate(0, 20); 
+                    let rxColor = '#64748b';
+                    let glowIntensity = 0;
+
+                    if (isReceivingCurrent) {
+                        if (isWeakInduction) {
+                            rxColor = '#a855f7'; 
+                            glowIntensity = 5;
+                        } else {
+                            rxColor = '#3b82f6'; 
+                            glowIntensity = 10 * currentStrength;
+                        }
+                    }
+
+                    ctx.strokeStyle = rxColor;
+                    ctx.lineWidth = 2;
+                    ctx.globalAlpha = 0.8;
+                    if (isReceivingCurrent) {
+                        ctx.shadowBlur = glowIntensity;
+                        ctx.shadowColor = rxColor;
+                    }
+                    for (let c = 1; c <= 4; c++) {
+                        ctx.beginPath();
+                        ctx.arc(0, 0, 5 + c * 5, 0, Math.PI * 2);
+                        ctx.stroke();
+                    }
+                    ctx.restore();
+                }
+                ctx.restore();
+            }
+            ctx.restore();
+        }
+
+        function drawLineAndAttachLabel(labelEl, start, end, align) {
+            if(labelEl.style.display === 'none') return;
+            
+            ctx.beginPath();
+            ctx.moveTo(start.x, start.y);
+            const midX = start.x + (end.x - start.x) * 0.5;
+            ctx.lineTo(midX, start.y);
+            ctx.lineTo(end.x, end.y);
+            ctx.strokeStyle = '#64748b';
+            ctx.lineWidth = 1.5;
+            ctx.stroke();
+            
+            ctx.beginPath();
+            ctx.arc(start.x, start.y, 3, 0, Math.PI*2);
+            ctx.fillStyle = '#64748b';
+            ctx.fill();
+
+            labelEl.style.left = `${end.x}px`;
+            labelEl.style.top = `${end.y}px`;
+            
+            const gap = 8; 
+            if (align === 'right') {
+                labelEl.style.transform = `translate(calc(-100% - ${gap}px), -50%)`;
+            } else {
+                labelEl.style.transform = `translate(${gap}px, -50%)`;
+            }
+        }
+
+        function updatePrinciplePanelText() {
+            let physicsNote = isTruePhysics ? 
+                `<div class="mt-3 text-xs text-yellow-800 bg-yellow-100/50 p-2 rounded-md border border-yellow-200">⚠️ <strong>真實物理衰減：</strong>磁場呈斷崖式衰減，需貼近方能感應。</div>` : 
+                `<div class="mt-3 text-xs text-blue-800 bg-blue-100/50 p-2 rounded-md border border-blue-200">✅ <strong>教學優化模式：</strong>磁場呈線性寬容衰減，感應範圍較廣。</div>`;
+
+            if (currentStrength === 0) {
+                principlePanel.innerHTML = `<h3 class="text-base font-bold text-slate-700 mb-1">物理狀態</h3><p class="text-sm text-slate-500">無電流，未產生磁場。</p>`;
+                labels.field.style.display = 'none';
+                principlePanel.className = "mt-2 bg-slate-50 border-2 border-slate-300 p-4 rounded-xl shadow-sm shrink-0";
+            } else if (powerMode === 'DC') {
+                principlePanel.innerHTML = `<h3 class="text-base font-bold text-slate-700 mb-1">物理狀態</h3><p class="text-sm leading-relaxed mb-2">直流電產生<strong class="text-blue-600">固定不變</strong>的磁場。</p><div class="border-t border-slate-300 pt-2 text-sm text-slate-600">靜止時無磁通量變化 ➔ <strong class="text-red-500">無法充電</strong><br><span class="text-xs text-purple-600">※ 拖曳切割磁場時可產生瞬間微弱電流</span></div>${physicsNote}`;
+                labels.field.innerHTML = "產生固定不變<br>的靜止磁場 (DC)";
+                labels.field.style.display = 'block';
+                principlePanel.className = "mt-2 bg-slate-50 border-2 border-slate-400 p-4 rounded-xl shadow-sm shrink-0";
+            } else {
+                principlePanel.innerHTML = `
+                    <h3 class="text-base font-bold text-slate-700 mb-1">物理狀態</h3>
+                    <p class="text-sm leading-relaxed mb-2">接收線圈所圍面積中的<strong class="text-orange-500">磁通量</strong>發生持續變化。</p>
+                    <div class="border-t border-purple-200 pt-2 text-sm text-slate-800">根據法拉第定律產生<strong class="text-orange-500">感應電動勢</strong> ➔ <strong class="text-green-600">成功充電</strong></div>
+                    ${physicsNote}
+                `;
+                labels.field.innerHTML = "產生隨時間<br>變化的磁場 (AC)";
+                labels.field.style.display = 'block';
+                principlePanel.className = "mt-2 bg-pink-50/50 border-2 border-pink-400 p-4 rounded-xl shadow-sm shrink-0";
+            }
+        }
+        updatePrinciplePanelText();
+
+        function updateLabels() {
+            if(!width) return; // 確保已初始化
+            
+            const posPad = getScreenPos(-pad.radius - 10, 0, pad.height / 2);
+            const posTx = getScreenPos(20, 20, pad.height); 
+            const rxLocalX = 20 * Math.sin(-phone.angle);
+            const rxLocalY = 20 * Math.cos(-phone.angle);
+            const posRx = getScreenPos(rxLocalX, rxLocalY, phone.z + phone.thickness);
+            const posPhone = getScreenPos(30, -40, phone.z + phone.thickness); 
+            const posField = getScreenPos(-60, -30, pad.height + 20);
+
+            // RWD：標籤字體大小根據縮放率動態調整 (放寬上限，讓大螢幕字體跟著變大)
+            const fontSize = Math.max(12, Math.min(18, 14 * globalScale));
+            Object.values(labels).forEach(l => {
+                if(l) l.style.fontSize = `${fontSize}px`;
+            });
+
+            // RWD：根據螢幕寬度決定引導線的長度
+            const isMobile = width < 600;
+            const lineLen = isMobile ? 30 : 60;
+            const upLen = isMobile ? -40 : -80;
+
+            drawLineAndAttachLabel(labels.pad, posPad, { x: posPad.x - lineLen * globalScale, y: posPad.y + 10 * globalScale }, 'right');
+            drawLineAndAttachLabel(labels.tx, posTx, { x: posTx.x + (lineLen+20) * globalScale, y: posTx.y - 15 * globalScale }, 'left');
+            drawLineAndAttachLabel(labels.rx, posRx, { x: posRx.x - 10 * globalScale, y: posRx.y + upLen * globalScale }, 'right');
+            drawLineAndAttachLabel(labels.phone, posPhone, { x: posPhone.x + (lineLen+30) * globalScale, y: posPhone.y - 30 * globalScale }, 'left');
+
+            if (currentStrength > 0) {
+                drawLineAndAttachLabel(labels.field, posField, { x: posField.x - (lineLen+20) * globalScale, y: posField.y - 10 * globalScale }, 'right');
+            }
+        }
+
+        // --- 主渲染迴圈 ---
+        function animate() {
+            time += 0.05 * playbackSpeed;
+            if(!ctx) return;
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            let velocityZ = phone.z - (phone.lastZ !== undefined ? phone.lastZ : phone.z);
+            phone.lastZ = phone.z;
+            phone.z += (phone.targetZ - phone.z) * 0.2;
+
+            // 物理運算
+            const distance = phone.z - pad.height;
+            let couplingFactor = 0;
+            let CHARGING_THRESHOLD = 0;
+
+            if (isTruePhysics) {
+                const R = 30; 
+                const bFieldRatio = Math.pow(R, 3) / Math.pow(Math.pow(R, 2) + Math.pow(distance, 2), 1.5);
+                couplingFactor = bFieldRatio * currentStrength;
+                CHARGING_THRESHOLD = 0.20; 
+            } else {
+                const maxDistance = 40 + 120 * currentStrength; 
+                if (distance < maxDistance && distance >= 0) {
+                    couplingFactor = Math.max(0, 1 - (distance / maxDistance));
+                }
+                CHARGING_THRESHOLD = 0.05; 
+            }
+            
+            isCharging = (powerMode === 'AC') && (currentStrength > 0) && (couplingFactor > CHARGING_THRESHOLD);
+            let isReceivingCurrent = isCharging;
+            let isWeakInduction = false;
+
+            if (powerMode === 'DC' && currentStrength > 0 && Math.abs(velocityZ) > 0.5 && couplingFactor > (CHARGING_THRESHOLD / 3)) {
+                isReceivingCurrent = true;
+                isWeakInduction = true; 
+            }
+
+            if (isCharging && batteryLevel < 100) {
+                batteryLevel += 0.05 * couplingFactor * playbackSpeed;
+            }
+
+            // 更新 HTML 電池狀態
+            const currentBatInt = Math.floor(Math.min(batteryLevel, 100));
+            batteryFill.style.width = `${currentBatInt}%`;
+            if (batteryText.innerText !== `${currentBatInt}%`) batteryText.innerText = `${currentBatInt}%`;
+
+            if (isCharging) {
+                batteryFill.className = "h-full bg-green-500 rounded-sm transition-all";
+                batteryText.className = "text-[10px] font-bold text-green-600 min-w-[2rem] text-right";
+                batteryLightning.classList.remove('hidden');
+            } else {
+                const isLow = currentBatInt <= 20;
+                batteryFill.className = `h-full ${isLow ? 'bg-red-500' : 'bg-slate-500'} rounded-sm transition-all`;
+                batteryText.className = `text-[10px] font-bold ${isLow ? 'text-red-500' : 'text-slate-500'} min-w-[2rem] text-right`;
+                batteryLightning.classList.add('hidden');
+            }
+
+            // 繪製背景網格
+            ctx.strokeStyle = '#e2e8f0';
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+            const gridLimit = Math.max(500, canvas.width / globalScale);
+            for(let i = -gridLimit; i <= gridLimit; i += 50) {
+                const p1 = getScreenPos(i, -gridLimit, 0);
+                const p2 = getScreenPos(i, gridLimit, 0);
+                ctx.moveTo(p1.x, p1.y); ctx.lineTo(p2.x, p2.y);
+                const p3 = getScreenPos(-gridLimit, i, 0);
+                const p4 = getScreenPos(gridLimit, i, 0);
+                ctx.moveTo(p3.x, p3.y); ctx.lineTo(p4.x, p4.y);
+            }
+            ctx.stroke();
+
+            // 繪圖呼叫
+            drawCylinder(pad.z, pad.radius, pad.height, '#f1f5f9', '#cbd5e1');
+            let txColor = currentStrength > 0 ? (powerMode === 'AC' ? '#fb923c' : '#3b82f6') : '#94a3b8';
+            drawFlatCoil(0, 0, pad.height, 35, 5, txColor, currentStrength > 0);
+            
+            drawMagneticFields(pad.height, false);
+            drawIsoPhone(phone.z, isReceivingCurrent, isWeakInduction);
+            drawMagneticFields(pad.height, true);
+
+            updateLabels();
+            requestAnimationFrame(animate);
+        }
+
+        requestAnimationFrame(animate);
+    </script>
+</body>
+</html>
