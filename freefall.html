@@ -1,0 +1,286 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8" />
+  <title>自由落體模擬（空氣阻力 + RK4）</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <!-- MathJax：免費 LaTeX API（CDN） -->
+  <script defer src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+  <style>
+    body { font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Noto Sans TC", sans-serif; margin: 24px; line-height: 1.6; }
+    .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+    .card { border: 1px solid #ddd; border-radius: 8px; padding: 16px; background: #fff; }
+    label { display: inline-block; min-width: 150px; }
+    input { width: 120px; margin: 6px 0; }
+    button { padding: 8px 16px; margin-top: 8px; }
+    canvas { border: 1px solid #ddd; border-radius: 4px; background: #fafafa; }
+    .row { display:flex; gap:16px; align-items:center; flex-wrap:wrap; }
+    .legend { font-size: 13px; color: #555; }
+    .dash { stroke-dasharray: 6 6; }
+    .code { background:#f6f8fa; border:1px solid #e1e4e8; border-radius:6px; padding:12px; }
+  </style>
+</head>
+<body>
+  <h1>自由落體模擬（空氣阻力 + RK4 + 終端速度）</h1>
+
+  <div class="grid">
+    <div class="card">
+      <h2>參數</h2>
+      <div class="row">
+        <label>質量 m (kg)</label><input id="m" type="number" step="0.1" value="1.0">
+      </div>
+      <div class="row">
+        <label>空氣阻力係數 C_D</label><input id="cd" type="number" step="0.01" value="0.47">
+      </div>
+      <div class="row">
+        <label>截面積 A (m²)</label><input id="A" type="number" step="0.001" value="0.01">
+      </div>
+      <div class="row">
+        <label>空氣密度 ρ (kg/m³)</label><input id="rho" type="number" step="0.001" value="1.225">
+      </div>
+      <div class="row">
+        <label>起始高度 h₀ (m)</label><input id="h0" type="number" step="1" value="100">
+      </div>
+      <div class="row">
+        <label>時間步長 Δt (s)</label><input id="dt" type="number" step="0.001" value="0.01">
+      </div>
+      <div class="row">
+        <label>重力加速度 g (m/s²)</label><input id="g" type="number" step="0.01" value="9.81">
+      </div>
+      <button id="run">開始模擬</button>
+      <button id="pause">暫停/繼續</button>
+      <button id="reset">重置</button>
+
+      <p class="legend">提示：終端速度 v_T 依 m、ρ、C_D、A 變化；C_D≈0.47 為球體參考值。</p>
+    </div>
+
+    <div class="card">
+      <h2>原理與方程式（即時 LaTeX）</h2>
+      <div id="eq" class="code">
+        當物體僅受重力與二次方阻力作用（向下為正），運動方程為：
+        
+
+\[
+          m\frac{dv}{dt} = mg - \frac{1}{2}\rho C_D A\, v\,|v|,
+          \qquad
+          \frac{dh}{dt} = -v.
+        \]
+
+
+        其中空氣阻力大小遵循
+        
+
+\[
+          F_D = \frac{1}{2}\rho C_D A v^2.
+        \]
+
+
+        當加速度趨近於零（力平衡）時的終端速度：
+        
+
+\[
+          v_T = \sqrt{\frac{2 m g}{\rho C_D A}}.
+        \]
+
+
+      </div>
+    </div>
+  </div>
+
+  <div class="grid" style="margin-top:20px;">
+    <div class="card">
+      <h2>下落動畫</h2>
+      <canvas id="anim" width="420" height="520"></canvas>
+    </div>
+    <div class="card">
+      <h2>速度曲線 v(t)</h2>
+      <canvas id="chart" width="520" height="320"></canvas>
+      <div class="legend">藍色：數值解 v(t)（RK4）；灰虛線：終端速度 v_T</div>
+    </div>
+  </div>
+
+  <script>
+    // 取得元素
+    const el = (id) => document.getElementById(id);
+    const mEl = el('m'), cdEl = el('cd'), AEl = el('A'), rhoEl = el('rho'), h0El = el('h0'), dtEl = el('dt'), gEl = el('g');
+    const anim = el('anim'), ctxA = anim.getContext('2d');
+    const chart = el('chart'), ctxC = chart.getContext('2d');
+    const btnRun = el('run'), btnPause = el('pause'), btnReset = el('reset');
+
+    let running = false, paused = false, rafId = null;
+
+    // 狀態
+    let m, Cd, A, rho, h, v, t, dt, g, vT;
+
+    // 力與微分
+    function drag(v, rho, Cd, A) {
+      // 使用 v|v| 以保證方向正確（平方阻力）
+      return 0.5 * rho * Cd * A * v * Math.abs(v);
+    }
+    function dvdt(v, m, g, rho, Cd, A) {
+      // m dv/dt = mg - Fd
+      const Fd = drag(v, rho, Cd, A);
+      return (m * g - Fd) / m;
+    }
+    function dhdt(v) {
+      return -v;
+    }
+
+    // RK4 單步
+    function rk4_step(h, v, dt, params) {
+      const { m, g, rho, Cd, A } = params;
+      const k1v = dvdt(v, m, g, rho, Cd, A);
+      const k1h = dhdt(v);
+
+      const v2 = v + 0.5 * dt * k1v;
+      const k2v = dvdt(v2, m, g, rho, Cd, A);
+      const k2h = dhdt(v + 0.5 * dt * k1v);
+
+      const v3 = v + 0.5 * dt * k2v;
+      const k3v = dvdt(v3, m, g, rho, Cd, A);
+      const k3h = dhdt(v + 0.5 * dt * k2v);
+
+      const v4 = v + dt * k3v;
+      const k4v = dvdt(v4, m, g, rho, Cd, A);
+      const k4h = dhdt(v + dt * k3v);
+
+      const v_next = v + (dt / 6) * (k1v + 2 * k2v + 2 * k3v + k4v);
+      const h_next = h + (dt / 6) * (k1h + 2 * k2h + 2 * k3h + k4h);
+      return { h: h_next, v: v_next };
+    }
+
+    // 繪製動畫
+    function drawAnim(hNow) {
+      ctxA.clearRect(0, 0, anim.width, anim.height);
+      // 地面
+      ctxA.fillStyle = '#aaa';
+      ctxA.fillRect(0, anim.height - 20, anim.width, 20);
+
+      // 高度文字
+      ctxA.fillStyle = '#333';
+      ctxA.fillText(`高度 h: ${Math.max(0, hNow).toFixed(2)} m`, 12, 20);
+      ctxA.fillText(`速度 v: ${v.toFixed(2)} m/s`, 12, 40);
+      ctxA.fillText(`終端速度 v_T: ${vT.toFixed(2)} m/s`, 12, 60);
+
+      // 物體位置（將高度映射到畫布）
+      const maxH = Math.max(+h0El.value, 1);
+      const frac = Math.max(0, Math.min(1, hNow / maxH));
+      const y = 20 + (anim.height - 40) * (1 - frac);
+      ctxA.beginPath();
+      ctxA.arc(anim.width / 2, y, 12, 0, Math.PI * 2);
+      ctxA.fillStyle = '#1976d2';
+      ctxA.fill();
+    }
+
+    // 繪製速度曲線
+    const series = [];
+    function drawChart() {
+      ctxC.clearRect(0, 0, chart.width, chart.height);
+
+      // 座標系
+      const padding = 40;
+      const w = chart.width - padding * 2;
+      const hgt = chart.height - padding * 2;
+      ctxC.strokeStyle = '#ccc';
+      ctxC.strokeRect(padding, padding, w, hgt);
+
+      // 軸標示
+      ctxC.fillStyle = '#333';
+      ctxC.fillText('時間 t (s)', chart.width / 2 - 20, chart.height - 10);
+      ctxC.save();
+      ctxC.translate(12, chart.height / 2 + 40);
+      ctxC.rotate(-Math.PI / 2);
+      ctxC.fillText('速度 v (m/s)', 0, 0);
+      ctxC.restore();
+
+      // 尋找最大 v
+      const vmax = Math.max(vT * 1.2, ...series.map(s => s.v).concat([1]));
+      const tmax = Math.max(5, ...series.map(s => s.t).concat([1]));
+
+      // 繪製 v(t)
+      ctxC.strokeStyle = '#1976d2';
+      ctxC.lineWidth = 2;
+      ctxC.beginPath();
+      series.forEach((pt, i) => {
+        const x = padding + (pt.t / tmax) * w;
+        const y = padding + (1 - (pt.v / vmax)) * hgt;
+        if (i === 0) ctxC.moveTo(x, y); else ctxC.lineTo(x, y);
+      });
+      ctxC.stroke();
+
+      // 終端速度水平線
+      ctxC.strokeStyle = '#888';
+      ctxC.setLineDash([6, 6]);
+      const yT = padding + (1 - (vT / vmax)) * hgt;
+      ctxC.beginPath();
+      ctxC.moveTo(padding, yT);
+      ctxC.lineTo(padding + w, yT);
+      ctxC.stroke();
+      ctxC.setLineDash([]);
+      ctxC.fillStyle = '#555';
+      ctxC.fillText(`v_T = ${vT.toFixed(2)} m/s`, padding + w - 110, yT - 6);
+    }
+
+    // 初始化模擬
+    function init() {
+      m = +mEl.value;
+      Cd = +cdEl.value;
+      A = +AEl.value;
+      rho = +rhoEl.value;
+      h = +h0El.value;
+      v = 0;
+      t = 0;
+      dt = +dtEl.value;
+      g = +gEl.value;
+      vT = Math.sqrt((2 * m * g) / (rho * Cd * A));
+      series.length = 0;
+      series.push({ t, v });
+      drawAnim(h);
+      drawChart();
+    }
+
+    // 模擬主迴圈
+    function loop() {
+      if (!running || paused) return;
+      if (h <= 0 && v >= 0) { // 觸地
+        running = false;
+        return;
+      }
+      const next = rk4_step(h, v, dt, { m, g, rho, Cd, A });
+      h = next.h;
+      v = next.v;
+      t += dt;
+
+      series.push({ t, v });
+      if (series.length > 2000) series.shift();
+
+      drawAnim(h);
+      drawChart();
+
+      rafId = requestAnimationFrame(loop);
+    }
+
+    btnRun.addEventListener('click', () => {
+      if (!running) {
+        init();
+        running = true;
+        paused = false;
+        loop();
+      }
+    });
+    btnPause.addEventListener('click', () => {
+      if (!running) return;
+      paused = !paused;
+      if (!paused) loop();
+    });
+    btnReset.addEventListener('click', () => {
+      cancelAnimationFrame(rafId);
+      running = false; paused = false;
+      init();
+    });
+
+    // 首次載入
+    init();
+  </script>
+</body>
+</html>
