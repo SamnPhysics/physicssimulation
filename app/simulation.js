@@ -1,5 +1,12 @@
+import Engine from './phylets/engine.js';
+import Renderer from './phylets/renderer.js';
+
 class Simulation {
-  constructor() {
+  constructor(initialState, engine, renderer) {
+    this.state = initialState;
+    this.engine = engine;
+    this.renderer = renderer;
+
     this.running = false;
     this.paused = false;
     this.rafId = null;
@@ -31,6 +38,8 @@ class Simulation {
     }
     this.running = false;
     this.paused = false;
+    this.state = this.initialState;
+    this.renderer.render(this.state);
   }
 
   loop() {
@@ -38,12 +47,8 @@ class Simulation {
       return;
     }
 
-    // This is where the simulation-specific logic will be called.
-    // For now, it's just an empty loop.
-    if(this.update) {
-        this.update();
-    }
-
+    this.state = this.engine.update(this.state);
+    this.renderer.render(this.state);
 
     this.rafId = requestAnimationFrame(this.loop);
   }
