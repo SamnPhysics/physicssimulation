@@ -38,13 +38,11 @@ class TwostarEngine extends Engine {
 
       if (zB_3d < zA_3d) {
         blockedFlux = overlap * this.starA.brightness;
-        statusText = "主極小 (Primary Eclipse)
-橘星(前/暗) 遮 藍星(後/亮)";
+        statusText = "主極小 (Primary Eclipse)\n橘星(前/暗) 遮 藍星(後/亮)";
         statusColor = "text-red-400";
       } else {
         blockedFlux = overlap * this.starB.brightness;
-        statusText = "次極小 (Secondary Eclipse)
-藍星(前/亮) 遮 橘星(後/暗)";
+        statusText = "次極小 (Secondary Eclipse)\n藍星(前/亮) 遮 橘星(後/暗)";
         statusColor = "text-yellow-300";
       }
     }

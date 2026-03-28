@@ -181,8 +181,7 @@ class TwostarRenderer extends Renderer {
         this.eclipseLabel.querySelector('span').innerText = statusText;
         this.eclipseLabel.querySelector('span').className = `text-lg font-bold drop-shadow-md px-3 py-1 rounded bg-black/60 border border-white/20 whitespace-pre-line text-center ${statusColor}`;
         this.orbitStatus.classList.remove('hidden');
-        this.orbitStatus.innerText = statusText.replace('
-', ' - ');
+        this.orbitStatus.innerText = statusText.replace('\n', ' - ');
     } else {
         this.eclipseLabel.classList.add('hidden');
         this.orbitStatus.classList.add('hidden');

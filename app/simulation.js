@@ -3,6 +3,8 @@ import Renderer from './phylets/renderer.js';
 
 class Simulation {
   constructor(initialState, engine, renderer) {
+    // Deep copy initialState to prevent mutation from affecting the reset state.
+    this.initialState = JSON.parse(JSON.stringify(initialState));
     this.state = initialState;
     this.engine = engine;
     this.renderer = renderer;
@@ -38,7 +40,8 @@ class Simulation {
     }
     this.running = false;
     this.paused = false;
-    this.state = this.initialState;
+    // Use a deep copy for the reset state to ensure future states are clean.
+    this.state = JSON.parse(JSON.stringify(this.initialState));
     this.renderer.render(this.state);
   }
 
@@ -53,3 +56,5 @@ class Simulation {
     this.rafId = requestAnimationFrame(this.loop);
   }
 }
+
+export default Simulation;
