@@ -4,58 +4,67 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>物理模擬專案</title>
-    <style>
-        body {
-            font-family: "Helvetica Neue", Arial, "LiHei Pro", sans-serif;
-            line-height: 1.6;
-            margin: 0;
-            padding: 0;
-            background-color: #f4f6f8;
-            color: #333;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            height: 100vh;
-        }
-        .container {
-            max-width: 600px;
-            padding: 40px;
-            background: #ffffff;
-            border-radius: 10px;
-            box-shadow: 0 4px 10px rgba(0,0,0,0.1);
-            text-align: center;
-        }
-        h1 {
-            color: #24292e;
-        }
-        ul {
-            list-style-type: none;
-            padding: 0;
-        }
-        li {
-            margin: 10px 0;
-        }
-        a {
-            color: #0366d6;
-            text-decoration: none;
-            font-size: 1.2em;
-        }
-        a:hover {
-            text-decoration: underline;
-        }
-    </style>
+    <script src="https://cdn.tailwindcss.com"></script>
 </head>
-<body>
+<body class="bg-[#f4f6f8] text-[#333] font-sans leading-relaxed p-5 max-w-[1200px] mx-auto grid grid-cols-[repeat(auto-fit,minmax(280px,1fr))] gap-5">
 
-    <div class="container">
-        <h1>物理模擬專案</h1>
-        <p>這是一個包含多個物理模擬的專案。請選擇一個模擬來開始：</p>
-        <ul>
-            <li><a href="freefall/index.html">自由落體模擬</a></li>
-            <li><a href="twostar/index.html">雙星系統模擬</a></li>
-            <li><a href="wirelesscharge/index.html">無線充電模擬</a></li>
+    <div class="bg-[#f8f9fa] p-[30px] rounded-[10px] shadow-[0_4px_10px_rgba(0,0,0,0.1)] text-center transition-all duration-200 hover:-translate-y-[5px] hover:shadow-[0_8px_20px_rgba(0,0,0,0.15)] border-t-[6px] border-[#607d8b]">
+        <h1 class="text-[#607d8b] mt-0 mb-4 text-3xl font-bold">🚀 物理模擬專案</h1>
+        <p class="mb-4">這是一個包含多個物理模擬的專案。請選擇一個模擬來開始：</p>
+        <ul class="list-none p-0 flex flex-col gap-3">
+            <li><a href="freefall/index.html" class="block w-full py-3 px-4 bg-white rounded-lg shadow-sm border border-slate-200 text-slate-700 font-medium hover:bg-slate-50 hover:text-[#607d8b] hover:border-[#607d8b] hover:shadow transition-all duration-200">自由落體模擬</a></li>
+            <li><a href="twostar/index.html" class="block w-full py-3 px-4 bg-white rounded-lg shadow-sm border border-slate-200 text-slate-700 font-medium hover:bg-slate-50 hover:text-[#607d8b] hover:border-[#607d8b] hover:shadow transition-all duration-200">雙星系統模擬</a></li>
+            <li><a href="wirelesscharge/index.html" class="block w-full py-3 px-4 bg-white rounded-lg shadow-sm border border-slate-200 text-slate-700 font-medium hover:bg-slate-50 hover:text-[#607d8b] hover:border-[#607d8b] hover:shadow transition-all duration-200">無線充電模擬</a></li>
         </ul>
     </div>
+
+    <div class="p-[30px] rounded-[10px] shadow-[0_4px_10px_rgba(0,0,0,0.1)] text-center transition-all duration-200 hover:-translate-y-[5px] hover:shadow-[0_8px_20px_rgba(0,0,0,0.15)] bg-[#f1f8e9] border-t-[6px] border-[#4caf50]">
+        <h1 class="text-[#33691e] mt-0 mb-4 text-3xl font-bold">🍎 選修物理1</h1>
+        <p class="mb-4">這是一個包含多個物理模擬的專案。請選擇一個模擬來開始：</p>
+        <ul class="list-none p-0 flex flex-col gap-3">
+            <li><a href="freefall/index.html" class="block w-full py-3 px-4 bg-white rounded-lg shadow-sm border border-slate-200 text-slate-700 font-medium hover:bg-slate-50 hover:text-[#4caf50] hover:border-[#4caf50] hover:shadow transition-all duration-200">自由落體模擬</a></li>
+            <li><a href="twostar/index.html" class="block w-full py-3 px-4 bg-white rounded-lg shadow-sm border border-slate-200 text-slate-700 font-medium hover:bg-slate-50 hover:text-[#4caf50] hover:border-[#4caf50] hover:shadow transition-all duration-200">雙星系統模擬</a></li>
+            <li><a href="wirelesscharge/index.html" class="block w-full py-3 px-4 bg-white rounded-lg shadow-sm border border-slate-200 text-slate-700 font-medium hover:bg-slate-50 hover:text-[#4caf50] hover:border-[#4caf50] hover:shadow transition-all duration-200">無線充電模擬</a></li>
+        </ul>
+    </div>
+
+    <div class="p-[30px] rounded-[10px] shadow-[0_4px_10px_rgba(0,0,0,0.1)] text-center transition-all duration-200 hover:-translate-y-[5px] hover:shadow-[0_8px_20px_rgba(0,0,0,0.15)] bg-[#e3f2fd] border-t-[6px] border-[#2196f3]">
+        <h1 class="text-[#0d47a1] mt-0 mb-4 text-3xl font-bold">🌊 選修物理2</h1>
+        <p class="mb-4">這是一個包含多個物理模擬的專案。請選擇一個模擬來開始：</p>
+        <ul class="list-none p-0 flex flex-col gap-3">
+            <li><a href="freefall/index.html" class="block w-full py-3 px-4 bg-white rounded-lg shadow-sm border border-slate-200 text-slate-700 font-medium hover:bg-slate-50 hover:text-[#2196f3] hover:border-[#2196f3] hover:shadow transition-all duration-200">自由落體模擬</a></li>
+            <li><a href="twostar/index.html" class="block w-full py-3 px-4 bg-white rounded-lg shadow-sm border border-slate-200 text-slate-700 font-medium hover:bg-slate-50 hover:text-[#2196f3] hover:border-[#2196f3] hover:shadow transition-all duration-200">雙星系統模擬</a></li>
+            <li><a href="wirelesscharge/index.html" class="block w-full py-3 px-4 bg-white rounded-lg shadow-sm border border-slate-200 text-slate-700 font-medium hover:bg-slate-50 hover:text-[#2196f3] hover:border-[#2196f3] hover:shadow transition-all duration-200">無線充電模擬</a></li>
+        </ul>
+    </div>
+    <div class="p-[30px] rounded-[10px] shadow-[0_4px_10px_rgba(0,0,0,0.1)] text-center transition-all duration-200 hover:-translate-y-[5px] hover:shadow-[0_8px_20px_rgba(0,0,0,0.15)] bg-[#fff3e0] border-t-[6px] border-[#ff9800]">
+        <h1 class="text-[#e65100] mt-0 mb-4 text-3xl font-bold">⚡ 選修物理3</h1>
+        <p class="mb-4">這是一個包含多個物理模擬的專案。請選擇一個模擬來開始：</p>
+        <ul class="list-none p-0 flex flex-col gap-3">
+            <li><a href="freefall/index.html" class="block w-full py-3 px-4 bg-white rounded-lg shadow-sm border border-slate-200 text-slate-700 font-medium hover:bg-slate-50 hover:text-[#ff9800] hover:border-[#ff9800] hover:shadow transition-all duration-200">自由落體模擬</a></li>
+            <li><a href="twostar/index.html" class="block w-full py-3 px-4 bg-white rounded-lg shadow-sm border border-slate-200 text-slate-700 font-medium hover:bg-slate-50 hover:text-[#ff9800] hover:border-[#ff9800] hover:shadow transition-all duration-200">雙星系統模擬</a></li>
+            <li><a href="wirelesscharge/index.html" class="block w-full py-3 px-4 bg-white rounded-lg shadow-sm border border-slate-200 text-slate-700 font-medium hover:bg-slate-50 hover:text-[#ff9800] hover:border-[#ff9800] hover:shadow transition-all duration-200">無線充電模擬</a></li>
+        </ul>
+    </div>
+    <div class="p-[30px] rounded-[10px] shadow-[0_4px_10px_rgba(0,0,0,0.1)] text-center transition-all duration-200 hover:-translate-y-[5px] hover:shadow-[0_8px_20px_rgba(0,0,0,0.15)] bg-[#f3e5f5] border-t-[6px] border-[#9c27b0]">
+        <h1 class="text-[#4a148c] mt-0 mb-4 text-3xl font-bold">💡 選修物理4</h1>
+        <p class="mb-4">這是一個包含多個物理模擬的專案。請選擇一個模擬來開始：</p>
+        <ul class="list-none p-0 flex flex-col gap-3">
+            <li><a href="freefall/index.html" class="block w-full py-3 px-4 bg-white rounded-lg shadow-sm border border-slate-200 text-slate-700 font-medium hover:bg-slate-50 hover:text-[#9c27b0] hover:border-[#9c27b0] hover:shadow transition-all duration-200">自由落體模擬</a></li>
+            <li><a href="twostar/index.html" class="block w-full py-3 px-4 bg-white rounded-lg shadow-sm border border-slate-200 text-slate-700 font-medium hover:bg-slate-50 hover:text-[#9c27b0] hover:border-[#9c27b0] hover:shadow transition-all duration-200">雙星系統模擬</a></li>
+            <li><a href="wirelesscharge/index.html" class="block w-full py-3 px-4 bg-white rounded-lg shadow-sm border border-slate-200 text-slate-700 font-medium hover:bg-slate-50 hover:text-[#9c27b0] hover:border-[#9c27b0] hover:shadow transition-all duration-200">無線充電模擬</a></li>
+        </ul>
+    </div>
+    <div class="p-[30px] rounded-[10px] shadow-[0_4px_10px_rgba(0,0,0,0.1)] text-center transition-all duration-200 hover:-translate-y-[5px] hover:shadow-[0_8px_20px_rgba(0,0,0,0.15)] bg-[#ffebee] border-t-[6px] border-[#f44336]">
+        <h1 class="text-[#b71c1c] mt-0 mb-4 text-3xl font-bold">⚛️ 選修物理5</h1>
+        <p class="mb-4">這是一個包含多個物理模擬的專案。請選擇一個模擬來開始：</p>
+        <ul class="list-none p-0 flex flex-col gap-3">
+            <li><a href="freefall/index.html" class="block w-full py-3 px-4 bg-white rounded-lg shadow-sm border border-slate-200 text-slate-700 font-medium hover:bg-slate-50 hover:text-[#f44336] hover:border-[#f44336] hover:shadow transition-all duration-200">自由落體模擬</a></li>
+            <li><a href="twostar/index.html" class="block w-full py-3 px-4 bg-white rounded-lg shadow-sm border border-slate-200 text-slate-700 font-medium hover:bg-slate-50 hover:text-[#f44336] hover:border-[#f44336] hover:shadow transition-all duration-200">雙星系統模擬</a></li>
+            <li><a href="wirelesscharge/index.html" class="block w-full py-3 px-4 bg-white rounded-lg shadow-sm border border-slate-200 text-slate-700 font-medium hover:bg-slate-50 hover:text-[#f44336] hover:border-[#f44336] hover:shadow transition-all duration-200">無線充電模擬</a></li>
+        </ul>
+    </div>
+
 
 </body>
 </html>
