@@ -1,0 +1,601 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <title>雙縫干涉與衍射模擬器</title>
+    <style>
+        body { font-family: Arial, sans-serif; background-color: #dcdcdc; margin: 0; padding: 20px; display: flex; justify-content: center; }
+        .container { width: 100%; max-width: 1200px; background: white; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); padding: 20px; display: flex; flex-direction: column; }
+        h1 { text-align: center; color: #333; margin-top: 0; }
+        
+        .display-area { display: flex; gap: 20px; margin-bottom: 20px; height: 400px; }
+        .panel { background: #f9f9f9; border: 1px solid #ccc; padding: 5px; position: relative; }
+        canvas { width: 100%; height: 100%; display: block; }
+
+        .controls { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; background: #eee; padding: 15px; border-radius: 6px; }
+        .control-group { display: flex; flex-direction: column; }
+        label { font-weight: bold; margin-bottom: 4px; color: #444; }
+        input[type="range"] { width: 100%; cursor: pointer; }
+        .val { float: right; color: #2980b9; font-size: 0.9em; }
+
+        .mode-btn {
+            flex: 1;
+            padding: 8px;
+            border: 1px solid #ccc;
+            background: #f0f0f0;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-size: 0.9em;
+        }
+        .mode-btn.active {
+            background: #2980b9;
+            color: white;
+            border-color: #2980b9;
+            font-weight: bold;
+        }
+        .mode-btn:not(.active):hover { background: #e0e0e0; }
+
+        .color-bar { height: 15px; background: linear-gradient(to right, #00f, #0ff, #0f0, #ff0, #f00); margin-top: 4px; border-radius: 2px; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>雙縫干涉與衍射模擬器 (Double Slit Interference)</h1>
+    
+    <div class="display-area">
+        <!-- Left Panel: Setup -->
+        <div class="panel" style="flex: 0.4;">
+            <canvas id="setupCanvas"></canvas>
+        </div>
+        
+        <!-- Right Panel: Graph & Fringes -->
+        <div class="panel" style="flex: 0.6;">
+            <canvas id="graphCanvas"></canvas>
+        </div>
+    </div>
+
+    <div class="controls">
+        <div class="control-group" style="grid-column: 1 / -1;">
+            <label>模擬模式 (Mode)</label>
+            <div style="display: flex; gap: 10px; margin-top: 5px;">
+                 <button id="mode-double" class="mode-btn active">雙狹縫 (干涉+繞射)</button>
+                 <button id="mode-single" class="mode-btn">單狹縫 (純繞射)</button>
+            </div>
+        </div>
+        <div class="control-group">
+            <label>波長 (λ) <span id="val-wavelength" class="val">571 nm</span></label>
+            <input type="range" id="wavelength" min="380" max="750" value="571">
+            <div class="color-bar"></div>
+        </div>
+        <div class="control-group">
+            <label>狹縫間距 (d) <span id="val-distance" class="val">0.417 mm</span></label>
+            <input type="range" id="distance" min="0.1" max="2.0" step="0.001" value="0.417">
+        </div>
+        <div class="control-group">
+            <label>單縫寬度 (a) <span id="val-width" class="val">0.073 mm</span></label>
+            <input type="range" id="width" min="0.01" max="0.5" step="0.001" value="0.073">
+        </div>
+        <div class="control-group">
+            <label>屏距 (D) <span id="val-distanceScreen" class="val">261 cm</span></label>
+            <input type="range" id="distanceScreen" min="50" max="500" step="1" value="261">
+        </div>
+    </div>
+</div>
+
+<script>
+    const setupCanvas = document.getElementById('setupCanvas');
+    const graphCanvas = document.getElementById('graphCanvas');
+    const ctxSetup = setupCanvas.getContext('2d');
+    const ctxGraph = graphCanvas.getContext('2d');
+
+    const btnModeDouble = document.getElementById('mode-double');
+    const btnModeSingle = document.getElementById('mode-single');
+    let simulationMode = 'double'; // 'double' or 'single'
+    let mouseTargetData = null; // To hold mouse position data for setup canvas
+
+    // 建立滑鼠游標提示工具 (Tooltip)
+    const tooltip = document.createElement('div');
+    tooltip.style.position = 'absolute';
+    tooltip.style.display = 'none';
+    tooltip.style.background = 'rgba(0,0,0,0.8)';
+    tooltip.style.color = 'white';
+    tooltip.style.padding = '5px 8px';
+    tooltip.style.borderRadius = '4px';
+    tooltip.style.pointerEvents = 'none';
+    tooltip.style.fontSize = '12px';
+    tooltip.style.zIndex = '100';
+    tooltip.style.transform = 'translate(-50%, -100%)';
+    tooltip.style.marginTop = '-15px';
+    document.body.appendChild(tooltip);
+
+    const inputs = {
+        wavelength: document.getElementById('wavelength'),
+        distance: document.getElementById('distance'),
+        width: document.getElementById('width'),
+        distanceScreen: document.getElementById('distanceScreen')
+    };
+
+    const displays = {
+        wavelength: document.getElementById('val-wavelength'),
+        distance: document.getElementById('val-distance'),
+        width: document.getElementById('val-width'),
+        distanceScreen: document.getElementById('val-distanceScreen')
+    };
+
+    /**
+     * Converts a wavelength in nanometers to an RGB color.
+     * @param {number} wavelength Wavelength in nm (380-750)
+     * @returns {{r: number, g: number, b: number}} RGB values from 0 to 255.
+     */
+    function wavelengthToRgb(wavelength) {
+        let r, g, b;
+        let factor;
+
+        if (wavelength >= 380 && wavelength < 440) {
+            r = -(wavelength - 440) / (440 - 380);
+            g = 0.0;
+            b = 1.0;
+        } else if (wavelength >= 440 && wavelength < 490) {
+            r = 0.0;
+            g = (wavelength - 440) / (490 - 440);
+            b = 1.0;
+        } else if (wavelength >= 490 && wavelength < 510) {
+            r = 0.0;
+            g = 1.0;
+            b = -(wavelength - 510) / (510 - 490);
+        } else if (wavelength >= 510 && wavelength < 580) {
+            r = (wavelength - 510) / (580 - 510);
+            g = 1.0;
+            b = 0.0;
+        } else if (wavelength >= 580 && wavelength < 645) {
+            r = 1.0;
+            g = -(wavelength - 645) / (645 - 580);
+            b = 0.0;
+        } else if (wavelength >= 645 && wavelength <= 750) {
+            r = 1.0;
+            g = 0.0;
+            b = 0.0;
+        } else {
+            r = 0.0;
+            g = 0.0;
+            b = 0.0;
+        }
+
+        // Adjust intensity for ends of the spectrum
+        if (wavelength >= 380 && wavelength < 420) {
+            factor = 0.3 + 0.7 * (wavelength - 380) / (420 - 380);
+        } else if (wavelength >= 645 && wavelength <= 750) {
+            factor = 0.3 + 0.7 * (750 - wavelength) / (750 - 645);
+        } else {
+            factor = 1.0;
+        }
+
+        const gamma = 0.8;
+        const adjust = (color) => Math.round(255 * Math.pow(color * factor, gamma));
+
+        return {
+            r: adjust(r),
+            g: adjust(g),
+            b: adjust(b)
+        };
+    }
+
+    function resizeCanvases() {
+        setupCanvas.width = setupCanvas.parentElement.clientWidth;
+        setupCanvas.height = setupCanvas.parentElement.clientHeight;
+        graphCanvas.width = graphCanvas.parentElement.clientWidth;
+        graphCanvas.height = graphCanvas.parentElement.clientHeight;
+    }
+
+    window.addEventListener('resize', () => {
+        resizeCanvases();
+        drawAll();
+    });
+
+    function drawSetup() {
+        const w = setupCanvas.width;
+        const h = setupCanvas.height;
+        ctxSetup.clearRect(0, 0, w, h);
+
+        let lambda_nm = parseFloat(inputs.wavelength.value);
+        const color = wavelengthToRgb(lambda_nm);
+
+        let d_mm = parseFloat(inputs.distance.value);
+        let a_mm = parseFloat(inputs.width.value);
+        
+        // Visual scaling for diagram
+        const scaleY = h * 0.15; // Scale distance and width for visibility
+        const barrierX = w * 0.4;
+        const halfD = (d_mm / 2) * scaleY; 
+        const slitSize = Math.max(2, a_mm * scaleY);
+        const halfA = slitSize / 2;
+
+        // Screen
+        ctxSetup.fillStyle = "#3498db";
+        ctxSetup.fillRect(w - 20, h*0.1, 10, h*0.8);
+
+        // Barrier
+        ctxSetup.fillStyle = "#7f8c8d";
+        ctxSetup.fillRect(barrierX - 5, h*0.1, 10, h*0.8);
+
+        // Slits (Simulated as holes by drawing background color over barrier)
+        ctxSetup.fillStyle = "#f9f9f9";
+
+        if (simulationMode === 'single') {
+            // Single slit in the center
+            ctxSetup.fillRect(barrierX - 6, h/2 - halfA, 12, slitSize);
+        } else { // 'double'
+            // Top Slit
+            ctxSetup.fillRect(barrierX - 6, h/2 - halfD - halfA, 12, slitSize);
+            // Bottom Slit
+            ctxSetup.fillRect(barrierX - 6, h/2 + halfD - halfA, 12, slitSize);
+        }
+
+        // Light Rays
+        ctxSetup.strokeStyle = `rgb(${color.r}, ${color.g}, ${color.b})`;
+        ctxSetup.lineWidth = 2;
+        ctxSetup.beginPath();
+        
+        if (simulationMode === 'single') {
+            // Rays for single slit
+            ctxSetup.moveTo(20, h/2);
+            ctxSetup.lineTo(barrierX - 5, h/2);
+            
+            ctxSetup.moveTo(barrierX + 5, h/2);
+            ctxSetup.lineTo(w - 20, h/2);
+
+            ctxSetup.moveTo(barrierX + 5, h/2);
+            ctxSetup.lineTo(w - 20, h/2 - 40);
+
+            ctxSetup.moveTo(barrierX + 5, h/2);
+            ctxSetup.lineTo(w - 20, h/2 + 40);
+        } else { // 'double'
+            // Incident rays (from left to slits)
+            ctxSetup.moveTo(20, h/2 - halfD);
+            ctxSetup.lineTo(barrierX - 5, h/2 - halfD);
+            ctxSetup.moveTo(20, h/2 + halfD);
+            ctxSetup.lineTo(barrierX - 5, h/2 + halfD);
+            
+            if (mouseTargetData === null) {
+                // Rays from slits to central maximum on screen
+                ctxSetup.moveTo(barrierX + 5, h/2 - halfD);
+                ctxSetup.lineTo(w - 20, h/2);
+                ctxSetup.moveTo(barrierX + 5, h/2 + halfD);
+                ctxSetup.lineTo(w - 20, h/2);
+                
+                // Rays to upper maximum
+                ctxSetup.moveTo(barrierX + 5, h/2 - halfD);
+                ctxSetup.lineTo(w - 20, h/2 - halfD * 2);
+                ctxSetup.moveTo(barrierX + 5, h/2 + halfD);
+                ctxSetup.lineTo(w - 20, h/2 - halfD * 2);
+
+                // Rays to lower maximum
+                ctxSetup.moveTo(barrierX + 5, h/2 - halfD);
+                ctxSetup.lineTo(w - 20, h/2 + halfD * 2);
+                ctxSetup.moveTo(barrierX + 5, h/2 + halfD);
+                ctxSetup.lineTo(w - 20, h/2 + halfD * 2);
+            }
+        }
+        
+        ctxSetup.stroke();
+
+        // Labels
+        ctxSetup.fillStyle = "#2c3e50";
+        ctxSetup.font = "14px Arial";
+        ctxSetup.fillText("Light", 20, h*0.1 - 10);
+        ctxSetup.fillText("Barrier", barrierX - 25, h*0.1 - 10);
+        ctxSetup.fillText("Screen", w - 50, h*0.1 - 10);
+
+        if (mouseTargetData !== null && simulationMode === 'double') {
+            const D = parseFloat(inputs.distanceScreen.value) * 0.01;
+            const d = parseFloat(inputs.distance.value) * 1e-3;
+            const lambda = parseFloat(inputs.wavelength.value) * 1e-9;
+
+            const y_m = mouseTargetData.y_m;
+            const theta = Math.atan2(y_m, D);
+            const phaseDiff = (2 * Math.PI * d * Math.sin(theta)) / lambda;
+
+            // Map physical y to setup canvas y
+            const screenDisplayHeight = h * 0.8; // Visual height of screen area on canvas
+            const maxPhysicalY = 0.02; // Graph shows +/- 2cm
+            const targetY_px = h/2 + (y_m / maxPhysicalY) * (screenDisplayHeight / 2);
+
+            // --- Superposition Visualization ---
+            const visX = barrierX + 40;
+            const visY = targetY_px;
+            const visWidth = w - visX - 30;
+            const visAmp = 15;
+
+            ctxSetup.save();
+            ctxSetup.translate(visX, visY);
+
+            // Draw connecting lines from slits
+            ctxSetup.save();
+            ctxSetup.setLineDash([2, 3]);
+            ctxSetup.strokeStyle = 'rgba(128, 128, 128, 0.7)';
+            ctxSetup.lineWidth = 1;
+            ctxSetup.beginPath();
+            ctxSetup.moveTo(barrierX - visX, h/2 - halfD - visY);
+            ctxSetup.lineTo(0, 0);
+            ctxSetup.moveTo(barrierX - visX, h/2 + halfD - visY);
+            ctxSetup.lineTo(0, 0);
+            ctxSetup.stroke();
+            ctxSetup.restore();
+
+            // Draw individual waves (dashed)
+            ctxSetup.lineWidth = 1.5;
+            ctxSetup.setLineDash([4, 4]);
+            ctxSetup.strokeStyle = `rgba(${color.r}, ${color.g}, ${color.b}, 0.5)`;
+            
+            // Wave 1 (reference) & Wave 2 (phase shifted)
+            const waveCycles = 2;
+            for(let waveNum = 0; waveNum < 2; waveNum++) {
+                ctxSetup.beginPath();
+                for (let i = 0; i <= visWidth; i++) {
+                    const angle = (i / visWidth) * Math.PI * 2 * waveCycles + (waveNum * phaseDiff);
+                    const waveY = Math.sin(angle) * visAmp;
+                    if (i === 0) ctxSetup.moveTo(i, waveY); else ctxSetup.lineTo(i, waveY);
+                }
+                ctxSetup.stroke();
+            }
+
+            // 1. Draw center axis for resultant wave (疊加波中心基準線)
+            ctxSetup.setLineDash([]);
+            ctxSetup.beginPath();
+            ctxSetup.moveTo(0, 0);
+            ctxSetup.lineTo(visWidth, 0);
+            ctxSetup.strokeStyle = 'rgba(0,0,0,0.2)';
+            ctxSetup.lineWidth = 1;
+            ctxSetup.stroke();
+
+            // 2. Fill resultant wave areas (波峰波谷顏色標示)
+            // 波峰 (ySum < 0)
+            ctxSetup.beginPath();
+            ctxSetup.moveTo(0, 0); // 從中軸線起點開始
+            for (let i = 0; i <= visWidth; i++) {
+                const angle = (i / visWidth) * Math.PI * 2 * waveCycles;
+                const ySum = (Math.sin(angle) + Math.sin(angle + phaseDiff)) * visAmp / 2;
+                ctxSetup.lineTo(i, Math.min(0, ySum)); // 只取小於 0 的部分(上方)
+            }
+            ctxSetup.lineTo(visWidth, 0);
+            ctxSetup.closePath();
+            ctxSetup.fillStyle = `rgba(${color.r}, ${color.g}, ${color.b}, 0.5)`;
+            ctxSetup.fill(); // 使用一次性區域填色取代數百次畫線
+
+            // 波谷 (ySum > 0)
+            ctxSetup.beginPath();
+            ctxSetup.moveTo(0, 0);
+            for (let i = 0; i <= visWidth; i++) {
+                const angle = (i / visWidth) * Math.PI * 2 * waveCycles;
+                const ySum = (Math.sin(angle) + Math.sin(angle + phaseDiff)) * visAmp / 2;
+                ctxSetup.lineTo(i, Math.max(0, ySum)); // 只取大於 0 的部分(下方)
+            }
+            ctxSetup.lineTo(visWidth, 0);
+            ctxSetup.closePath();
+            ctxSetup.fillStyle = `rgba(50, 150, 200, 0.5)`;
+            ctxSetup.fill();
+
+            // 3. Draw resultant wave outline (疊加波實線外框)
+            ctxSetup.lineWidth = 2;
+            ctxSetup.strokeStyle = `rgb(${color.r}, ${color.g}, ${color.b})`;
+            ctxSetup.beginPath();
+            for (let i = 0; i <= visWidth; i++) {
+                const angle = (i / visWidth) * Math.PI * 2 * waveCycles;
+                const ySum = (Math.sin(angle) + Math.sin(angle + phaseDiff)) * visAmp / 2;
+                if (i === 0) ctxSetup.moveTo(i, ySum); else ctxSetup.lineTo(i, ySum);
+            }
+            ctxSetup.stroke();
+            ctxSetup.restore();
+        }
+    }
+
+    function drawGraph() {
+        const w = graphCanvas.width;
+        const h = graphCanvas.height;
+        ctxGraph.clearRect(0, 0, w, h);
+
+        // Physics Constants (SI Units)
+        let lambda_nm = parseFloat(inputs.wavelength.value);
+        const color = wavelengthToRgb(lambda_nm);
+        let d_mm = parseFloat(inputs.distance.value);
+        let a_mm = parseFloat(inputs.width.value);
+        let D_cm = parseFloat(inputs.distanceScreen.value);
+        
+        const lambda = lambda_nm * 1e-9; // meters
+        const d = d_mm * 1e-3;           // meters
+        const a = a_mm * 1e-3;           // meters
+        const D = D_cm * 0.01;           // meters (cm to m)
+
+        // Canvas Scaling: Show +/- 2cm on screen
+        const maxScreenY_m = 0.02; 
+        const pixelsPerMeter = w / (maxScreenY_m * 2);
+        
+        // Draw Axes
+        ctxGraph.strokeStyle = "#555";
+        ctxGraph.lineWidth = 1;
+        ctxGraph.beginPath();
+        ctxGraph.moveTo(0, h/2); ctxGraph.lineTo(w, h/2); // X axis
+        ctxGraph.moveTo(w/2, 0); ctxGraph.lineTo(w/2, h); // Y axis
+        ctxGraph.stroke();
+
+        // Draw Axes Tick Marks
+        ctxGraph.fillStyle = "#555";
+        ctxGraph.font = "10px Arial";
+        
+        // X-axis (Position on screen in cm)
+        ctxGraph.textAlign = "center";
+        ctxGraph.textBaseline = "top";
+        for (let cm = -2; cm <= 2; cm += 0.5) {
+            if (cm === 0) continue; // Skip origin
+            const tickX = w/2 + (cm * 0.01) * pixelsPerMeter;
+            ctxGraph.beginPath();
+            ctxGraph.moveTo(tickX, h/2 - 3);
+            ctxGraph.lineTo(tickX, h/2 + 3);
+            ctxGraph.stroke();
+            
+            ctxGraph.shadowColor = "rgba(255,255,255,0.8)";
+            ctxGraph.shadowBlur = 3;
+            ctxGraph.fillText(cm + " cm", tickX, h/2 + 5);
+            ctxGraph.shadowBlur = 0;
+        }
+
+        // Y-axis (Relative Intensity)
+        ctxGraph.textAlign = "right";
+        ctxGraph.textBaseline = "middle";
+        const graphTop = 10;
+        const midY = (graphTop + h/2) / 2;
+        
+        ctxGraph.shadowColor = "rgba(255,255,255,0.8)";
+        ctxGraph.shadowBlur = 3;
+        ctxGraph.fillText("1.0", w/2 - 6, graphTop);
+        ctxGraph.fillText("0.5", w/2 - 6, midY);
+        ctxGraph.shadowBlur = 0;
+
+        // Calculate Intensity Curve Points
+        let points = [];
+        for (let x_px = 0; x_px <= w; x_px++) {
+            const y_m = (x_px - w/2) / pixelsPerMeter;
+            
+            // CORRECTED: Use actual D value to calculate theta
+            const theta = Math.atan2(y_m, D);
+            
+            // Physics: I = cos^2(beta) * sinc^2(alpha)
+            const beta = (Math.PI * d * Math.sin(theta)) / lambda;
+            const alpha = (Math.PI * a * Math.sin(theta)) / lambda;
+
+            let sincVal = 1;
+            if (alpha !== 0) {
+                sincVal = Math.sin(alpha) / alpha;
+            }
+            
+            let intensity;
+            if (simulationMode === 'single') {
+                intensity = Math.pow(sincVal, 2); // Diffraction only
+            } else { // 'double'
+                intensity = Math.pow(Math.cos(beta), 2) * Math.pow(sincVal, 2);
+            }
+            points.push({x: x_px, y: h/2 - (intensity * (h/2 - 10)), i: intensity});
+        }
+
+        // Draw Curve
+        ctxGraph.beginPath();
+        ctxGraph.strokeStyle = `rgb(${color.r}, ${color.g}, ${color.b})`;
+        ctxGraph.lineWidth = 2;
+        points.forEach((p, index) => {
+            if(index === 0) ctxGraph.moveTo(p.x, p.y);
+            else ctxGraph.lineTo(p.x, p.y);
+        });
+        ctxGraph.stroke();
+
+        // Draw Fringes
+        const barHeight = h / 2 - 10;
+        for (let i = 0; i < points.length; i++) {
+            const intensity = points[i].i;
+            // Color based on wavelength and intensity
+            ctxGraph.fillStyle = `rgb(${Math.floor(color.r * intensity)}, ${Math.floor(color.g * intensity)}, ${Math.floor(color.b * intensity)})`;
+            ctxGraph.fillRect(points[i].x, h/2 + 10, 1, barHeight);
+        }
+
+        // Labels
+        ctxGraph.fillStyle = "#3498db";
+        ctxGraph.font = "10px Arial";
+        const centralHalfWidth_m = (lambda * D) / a; 
+        const centralHalfWidth_px = centralHalfWidth_m * pixelsPerMeter;
+        
+        ctxGraph.beginPath();
+        ctxGraph.strokeStyle = "#2980b9";
+        ctxGraph.setLineDash([5, 5]);
+        ctxGraph.moveTo(w/2 - centralHalfWidth_px, h/2);
+        ctxGraph.lineTo(w/2 + centralHalfWidth_px, h/2);
+        ctxGraph.stroke();
+
+        ctxGraph.fillStyle = "#3498b9";
+        ctxGraph.fillText("Central Max Width", w/2 - centralHalfWidth_px/2, h/2 - 5);
+        
+        // 儲存當前的圖表資料以供滑鼠游標使用
+        window.currentGraphData = points;
+        window.currentPixelsPerMeter = pixelsPerMeter;
+    }
+
+    function updateDisplays() {
+        displays.wavelength.textContent = inputs.wavelength.value + " nm";
+        displays.distance.textContent = parseFloat(inputs.distance.value).toFixed(3) + " mm";
+        displays.width.textContent = parseFloat(inputs.width.value).toFixed(3) + " mm";
+        displays.distanceScreen.textContent = inputs.distanceScreen.value + " cm";
+    }
+
+    function drawAll() {
+        drawSetup();
+        drawGraph();
+    }
+
+    Object.values(inputs).forEach(input => {
+        input.addEventListener('input', () => {
+            updateDisplays();
+            drawAll();
+        });
+    });
+
+    btnModeDouble.addEventListener('click', () => {
+        if (simulationMode === 'double') return;
+        simulationMode = 'double';
+        btnModeDouble.classList.add('active');
+        btnModeSingle.classList.remove('active');
+        inputs.distance.parentElement.style.display = 'flex';
+        drawAll();
+    });
+
+    btnModeSingle.addEventListener('click', () => {
+        if (simulationMode === 'single') return;
+        simulationMode = 'single';
+        btnModeSingle.classList.add('active');
+        btnModeDouble.classList.remove('active');
+        inputs.distance.parentElement.style.display = 'none';
+        drawAll();
+    });
+
+    // 右側圖表滑鼠事件
+    graphCanvas.addEventListener('mousemove', (e) => {
+        const rect = graphCanvas.getBoundingClientRect();
+        const mouseX = e.clientX - rect.left;
+        
+        if (!window.currentGraphData || window.currentGraphData.length === 0) return;
+        
+        const index = Math.min(Math.max(Math.floor(mouseX), 0), window.currentGraphData.length - 1);
+        const point = window.currentGraphData[index];
+        
+        if (point) {
+            const physicalY_m = (point.x - graphCanvas.width/2) / window.currentPixelsPerMeter;
+            const physicalY_cm = (physicalY_m * 100).toFixed(2);
+            const intensity = point.i.toFixed(3);
+            
+            tooltip.innerHTML = `y 座標: ${physicalY_cm} cm<br>光強度: ${intensity}`;
+            tooltip.style.display = 'block';
+            tooltip.style.left = (e.pageX) + 'px';
+            tooltip.style.top = (e.pageY) + 'px';
+
+            // Update data for setup canvas visualization
+            mouseTargetData = { y_m: physicalY_m, intensity: point.i };
+            drawSetup(); // 即時更新左側示意圖
+        }
+    });
+
+    graphCanvas.addEventListener('mouseleave', () => {
+        tooltip.style.display = 'none';
+        mouseTargetData = null; // Clear data on mouse leave
+        drawSetup(); // 清除疊加圖示
+    });
+
+    // Initial Draw after load
+    window.onload = function() {
+        resizeCanvases();
+        updateDisplays();
+        drawAll();
+    };
+
+</script>
+
+</body>
+</html>

@@ -1,0 +1,280 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <title>雙狹縫干涉實驗模擬</title>
+    <!-- 引入 MathJax 用於渲染 LaTeX 公式 -->
+      <script>
+        window.MathJax = {
+            tex: {
+                inlineMath: [['$', '$'], ['\\(', '\\)']],
+                displayMath: [['$$', '$$'], ['\\[', '\\]']]
+            },
+            options: {
+                skipHtmlTags: ['script', 'noscript', 'style', 'textarea', 'pre']
+            }
+        };
+    </script>
+
+    <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f8f9fa;
+            color: #333;
+            margin: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 40px 20px;
+        }
+        h2 { margin-bottom: 10px; color: #2c3e50; }
+        
+        .main-layout {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 30px;
+            background: white;
+            padding: 30px;
+            border-radius: 20px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.1);
+        }
+
+        .simulation-area {
+            display: flex;
+            align-items: center;
+            background: #fff;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            overflow: hidden;
+        }
+
+        canvas {
+            display: block;
+        }
+        #waveCanvas { background: #fff; }
+        #patternCanvas { background: #000; border-left: 2px solid #333; }
+
+        .controls-panel {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 30px;
+            width: 100%;
+            max-width: 900px;
+            padding: 20px;
+            background: #f1f3f5;
+            border-radius: 12px;
+        }
+
+        .control-group {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        label {
+            font-weight: bold;
+            font-size: 14px;
+            color: #555;
+            display: flex;
+            justify-content: space-between;
+        }
+
+        .value-display {
+            color: #007bff;
+            font-family: monospace;
+        }
+
+        input[type="range"] {
+            width: 100%;
+            cursor: pointer;
+        }
+
+        .formula-section {
+            margin-top: 20px;
+            padding: 20px;
+            background: #fff;
+            border-radius: 12px;
+            border: 1px solid #eee;
+            text-align: center;
+            font-size: 1.2em;
+        }
+    </style>
+</head>
+<body>
+
+    <h2>雙狹縫干涉實驗模擬</h2>
+
+    <div class="main-layout">
+        <!-- 模擬視覺區域 -->
+        <div class="simulation-area">
+            <canvas id="waveCanvas" width="600" height="400"></canvas>
+            <canvas id="patternCanvas" width="100" height="400"></canvas>
+        </div>
+
+        <!-- 參數控制區域 -->
+        <div class="controls-panel">
+            <div class="control-group">
+                <label>波長$\lambda$ <span id="val-wavelength" class="value-display">500 nm</span></label>
+                <input type="range" id="wavelength" min="400" max="700" value="500">
+            </div>
+            <div class="control-group">
+                <label lass="formula-section">狹縫間距 $d$ <span id="val-distance" class="value-display">20$\,\mathrm{\mu}$</span></label>
+                <input type="range" id="distance" min="10" max="100" value="20">
+            </div>
+            <div class="control-group">
+                <label>屏幕距離 $L$ <span id="val-screenDist" class="value-display">1.0 m</span></label>
+                <input type="range" id="screenDist" min="0.5" max="3.0" step="0.1" value="1.0">
+            </div>
+        </div>
+
+        <!-- 公式區域 -->
+        <div class="formula-section">
+            干涉條紋間距公式： 
+            $$\Delta y = \frac{\lambda L}{d}$$
+            <p style="font-size: 0.8em; color: #777; margin-top: 15px;">
+                $\lambda$: 波長 | $L$: 狹縫到屏幕距離 | $d$: 狹縫間距
+            </p>
+        </div>
+    </div>
+
+<script>
+    /**
+     * 物理模擬核心邏輯 (純原生 JS)
+     */
+    const waveCanvas = document.getElementById('waveCanvas');
+    const wCtx = waveCanvas.getContext('2d');
+    const patternCanvas = document.getElementById('patternCanvas');
+    const pCtx = patternCanvas.getContext('2d');
+
+    const params = {
+        wavelength: 500, 
+        d: 20,          
+        L: 1.0,         
+        time: 0
+    };
+
+    const inputs = {
+        wavelength: document.getElementById('wavelength'),
+        distance: document.getElementById('distance'),
+        screenDist: document.getElementById('screenDist')
+    };
+
+    const displays = {
+        wavelength: document.getElementById('val-wavelength'),
+        distance: document.getElementById('val-distance'),
+        screenDist: document.getElementById('val-screenDist')
+    };
+
+    function updateParams() {
+        params.wavelength = parseInt(inputs.wavelength.value);
+        params.d = parseInt(inputs.distance.value);
+        params.L = parseFloat(inputs.screenDist.value);
+
+        displays.wavelength.innerText = params.wavelength + " nm";
+        displays.distance.innerText = params.d + " $\mu$m";
+        displays.screenDist.innerText = params.L.toFixed(1) + " m";
+        
+        drawPattern(); 
+    }
+
+    // 波長轉 RGB (原生 JS 計算)
+    function wavelengthToColor(wl) {
+        let r, g, b;
+        if (wl >= 380 && wl < 450) { r = -(wl - 440) * (100/90); g = 0; b = 255; }
+        else if (wl >= 450 && wl < 495) { r = 0; g = (wl - 450) * (100/45); b = 255; }
+        else if (wl >= 495 && wl < 570) { r = 0; g = 255; b = -(wl - 560) * (100/75); }
+        else if (wl >= 570 && wl < 590) { r = (wl - 570) * (100/20); g = 255; b = 0; }
+        else if (wl >= 590 && wl < 620) { r = 255; g = -(wl - 620) * (100/30); b = 0; }
+        else if (wl >= 620 && wl <= 750) { r = 255; g = 0; b = 0; }
+        else { r = 0; g = 0; b = 0; }
+        return [
+            Math.min(255, Math.max(0, r)), 
+            Math.min(255, Math.max(0, g)), 
+            Math.min(255, Math.max(0, b))
+        ];
+    }
+
+    // 繪製強度分佈 (原生 JS 計算)
+    function drawPattern() {
+        const width = patternCanvas.width;
+        const height = patternCanvas.height;
+        const imgData = pCtx.createImageData(width, height);
+        const data = imgData.data;
+
+        const rgb = wavelengthToColor(params.wavelength);
+
+        // 物理推演: I = I0 * cos^2(pi * d * sin(theta) / lambda)
+        // 近似 sin(theta) ≈ y/L
+        const scale = 1000; 
+        const factor = (Math.PI * params.d * scale) / (params.wavelength * params.L * 100);
+
+        for (let x = 0; x < width; x++) {
+            for (let y = 0; y < height; y++) {
+                const yPos = (y - height / 2);
+                const intensity = Math.pow(Math.cos(factor * yPos), 2);
+
+                const idx = (y * width + x) * 4;
+                data[idx] = rgb[0] * intensity;     
+                data[idx + 1] = rgb[1] * intensity; 
+                data[idx + 2] = rgb[2] * intensity; 
+                data[idx + 3] = 255;               
+            }
+        }
+        pCtx.putImageData(imgData, 0, 0);
+    }
+
+    // 波前動畫 (原生 JS 計算)
+    function drawWaves() {
+        wCtx.clearRect(0, 0, waveCanvas.width, waveCanvas.height);
+
+        const slitX = 80; 
+        const centerY = waveCanvas.height / 2;
+        const dPx = params.d * 0.6; 
+        const rgb = wavelengthToColor(params.wavelength);
+        const colorStr = `rgb(${rgb[0]}, ${rgb[1]}, ${rgb[2]})`;
+
+        // 遮光板
+        wCtx.strokeStyle = "#333";
+        wCtx.lineWidth = 4;
+        wCtx.beginPath();
+        wCtx.moveTo(slitX, centerY - dPx - 2); wCtx.lineTo(slitX, centerY - dPx + 2);
+        wCtx.moveTo(slitX, centerY + dPx - 2); wCtx.lineTo(slitX, centerY + dPx + 2);
+        wCtx.stroke();
+
+        // 波前擴散
+        params.time += 0.15;
+        const waveFreq = 2 * Math.PI / (params.wavelength / 15);
+        
+        wCtx.strokeStyle = colorStr;
+        wCtx.lineWidth = 1.5;
+
+        for (let r = 0; r < waveCanvas.width - slitX; r += 15) {
+            const opacity = 0.5 + 0.5 * Math.sin(waveFreq * r - params.time);
+            if (opacity < 0.1) continue;
+
+            wCtx.globalAlpha = opacity;
+            wCtx.beginPath();
+            wCtx.arc(slitX, centerY - dPx, r, -Math.PI/2, Math.PI/2);
+            wCtx.stroke();
+            wCtx.beginPath();
+            wCtx.arc(slitX, centerY + dPx, r, -Math.PI/2, Math.PI/2);
+            wCtx.stroke();
+        }
+        wCtx.globalAlpha = 1.0;
+
+        requestAnimationFrame(drawWaves);
+    }
+
+    Object.values(inputs).forEach(input => {
+        input.addEventListener('input', updateParams);
+    });
+
+    updateParams();
+    drawWaves();
+
+</script>
+</body>
+</html>

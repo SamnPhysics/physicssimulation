@@ -1,0 +1,334 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>光的干涉與繞射物理模擬</title>
+    <!-- MathJax for Scientific Notation -->
+    <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+    <style>
+        :root {
+            --bg-color: #121212;
+            --panel-color: #1e1e1e;
+            --text-color: #e0e0e0;
+            --accent-color: #00e676;
+        }
+
+        body {
+            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            margin: 0;
+            display: flex;
+            flex-direction: column;
+            min-height: 100vh;
+        }
+
+        .main-container {
+            display: flex;
+            flex-wrap: wrap;
+            padding: 20px;
+            gap: 20px;
+            justify-content: center;
+        }
+
+        #canvas-container {
+            flex: 2;
+            min-width: 300px;
+            background: #000;
+            border-radius: 12px;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.8);
+            position: relative;
+            overflow: hidden;
+            border: 1px solid #333;
+        }
+
+        #controls {
+            flex: 1;
+            min-width: 300px;
+            background: var(--panel-color);
+            padding: 25px;
+            border-radius: 12px;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.4);
+            border: 1px solid #333;
+        }
+
+        .control-group {
+            margin-bottom: 25px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 10px;
+            font-size: 0.95rem;
+            color: #bbb;
+        }
+
+        input[type="range"] {
+            width: 100%;
+            accent-color: var(--accent-color);
+            cursor: pointer;
+        }
+
+        .value-display {
+            float: right;
+            color: var(--accent-color);
+            font-family: 'Courier New', monospace;
+            font-weight: bold;
+        }
+
+        .mode-switch {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 30px;
+        }
+
+        button {
+            flex: 1;
+            padding: 12px;
+            cursor: pointer;
+            border: 1px solid #444;
+            background: #2a2a2a;
+            color: white;
+            transition: all 0.2s ease;
+            border-radius: 6px;
+            font-size: 0.9rem;
+        }
+
+        button.active {
+            background: var(--accent-color);
+            color: #000;
+            font-weight: bold;
+            border-color: var(--accent-color);
+        }
+
+        #theory {
+            width: 90%;
+            max-width: 1200px;
+            margin: 20px auto 50px auto;
+            padding: 30px;
+            background: var(--panel-color);
+            border-radius: 12px;
+            line-height: 1.8;
+            border: 1px solid #333;
+        }
+
+        canvas {
+            display: block;
+            width: 100%;
+            height: auto;
+        }
+
+        @media (max-width: 768px) {
+            .main-container {
+                flex-direction: column;
+            }
+            #canvas-container, #controls {
+                flex: none;
+                width: 100%;
+            }
+        }
+    </style>
+</head>
+<body>
+
+<div class="main-container">
+    <!-- Left Side: Animation -->
+    <div id="canvas-container">
+        <canvas id="opticsCanvas"></canvas>
+    </div>
+
+    <!-- Right Side: Controls -->
+    <div id="controls">
+        <h2 style="margin-top:0; color: white;">物理參數設定</h2>
+        
+        <div class="mode-switch">
+            <button id="btnSingle" onclick="setMode('single')">單狹縫 (繞射)</button>
+            <button id="btnDouble" class="active" onclick="setMode('double')">雙狹縫 (干涉+繞射)</button>
+        </div>
+
+        <div class="control-group">
+            <label>光波長 $\lambda$ : <span id="valWavelength" class="value-display">550</span> nm</label>
+            <input type="range" id="wavelength" min="400" max="700" value="550">
+        </div>
+
+        <div class="control-group">
+            <label>狹縫間距 $d$ : <span id="valSpacing" class="value-display">20</span> $\mu\text{m}$</label>
+            <input type="range" id="spacing" min="10" max="100" value="20">
+        </div>
+
+        <div class="control-group">
+            <label>狹縫寬度 $a$ : <span id="valWidth" class="value-display">5</span> $\mu\text{m}$</label>
+            <input type="range" id="width" min="1" max="20" value="5">
+        </div>
+
+        <div class="control-group">
+            <label>屏幕距離 $L$ : <span id="valDistance" class="value-display">1.0</span> m</label>
+            <input type="range" id="distance" min="0.5" max="3.0" step="0.1" value="1.0">
+        </div>
+    </div>
+</div>
+
+<!-- Bottom: Theory -->
+<div id="theory">
+    <h2 style="color: var(--accent-color);">物理理論說明</h2>
+    <p>本模擬基於 <b>Fraunhofer 繞射 (遠場繞射)</b> 理論。屏幕上任意一點的強度 $I$ 取決於該點與狹縫各部分的相位差。</p>
+    
+    <p><strong>1. 單狹縫繞射 (Single Slit):</strong><br>
+       當光通過寬度為 $a$ 的單個狹縫時，其強度分佈遵循 $\text{sinc}$ 函數：
+       $$ I(\theta) = I_0 \left( \frac{\sin(\beta)}{\beta} \right)^2, \quad \text{其中 } \beta = \frac{\pi a \sin\theta}{\lambda} $$</p>
+
+    <p><strong>2. 雙狹縫干涉 (Double Slit):</strong><br>
+       當存在兩個寬度為 $a$、間距為 $d$ 的狹縫時，結果是單狹縫繞射的「包絡線」與兩波源干涉條紋的乘積：
+       $$ I(\theta) = I_0 \left( \frac{\sin(\beta)}{\beta} \right)^2 \cos^2(\gamma), \quad \text{其中 } \gamma = \frac{\pi d \sin\theta}{\lambda} $$</p>
+
+    <p><strong>3. 幾何近似:</strong><br>
+       在遠場條件下，$\sin\theta \approx \tan\theta = \frac{y}{L}$。因此，條紋間距 $\Delta y$ 與波長成正比，與狹縫間距成反比：$\Delta y = \frac{\lambda L}{d}$。</p>
+</div>
+
+<script>
+    const canvas = document.getElementById('opticsCanvas');
+    const ctx = canvas.getContext('2d');
+
+    let mode = 'double'; 
+    let params = {
+        wavelength: 550, // nm
+        spacing: 20,     // um
+        width: 5,        // um
+        distance: 1.0    // m
+    };
+
+    function resize() {
+        canvas.width = canvas.parentElement.clientWidth;
+        canvas.height = 500;
+        draw();
+    }
+
+    window.addEventListener('resize', resize);
+
+    const inputs = ['wavelength', 'spacing', 'width', 'distance'];
+    inputs.forEach(id => {
+        document.getElementById(id).addEventListener('input', (e) => {
+            params[id] = parseFloat(e.target.value);
+            document.getElementById(`val${id.charAt(0).toUpperCase() + id.slice(1)}`).innerText = params[id];
+            draw();
+        });
+    });
+
+    function setMode(m) {
+        mode = m;
+        document.getElementById('btnSingle').classList.toggle('active', m === 'single');
+        document.getElementById('btnDouble').classList.toggle('active', m === 'double');
+        draw();
+    }
+
+    // Wavelength to RGB conversion (Approximate)
+    function nmToRGB(wavelength) {
+        let r, g, b;
+        if (wavelength >= 380 && wavelength < 450) {
+            r = -(wavelength - 440) * (100 / 60); g = 0; b = 255;
+        } else if (wavelength >= 450 && wavelength < 495) {
+            r = 0; g = (wavelength - 450) * (100 / 45); b = 255;
+        } else if (wavelength >= 495 && wavelength < 570) {
+            r = 0; g = 255; b = -(wavelength - 560) * (100 / 30);
+        } else if (wavelength >= 570 && wavelength < 590) {
+            r = (wavelength - 570) * (100 / 20); g = 255; b = 0;
+        } else if (wavelength >= 590 && wavelength < 620) {
+            r = 255; g = -(wavelength - 610) * (100 / 30); b = 0;
+        } else if (wavelength >= 620 && wavelength <= 750) {
+            r = 255; g = 0; b = 0;
+        } else {
+            r = 128; g = 128; b = 128;
+        }
+        return {
+            r: Math.min(255, Math.max(0, r)),
+            g: Math.min(255, Math.max(0, g)),
+            b: Math.min(255, Math.max(0, b))
+        };
+    }
+
+    function draw() {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        
+        const centerX = canvas.width / 2;
+        const centerY = canvas.height / 2;
+        const color = nmToRGB(params.wavelength);
+
+        // Physical constants (SI)
+        const lambda = params.wavelength * 1e-9;
+        const d = params.spacing * 1e-6;
+        const a = params.width * 1e-6;
+        const L = params.distance;
+        const physicalRange = 0.1; // Screen half-width in meters
+
+        // Draw Background
+        ctx.fillStyle = '#000';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+        // Render the Intensity Pattern using ImageData for performance
+        const patternHeight = 180;
+        const patternY = centerY - 60;
+        const imageData = ctx.createImageData(canvas.width, patternHeight);
+        const data = imageData.data;
+
+        for (let x = 0; x < canvas.width; x++) {
+            const yPos = ((x - centerX) / canvas.width) * 2 * physicalRange;
+            const theta = Math.atan(yPos / L);
+            
+            // Diffraction term: sinc^2(beta)
+            const beta = (Math.PI * a * Math.sin(theta)) / lambda;
+            const diffraction = beta === 0 ? 1 : Math.pow(Math.sin(beta) / beta, 2);
+
+            let intensity = 0;
+            if (mode === 'single') {
+                intensity = diffraction;
+            } else {
+                // Interference term: cos^2(gamma)
+                const gamma = (Math.PI * d * Math.sin(theta)) / lambda;
+                const interference = Math.pow(Math.cos(gamma), 2);
+                intensity = diffraction * interference;
+            }
+
+            // Apply intensity to each pixel in the vertical strip
+            for (let py = 0; py < patternHeight; py++) {
+                const idx = (py * canvas.width + x) * 4;
+                data[idx] = color.r * intensity;     // R
+                data[idx+1] = color.g * intensity;   // G
+                data[idx+2] = color.b * intensity;   // B
+                data[idx+3] = 255;                   // A
+            }
+        }
+        ctx.putImageData(imageData, 0, patternY);
+
+        drawSchematic(centerX, centerY + 120);
+    }
+
+    function drawSchematic(cx, cy) {
+        ctx.strokeStyle = "#666";
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        ctx.moveTo(cx - 60, cy);
+        ctx.lineTo(cx + 60, cy);
+        ctx.stroke();
+
+        // Light source
+        ctx.fillStyle = "#fff";
+        ctx.shadowBlur = 15;
+        ctx.shadowColor = "white";
+        ctx.beginPath();
+        ctx.arc(cx, cy + 40, 6, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.shadowBlur = 0;
+
+        ctx.fillStyle = "#888";
+        ctx.font = "14px Arial";
+        ctx.textAlign = "center";
+        ctx.fillText("光源", cx, cy + 60);
+        ctx.fillText("狹縫平面", cx, cy - 15);
+    }
+
+    resize();
+</script>
+
+</body>
+</html>
