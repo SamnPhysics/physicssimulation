@@ -1,0 +1,970 @@
+<!DOCTYPE html>
+<html lang="zh-TW" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>光的干涉與繞射模擬</title>
+    
+    <!-- 引入 Tailwind CSS 以實現 RWD 與快速排版 -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- 正確配置 Tailwind 啟用基於 class 的深色模式 (必須放在主程式之後) -->
+    <script>
+        tailwind.config = {
+            darkMode: 'class'
+        };
+    </script>
+    
+    <!-- MathJax 配置與引入，用於渲染物理公式 -->
+    <script>
+        MathJax = {
+            tex: {
+                inlineMath: [['$', '$'], ['\\(', '\\)']],
+                displayMath: [['$$', '$$'], ['\\[', '\\]']]
+            },
+            svg: {
+                fontCache: 'global'
+            }
+        };
+    </script>
+    <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+
+    <style>
+        /* 自訂 input range 的樣式以符合整體深色科技感 */
+        input[type=range] {
+            -webkit-appearance: none;
+            width: 100%;
+            background: transparent;
+        }
+        input[type=range]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            height: 16px;
+            width: 16px;
+            border-radius: 50%;
+            background: #3b82f6;
+            cursor: pointer;
+            margin-top: -6px;
+            box-shadow: 0 0 5px rgba(59, 130, 246, 0.5);
+            transition: background-color 0.3s;
+        }
+        input[type=range]::-webkit-slider-runnable-track {
+            width: 100%;
+            height: 4px;
+            cursor: pointer;
+            background: #cbd5e1; /* 淺色模式軌道 */
+            border-radius: 2px;
+            transition: background-color 0.3s;
+        }
+        .dark input[type=range]::-webkit-slider-runnable-track {
+            background: #4b5563; /* 深色模式軌道 */
+        }
+        input[type=range]:focus {
+            outline: none;
+        }
+        /* 隱藏捲動條但保留功能 */
+        .no-scrollbar::-webkit-scrollbar {
+            display: none;
+        }
+        .no-scrollbar {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
+    </style>
+</head>
+<body class="bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-gray-100 min-h-screen font-sans selection:bg-blue-500 selection:text-white pb-10 transition-colors duration-300">
+
+    <div class="max-w-7xl mx-auto p-4 space-y-6">
+        
+        <!-- 頁首標題 -->
+        <header class="text-center py-4 border-b border-gray-300 dark:border-gray-700 relative transition-colors duration-300">
+            <h1 class="text-3xl md:text-4xl font-bold text-gray-900 dark:text-white tracking-wider transition-colors duration-300">光的干涉與繞射模擬</h1>
+            <p class="text-gray-600 dark:text-gray-400 mt-2 text-sm md:text-base transition-colors duration-300">包含實驗情境圖、亮暗紋與強度分佈的完整解析</p>
+            
+            <!-- 深淺色切換按鈕 -->
+            <button id="themeToggleBtn" class="absolute right-2 top-2 md:right-4 md:top-4 p-2 rounded-full bg-gray-200 dark:bg-gray-800 text-gray-600 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-700 transition-colors duration-300 shadow focus:outline-none">
+                <!-- 太陽圖示 (深色模式時顯示，點擊切淺色) -->
+                <svg id="themeIconSun" class="w-6 h-6 hidden" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"></path></svg>
+                <!-- 月亮圖示 (淺色模式時顯示，點擊切深色) -->
+                <svg id="themeIconMoon" class="w-6 h-6 block" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"></path></svg>
+            </button>
+        </header>
+
+        <!-- 核心互動區 (RWD: 手機上下堆疊，電腦左 2/3 右 1/3) -->
+        <div class="flex flex-col md:flex-row gap-6">
+            
+            <!-- 左側：動畫與圖表呈現區 (2/3) -->
+            <div class="w-full md:w-2/3 bg-white dark:bg-black border border-gray-300 dark:border-gray-700 rounded-xl shadow-xl dark:shadow-2xl p-4 flex flex-col relative transition-colors duration-300">
+                <!-- 狀態指示 -->
+                <div class="absolute top-6 left-6 flex space-x-2 z-10">
+                    <span id="badgeMode" class="bg-blue-600/80 text-white text-xs px-2 py-1 rounded shadow">雙狹縫模式</span>
+                    <span id="badgeColor" class="bg-gray-100/90 dark:bg-gray-800/90 text-gray-800 dark:text-white border border-gray-300 dark:border-gray-600 text-xs px-2 py-1 rounded shadow transition-colors duration-300">Wavelength: 532 nm</span>
+                </div>
+                
+                <!-- Canvas 容器 -->
+                <div id="canvas-container" class="w-full h-[550px] md:h-[700px] relative overflow-hidden">
+                    <canvas id="simCanvas" class="w-full h-full rounded cursor-crosshair"></canvas>
+                    
+                    <!-- 浮動小視窗 (移除原本的 transform 置中與 margin，改由 JS 絕對定位) -->
+                    <div id="wavePopup" class="hidden absolute bg-white/95 dark:bg-gray-800/95 backdrop-blur-sm text-gray-900 dark:text-white p-3 rounded-xl shadow-2xl border border-gray-300 dark:border-gray-600 z-20 pointer-events-none transition-opacity duration-200" style="width: 240px;">
+                        <h4 class="text-sm font-bold mb-1 border-b border-gray-200 dark:border-gray-700 pb-1">波形疊加狀態 (即時振幅)</h4>
+                        <div class="flex justify-between text-[10px] text-gray-500 dark:text-gray-400 mb-1">
+                            <span id="waveletLabel">虛線: 各別光波</span>
+                            <span class="font-bold text-blue-500" id="sumLabel">實線: 疊加總和</span>
+                        </div>
+                        <canvas id="popupCanvas" width="220" height="100" class="w-full h-auto rounded bg-gray-50 dark:bg-gray-900/50 border border-gray-100 dark:border-gray-700"></canvas>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 右側：控制介面區 (1/3) -->
+            <div class="w-full md:w-1/3 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-xl shadow-xl dark:shadow-2xl p-6 flex flex-col transition-colors duration-300">
+                <h2 class="text-xl font-bold mb-4 flex items-center text-blue-600 dark:text-blue-400 transition-colors duration-300">
+                    <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4"></path></svg>
+                    控制面板
+                </h2>
+
+                <!-- 模式切換按鈕 -->
+                <div class="mb-6">
+                    <button id="toggleModeBtn" class="w-full py-3 rounded-lg font-semibold transition-all duration-300 bg-blue-600 hover:bg-blue-500 text-white shadow-[0_0_15px_rgba(37,99,235,0.4)]">
+                        切換至：單狹縫繞射
+                    </button>
+                </div>
+
+                <div class="space-y-6 flex-1">
+                    <!-- 光波長 滑桿 -->
+                    <div class="space-y-2">
+                        <div class="flex justify-between">
+                            <label class="text-sm font-medium text-gray-700 dark:text-gray-300 transition-colors duration-300">光波長 (Wavelength $\lambda$)</label>
+                            <span id="valLambda" class="text-sm font-bold text-blue-600 dark:text-blue-300 transition-colors duration-300">532 nm</span>
+                        </div>
+                        <input type="range" id="sliderLambda" min="380" max="750" value="532" step="1">
+                        <div class="w-full h-2 rounded bg-gradient-to-r from-violet-500 via-green-500 to-red-500 opacity-50 mt-1"></div>
+                    </div>
+
+                    <!-- 狹縫寬度 滑桿 -->
+                    <div class="space-y-2">
+                        <div class="flex justify-between">
+                            <label class="text-sm font-medium text-gray-700 dark:text-gray-300 transition-colors duration-300">狹縫寬度 (Width $a$)</label>
+                            <span id="valWidth" class="text-sm font-bold text-blue-600 dark:text-blue-300 transition-colors duration-300">20 &mu;m</span>
+                        </div>
+                        <input type="range" id="sliderWidth" min="10" max="100" value="20" step="1">
+                    </div>
+
+                    <!-- 狹縫間距 滑桿 -->
+                    <div id="spacingContainer" class="space-y-2 transition-opacity duration-300">
+                        <div class="flex justify-between">
+                            <label class="text-sm font-medium text-gray-700 dark:text-gray-300 transition-colors duration-300">狹縫間距 (Spacing $d$)</label>
+                            <span id="valSpacing" class="text-sm font-bold text-blue-600 dark:text-blue-300 transition-colors duration-300">100 &mu;m</span>
+                        </div>
+                        <input type="range" id="sliderSpacing" min="50" max="500" value="100" step="1">
+                        <p class="text-xs text-gray-500 dark:text-gray-400 transition-colors duration-300">提示：間距須大於狹縫寬度</p>
+                    </div>
+
+                    <!-- 屏幕距離 滑桿 -->
+                    <div class="space-y-2">
+                        <div class="flex justify-between">
+                            <label class="text-sm font-medium text-gray-700 dark:text-gray-300 transition-colors duration-300">狹縫到屏幕距離 ($L$)</label>
+                            <span id="valDistance" class="text-sm font-bold text-blue-600 dark:text-blue-300 transition-colors duration-300">1.0 m</span>
+                        </div>
+                        <input type="range" id="sliderDistance" min="0.5" max="5.0" value="1.0" step="0.1">
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 下方：物理理論與公式說明區 -->
+        <div class="bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-xl shadow-xl dark:shadow-2xl p-6 md:p-8 mt-4 transition-colors duration-300">
+            <h3 class="text-2xl font-bold text-gray-900 dark:text-white mb-4 border-b border-gray-300 dark:border-gray-700 pb-2 transition-colors duration-300">物理理論與數學模型</h3>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-8 text-gray-700 dark:text-gray-300 leading-relaxed text-sm md:text-base transition-colors duration-300">
+                
+                <div>
+                    <h4 class="text-lg font-semibold text-blue-600 dark:text-blue-400 mb-2 transition-colors duration-300">1. 雙狹縫干涉 (Double Slit Interference)</h4>
+                    <p class="mb-2">當單色光通過兩個相距為 $d$ 且寬度均為 $a$ 的狹縫時，在距離為 $L$ 的屏幕上會形成明暗相間的條紋。其光強度分布 $I(\theta)$ 受干涉與繞射效應共同影響：</p>
+                    <div class="bg-gray-50 dark:bg-gray-900 p-3 rounded my-2 text-center overflow-x-auto no-scrollbar border border-gray-200 dark:border-gray-700 transition-colors duration-300">
+                        $$I(\theta) = I_0 \cos^2\left(\frac{\pi d \sin\theta}{\lambda}\right) \text{sinc}^2\left(\frac{\pi a \sin\theta}{\lambda}\right)$$
+                    </div>
+                    <p>其中第一項 $\cos^2(...)$ 為<strong>干涉因子</strong>，第二項 $\text{sinc}^2(...)$ 為<strong>單狹縫繞射包絡線</strong>。</p>
+                </div>
+
+                <div>
+                    <h4 class="text-lg font-semibold text-blue-600 dark:text-blue-400 mb-2 transition-colors duration-300">2. 單狹縫繞射 (Single Slit Diffraction)</h4>
+                    <p class="mb-2">若僅有一個寬度為 $a$ 的狹縫，光波通過狹縫時會在邊緣發生繞射（惠更斯原理），在屏幕上形成中央寬且亮、兩側漸暗的條紋。其強度分布為：</p>
+                    <div class="bg-gray-50 dark:bg-gray-900 p-3 rounded my-2 text-center overflow-x-auto no-scrollbar border border-gray-200 dark:border-gray-700 transition-colors duration-300">
+                        $$I(\theta) = I_0 \text{sinc}^2\left(\frac{\pi a \sin\theta}{\lambda}\right)$$
+                    </div>
+                    <p>數學函數 $\text{sinc}(x)$ 定義為 $\frac{\sin x}{x}$。在小角度近似下，屏幕位置 $y$ 與角度 $\theta$ 的關係為 $\sin\theta \approx \tan\theta = \frac{y}{L}$。</p>
+                </div>
+
+            </div>
+        </div>
+    </div>
+
+    <!-- 核心 JavaScript 物理與渲染邏輯 -->
+    <script>
+        // DOM 元素選取
+        const canvas = document.getElementById('simCanvas');
+        const ctx = canvas.getContext('2d');
+        const container = document.getElementById('canvas-container');
+
+        // 控制介面元素
+        const toggleBtn = document.getElementById('toggleModeBtn');
+        const sliderLambda = document.getElementById('sliderLambda');
+        const sliderWidth = document.getElementById('sliderWidth');
+        const sliderSpacing = document.getElementById('sliderSpacing');
+        const sliderDistance = document.getElementById('sliderDistance');
+        
+        const valLambda = document.getElementById('valLambda');
+        const valWidth = document.getElementById('valWidth');
+        const valSpacing = document.getElementById('valSpacing');
+        const valDistance = document.getElementById('valDistance');
+        
+        const badgeMode = document.getElementById('badgeMode');
+        const badgeColor = document.getElementById('badgeColor');
+        const spacingContainer = document.getElementById('spacingContainer');
+
+        const btnThemeToggle = document.getElementById('themeToggleBtn');
+        const iconSun = document.getElementById('themeIconSun');
+        const iconMoon = document.getElementById('themeIconMoon');
+
+        const wavePopup = document.getElementById('wavePopup');
+        const popupCanvas = document.getElementById('popupCanvas');
+        const pCtx = popupCanvas.getContext('2d');
+
+        // 系統與狀態變數
+        let isDoubleSlit = true; 
+        const Y_MAX = 0.05; // 模擬屏幕上下範圍為 -5cm 到 +5cm (0.05m)
+        let currentParams = null;
+        let time = 0;
+        let lastTime = performance.now();
+        
+        let mouseX = -100, mouseY = -100;
+        let cssMouseX = -100, cssMouseY = -100;
+        let popupActive = false;
+        let activeHoverData = null;
+
+        // 初始化
+        function init() {
+            window.addEventListener('resize', resizeCanvas);
+            
+            btnThemeToggle.addEventListener('click', () => {
+                document.documentElement.classList.toggle('dark');
+                updateThemeIcon();
+                updateState(); 
+                if (currentParams) renderPhysicsAnimated();
+            });
+            updateThemeIcon();
+
+            [sliderLambda, sliderWidth, sliderSpacing, sliderDistance].forEach(slider => {
+                slider.addEventListener('input', updateState);
+            });
+
+            toggleBtn.addEventListener('click', () => {
+                isDoubleSlit = !isDoubleSlit;
+                if (isDoubleSlit) {
+                    toggleBtn.textContent = "切換至：單狹縫繞射";
+                    toggleBtn.classList.replace('bg-purple-600', 'bg-blue-600');
+                    toggleBtn.classList.replace('hover:bg-purple-500', 'hover:bg-blue-500');
+                    toggleBtn.classList.replace('shadow-[0_0_15px_rgba(147,51,234,0.4)]', 'shadow-[0_0_15px_rgba(37,99,235,0.4)]');
+                    badgeMode.textContent = "雙狹縫模式";
+                    badgeMode.classList.replace('bg-purple-600/80', 'bg-blue-600/80');
+                    spacingContainer.style.opacity = '1';
+                    sliderSpacing.disabled = false;
+                } else {
+                    toggleBtn.textContent = "切換至：雙狹縫干涉";
+                    toggleBtn.classList.replace('bg-blue-600', 'bg-purple-600');
+                    toggleBtn.classList.replace('hover:bg-blue-500', 'hover:bg-purple-500');
+                    toggleBtn.classList.replace('shadow-[0_0_15px_rgba(37,99,235,0.4)]', 'shadow-[0_0_15px_rgba(147,51,234,0.4)]');
+                    badgeMode.textContent = "單狹縫模式";
+                    badgeMode.classList.replace('bg-blue-600/80', 'bg-purple-600/80');
+                    spacingContainer.style.opacity = '0.3';
+                    sliderSpacing.disabled = true;
+                }
+                updateState();
+            });
+
+            // 滑鼠互動 (擷取空間座標供 Hover 與示波器使用)
+            canvas.addEventListener('mousemove', (e) => {
+                const rect = canvas.getBoundingClientRect();
+                const dpr = window.devicePixelRatio || 1;
+                cssMouseX = e.clientX - rect.left;
+                cssMouseY = e.clientY - rect.top;
+                mouseX = cssMouseX * dpr;
+                mouseY = cssMouseY * dpr;
+            });
+
+            canvas.addEventListener('mouseleave', () => {
+                mouseX = -100;
+                mouseY = -100;
+            });
+
+            canvas.addEventListener('click', (e) => {
+                if (activeHoverData) {
+                    const rect = canvas.getBoundingClientRect();
+                    wavePopup.classList.remove('hidden');
+                    
+                    const popupWidth = 240;
+                    const popupHeight = 150; // 預估彈出視窗高度
+                    
+                    // 智慧避讓 2.0：完美避開中央輻射出的光線與波程差文字
+                    // 原理：永遠將視窗放在游標的「外側」，若超出邊界則強制放在游標「正下方」
+                    let leftPos;
+                    let topPos = cssMouseY - (popupHeight / 2); // 預設垂直置中於游標
+                    
+                    if (cssMouseX > rect.width / 2) {
+                        // 游標在右半邊，視窗放更右側 (外側)
+                        leftPos = cssMouseX + 30; 
+                        // 若超出右邊界，改放游標下方偏左
+                        if (leftPos + popupWidth > rect.width - 10) {
+                            leftPos = cssMouseX - popupWidth + 20;
+                            topPos = cssMouseY + 35; // 往下移避開上方光線與文字
+                        }
+                    } else {
+                        // 游標在左半邊，視窗放更左側 (外側)
+                        leftPos = cssMouseX - popupWidth - 30; 
+                        // 若超出左邊界，改放游標下方偏右
+                        if (leftPos < 10) {
+                            leftPos = cssMouseX - 20;
+                            topPos = cssMouseY + 35; // 往下移避開上方光線與文字
+                        }
+                    }
+
+                    // 確保視窗不超出 Canvas 上下邊界
+                    if (topPos < 10) topPos = 10;
+                    if (topPos + popupHeight > rect.height - 10) topPos = rect.height - popupHeight - 10;
+                    
+                    // 二次確認水平邊界
+                    if (leftPos < 10) leftPos = 10;
+                    if (leftPos + popupWidth > rect.width - 10) leftPos = rect.width - popupWidth - 10;
+                    
+                    wavePopup.style.left = leftPos + 'px';
+                    wavePopup.style.top = topPos + 'px';
+                    popupActive = true;
+                    
+                    document.getElementById('sumLabel').style.color = activeHoverData.colorStr;
+                    document.getElementById('waveletLabel').textContent = activeHoverData.isDouble ? "虛線: 左/右狹縫波源" : "虛線: 縫內惠更斯次波源";
+                } else {
+                    wavePopup.classList.add('hidden');
+                    popupActive = false;
+                }
+            });
+
+            resizeCanvas();
+            requestAnimationFrame(animate);
+        }
+
+        function updateThemeIcon() {
+            const isDark = document.documentElement.classList.contains('dark');
+            if (isDark) {
+                iconSun.classList.remove('hidden'); iconSun.classList.add('block');
+                iconMoon.classList.remove('block'); iconMoon.classList.add('hidden');
+            } else {
+                iconSun.classList.remove('block'); iconSun.classList.add('hidden');
+                iconMoon.classList.remove('hidden'); iconMoon.classList.add('block');
+            }
+        }
+
+        function resizeCanvas() {
+            const dpr = window.devicePixelRatio || 1;
+            const rect = container.getBoundingClientRect();
+            canvas.width = rect.width * dpr;
+            canvas.height = rect.height * dpr;
+            updateState(); 
+        }
+
+        function wavelengthToRGB(wavelength) {
+            let r, g, b, alpha, wl = wavelength;
+            if (wl >= 380 && wl < 440) { r = -(wl - 440) / (440 - 380); g = 0; b = 1; } 
+            else if (wl >= 440 && wl < 490) { r = 0; g = (wl - 440) / (490 - 440); b = 1; } 
+            else if (wl >= 490 && wl < 510) { r = 0; g = 1; b = -(wl - 510) / (510 - 490); } 
+            else if (wl >= 510 && wl < 580) { r = (wl - 510) / (580 - 510); g = 1; b = 0; } 
+            else if (wl >= 580 && wl < 645) { r = 1; g = -(wl - 645) / (645 - 580); b = 0; } 
+            else if (wl >= 645 && wl <= 750) { r = 1; g = 0; b = 0; } 
+            else { r = 0; g = 0; b = 0; }
+
+            if (wl > 750 || wl < 380) { alpha = 0; }
+            else if (wl > 700) { alpha = (750 - wl) / (750 - 700); }
+            else if (wl < 420) { alpha = (wl - 380) / (420 - 380); }
+            else { alpha = 1; }
+
+            const gamma = 0.8;
+            return {
+                r: Math.round(Math.pow(r * alpha, gamma) * 255),
+                g: Math.round(Math.pow(g * alpha, gamma) * 255),
+                b: Math.round(Math.pow(b * alpha, gamma) * 255)
+            };
+        }
+
+        // ==========================================
+        // 極致效能優化核心：將不需要每幀計算的幾何物理抽出預處理
+        // ==========================================
+        function updateState() {
+            const w = canvas.width;
+            const h = canvas.height;
+            if (w === 0 || h === 0) return;
+
+            const lambda_nm = parseFloat(sliderLambda.value);
+            const a_um = parseFloat(sliderWidth.value);
+            let d_um = parseFloat(sliderSpacing.value);
+            const L_m = parseFloat(sliderDistance.value);
+
+            // 防呆機制
+            if (isDoubleSlit && d_um <= a_um) {
+                d_um = a_um + 10;
+                sliderSpacing.value = d_um;
+            }
+
+            valLambda.textContent = `${lambda_nm} nm`;
+            valWidth.textContent = `${a_um} \u03BCm`;
+            valSpacing.textContent = `${d_um} \u03BCm`;
+            valDistance.textContent = `${L_m.toFixed(1)} m`;
+            badgeColor.textContent = `\u03BB: ${lambda_nm} nm`;
+
+            const lambda = lambda_nm * 1e-9;
+            const a = a_um * 1e-6;
+            const d = d_um * 1e-6;
+            const L = L_m;
+
+            const colorObj = wavelengthToRGB(lambda_nm);
+            const isDark = document.documentElement.classList.contains('dark');
+            const factor = isDark ? 1.0 : 0.6; 
+            const dR = Math.round(colorObj.r * factor);
+            const dG = Math.round(colorObj.g * factor);
+            const dB = Math.round(colorObj.b * factor);
+            
+            sliderLambda.style.setProperty('--tw-shadow-color', `rgb(${dR}, ${dG}, ${dB})`);
+
+            // 高度區塊配置
+            const hSetup = h * 0.53;     
+            const hFringe = h * 0.12;    
+            const hGraph = h * 0.35;     
+            const yScreen = hSetup;
+            const yLaser = 20;           
+            
+            const min_H_vis = 60; 
+            const max_H_vis = yScreen - yLaser - 40; 
+            const L_ratio = (L - 0.5) / (5.0 - 0.5); 
+            const H_vis = min_H_vis + L_ratio * (max_H_vis - min_H_vis); 
+            const ySlit = yScreen - H_vis; 
+
+            // 效能優化一：提早算出 1D 的圖表物理結果，儲存進陣列供每幀直接繪製
+            let points = [];
+            for (let x = 0; x < w; x++) {
+                let y = ((x / w) - 0.5) * 2 * Y_MAX; 
+                let sinTheta = y / Math.sqrt(y * y + L * L);
+                let beta = (Math.PI * a * sinTheta) / lambda;
+                let D = (beta === 0) ? 1 : Math.pow(Math.sin(beta) / beta, 2); 
+                let I = D; 
+                if (isDoubleSlit) {
+                    let alphaArg = (Math.PI * d * sinTheta) / lambda;
+                    let F = Math.pow(Math.cos(alphaArg), 2); 
+                    I = D * F; 
+                }
+                points.push({ x: x, intensity: I, phyY: y });
+            }
+
+            // 效能優化二：預先建立波紋動畫的空間矩陣快取 (Spatial Caching)
+            const scale = 2; 
+            const wOff = Math.ceil(w / scale);
+            const hOff = Math.ceil(hSetup / scale);
+
+            if (!window.waveCanvas || window.waveCanvas.width !== wOff || window.waveCanvas.height !== hOff) {
+                window.waveCanvas = document.createElement('canvas');
+                window.waveCanvas.width = wOff;
+                window.waveCanvas.height = hOff;
+                window.waveCtx = window.waveCanvas.getContext('2d');
+                window.waveImg = window.waveCtx.createImageData(wOff, hOff);
+            }
+
+            const numPixels = wOff * hOff;
+            if (!window.waveCache || window.waveCache.length !== numPixels * 4) {
+                window.waveCache = new Float32Array(numPixels * 4);
+            }
+            const cache = window.waveCache;
+
+            const K_spatial = w * 1000; 
+            const d_vis = K_spatial * d;
+            const a_vis = K_spatial * a;
+            const lambda_vis = (K_spatial * w * lambda * L) / (2 * Y_MAX * H_vis);
+            
+            const slitY_off = ySlit / scale;
+            const d_vis_off = d_vis / scale;
+            const a_vis_off = a_vis / scale;
+            const lambda_vis_off = lambda_vis / scale;
+            const k_vis_off = 2 * Math.PI / lambda_vis_off;
+            const beamW_off = Math.max(100, d_vis_off + a_vis_off + 20) / 2;
+
+            // 建立快取：將需要用到 Math.sqrt / Math.sin 的常數空間參數算好鎖定
+            let cIdx = 0;
+            for (let y = 0; y < hOff; y++) {
+                let vy = y - slitY_off;
+                for (let x = 0; x < wOff; x++) {
+                    let vx = x - (wOff / 2);
+                    
+                    if (vy < 0) {
+                        // 平面波區
+                        if (Math.abs(vx) < beamW_off) {
+                            let edgeFade = Math.max(0, 1 - Math.abs(vx) / beamW_off);
+                            cache[cIdx] = k_vis_off * Math.abs(vy); // basePhase
+                            cache[cIdx+1] = 0;
+                            cache[cIdx+2] = edgeFade;               // amplitude multiplier
+                            cache[cIdx+3] = 1;                      // type: 1=Plane
+                        } else {
+                            cache[cIdx+3] = 0; // empty
+                        }
+                    } else {
+                        // 圓形波區
+                        let E = 1;
+                        let r_center = Math.sqrt(vx*vx + vy*vy);
+                        if (r_center > 0) {
+                            let sinTheta = vx / r_center;
+                            let beta = (Math.PI * a_vis_off * sinTheta) / lambda_vis_off;
+                            E = (beta === 0) ? 1 : Math.sin(beta) / beta; 
+                        }
+
+                        if (isDoubleSlit) {
+                            cache[cIdx] = k_vis_off * Math.sqrt((vx - d_vis_off/2)**2 + vy**2); // r1 phase
+                            cache[cIdx+1] = k_vis_off * Math.sqrt((vx + d_vis_off/2)**2 + vy**2); // r2 phase
+                            cache[cIdx+2] = 0.5 * E;
+                            cache[cIdx+3] = 3; // type: 3=Double
+                        } else {
+                            cache[cIdx] = k_vis_off * r_center; // r_center phase
+                            cache[cIdx+1] = 0;
+                            cache[cIdx+2] = E;
+                            cache[cIdx+3] = 2; // type: 2=Single
+                        }
+                    }
+                    cIdx += 4;
+                }
+            }
+
+            // 效能優化三：鎖定 ImageData 的 RGB 通道，動畫迴圈只要改 Alpha 即可
+            const data = window.waveImg.data;
+            for (let i = 0; i < data.length; i += 4) {
+                data[i] = dR;
+                data[i+1] = dG;
+                data[i+2] = dB;
+                // data[i+3] (alpha) 會在動畫迴圈中動態更新
+            }
+
+            const k_vis = 2 * Math.PI / lambda_vis;
+            const omega = k_vis * 50; 
+
+            // 將所有打包好的變數傳給動畫引擎
+            currentParams = {
+                w, h, wOff, hOff, scale, isDark,
+                dR, dG, dB,
+                hSetup, hFringe, hGraph, yScreen, yLaser, ySlit,
+                points,
+                d_vis, a_vis, lambda_vis, k_vis, omega,
+                L, a, lambda
+            };
+        }
+
+        function animate(timestamp) {
+            let dt = (timestamp - lastTime) / 1000;
+            if (dt > 0.05) dt = 0.016; 
+            lastTime = timestamp;
+            time += dt;
+
+            if (currentParams) {
+                renderPhysicsAnimated();
+                if (popupActive) renderPopup();
+            }
+            requestAnimationFrame(animate);
+        }
+
+        function renderPopup() {
+            if (!popupActive || !activeHoverData) return;
+            const pw = popupCanvas.width;
+            const ph = popupCanvas.height;
+            pCtx.clearRect(0, 0, pw, ph);
+            
+            const { vx, vy, d_vis, a_vis, lambda_vis, k_vis, omega, colorStr, isDark, isDouble } = activeHoverData;
+            
+            pCtx.strokeStyle = isDark ? '#374151' : '#e2e8f0';
+            pCtx.lineWidth = 1;
+            pCtx.beginPath();
+            pCtx.moveTo(0, ph/2); pCtx.lineTo(pw, ph/2);
+            pCtx.stroke();
+            
+            let E = 1;
+            let r_center = Math.sqrt(vx*vx + vy*vy);
+            if (r_center > 0) {
+                let sinTheta = vx / r_center;
+                let beta = (Math.PI * a_vis * sinTheta) / lambda_vis;
+                E = (beta === 0) ? 1 : Math.sin(beta) / beta; 
+            }
+            
+            let r1 = isDouble ? Math.sqrt((vx - d_vis/2)**2 + vy**2) : r_center;
+            let r2 = isDouble ? Math.sqrt((vx + d_vis/2)**2 + vy**2) : r_center;
+
+            const steps = pw;
+            const cycles = 4 * Math.PI; 
+            const ampScale = (ph/2) - 15; 
+
+            if (isDouble) {
+                pCtx.lineWidth = 1.5;
+                pCtx.strokeStyle = isDark ? 'rgba(156, 163, 175, 0.5)' : 'rgba(100, 116, 139, 0.5)';
+                pCtx.setLineDash([3, 3]);
+                
+                pCtx.beginPath();
+                for(let i=0; i<steps; i++) {
+                    let y1 = Math.cos(k_vis * r1 - (i/steps)*cycles) * 0.5 * E;
+                    let py = ph/2 - (y1 * ampScale);
+                    if (i===0) pCtx.moveTo(i, py); else pCtx.lineTo(i, py);
+                }
+                pCtx.stroke();
+                
+                pCtx.beginPath();
+                for(let i=0; i<steps; i++) {
+                    let y2 = Math.cos(k_vis * r2 - (i/steps)*cycles) * 0.5 * E;
+                    let py = ph/2 - (y2 * ampScale);
+                    if (i===0) pCtx.moveTo(i, py); else pCtx.lineTo(i, py);
+                }
+                pCtx.stroke();
+                pCtx.setLineDash([]);
+            } else {
+                // 單狹縫：惠更斯次波源模擬
+                const N = 5; // 取 5 個代表性次波源
+                pCtx.lineWidth = 1.0;
+                pCtx.strokeStyle = isDark ? 'rgba(156, 163, 175, 0.4)' : 'rgba(100, 116, 139, 0.4)';
+                pCtx.setLineDash([2, 2]);
+
+                for (let j = 0; j < N; j++) {
+                    // 均勻分布在狹縫寬度 a_vis 內
+                    let dy = -a_vis/2 + (j / (N-1)) * a_vis;
+                    let r_j = Math.sqrt(vx*vx + (vy - dy)**2);
+
+                    pCtx.beginPath();
+                    for(let i=0; i<steps; i++) {
+                        // 每個次波源的振幅設為 1/N
+                        let y_j = Math.cos(k_vis * r_j - (i/steps)*cycles) * (1/N);
+                        let py = ph/2 - (y_j * ampScale);
+                        if (i===0) pCtx.moveTo(i, py); else pCtx.lineTo(i, py);
+                    }
+                    pCtx.stroke();
+                }
+                pCtx.setLineDash([]);
+            }
+
+            pCtx.lineWidth = 2.5;
+            pCtx.strokeStyle = colorStr;
+            pCtx.beginPath();
+            for(let i=0; i<steps; i++) {
+                let tPhase = (i / steps) * cycles; 
+                let sumY = isDouble ? (Math.cos(k_vis * r1 - tPhase) + Math.cos(k_vis * r2 - tPhase)) * 0.5 * E : Math.cos(k_vis * r_center - tPhase) * E;
+                let py = ph/2 - (sumY * ampScale);
+                if (i===0) pCtx.moveTo(i, py); else pCtx.lineTo(i, py);
+            }
+            pCtx.stroke();
+
+            let currentPhase = (omega * time) % cycles;
+            let currentI = (currentPhase / cycles) * steps;
+            let currentSumY = isDouble ? (Math.cos(k_vis * r1 - currentPhase) + Math.cos(k_vis * r2 - currentPhase)) * 0.5 * E : Math.cos(k_vis * r_center - currentPhase) * E;
+            
+            pCtx.beginPath();
+            pCtx.arc(currentI, ph/2 - (currentSumY * ampScale), 5, 0, Math.PI*2);
+            pCtx.fillStyle = '#ef4444'; 
+            pCtx.fill();
+            pCtx.strokeStyle = isDark ? '#1f2937' : '#ffffff';
+            pCtx.lineWidth = 1.5;
+            pCtx.stroke();
+        }
+
+        function renderPhysicsAnimated() {
+            const {
+                w, h, wOff, hOff, isDark, dR, dG, dB,
+                hSetup, hFringe, hGraph, yScreen, yLaser, ySlit,
+                points, d_vis, a_vis, lambda_vis, k_vis, omega, L, a, lambda
+            } = currentParams;
+
+            ctx.clearRect(0, 0, w, h);
+
+            const theme = {
+                setupBg: isDark ? '#0f172a' : '#f8fafc',      
+                fringeBg: isDark ? '#000000' : '#e2e8f0',     
+                graphBg: isDark ? '#111827' : '#ffffff',      
+                textMain: isDark ? '#ffffff' : '#0f172a',     
+                textMuted: isDark ? '#cbd5e1' : '#64748b',    
+                gridLine: isDark ? '#374151' : '#cbd5e1',     
+                screenLine: isDark ? '#e2e8f0' : '#94a3b8',   
+                slitPlate: isDark ? '#94a3b8' : '#64748b'     
+            };
+
+            ctx.fillStyle = theme.setupBg;
+            ctx.fillRect(0, 0, w, hSetup);
+            ctx.fillStyle = theme.fringeBg;
+            ctx.fillRect(0, yScreen, w, hFringe);
+            ctx.fillStyle = theme.graphBg;
+            ctx.fillRect(0, yScreen + hFringe, w, hGraph);
+
+            // ==========================================
+            // 1. 動畫波紋場 (極致效能快取迴圈)
+            // ==========================================
+            const data = window.waveImg.data;
+            const cache = window.waveCache;
+            const phase = omega * time;
+            
+            let cIdx = 0;
+            let dIdx = 0;
+
+            // 完全拔除 Math.sqrt 等重度運算，直接由快取讀取相位基底作計算
+            for (let y = 0; y < hOff; y++) {
+                for (let x = 0; x < wOff; x++) {
+                    let type = cache[cIdx + 3];
+                    let A = 0; 
+
+                    if (type === 1) {
+                        A = Math.cos(cache[cIdx] + phase) * cache[cIdx + 2];
+                    } else if (type === 3) {
+                        A = (Math.cos(cache[cIdx] - phase) + Math.cos(cache[cIdx + 1] - phase)) * cache[cIdx + 2];
+                    } else if (type === 2) {
+                        A = Math.cos(cache[cIdx] - phase) * cache[cIdx + 2];
+                    }
+
+                    // 只有振幅大於 0 才需要換算透明度，省去 Math.pow 運算
+                    if (A > 0) {
+                        data[dIdx + 3] = Math.pow(A, 1.5) * 255;
+                    } else {
+                        data[dIdx + 3] = 0;
+                    }
+                    
+                    cIdx += 4;
+                    dIdx += 4;
+                }
+            }
+            window.waveCtx.putImageData(window.waveImg, 0, 0);
+            ctx.drawImage(window.waveCanvas, 0, 0, w, hSetup);
+
+            // ==========================================
+            // 2. 靜態實體繪製 (狹縫片與標籤)
+            // ==========================================
+            ctx.fillStyle = theme.textMain;
+            ctx.font = 'bold 16px sans-serif'; 
+            ctx.textAlign = 'center';
+            ctx.fillText("雷射光源", w/2, yLaser); 
+
+            ctx.fillStyle = theme.slitPlate;
+            const plateThickness = 8;
+            if (isDoubleSlit) {
+                ctx.fillRect(0, ySlit - plateThickness/2, w/2 - d_vis/2 - a_vis/2, plateThickness);
+                ctx.fillRect(w/2 - d_vis/2 + a_vis/2, ySlit - plateThickness/2, d_vis - a_vis, plateThickness);
+                ctx.fillRect(w/2 + d_vis/2 + a_vis/2, ySlit - plateThickness/2, w/2, plateThickness);
+            } else {
+                ctx.fillRect(0, ySlit - plateThickness/2, w/2 - a_vis/2, plateThickness);
+                ctx.fillRect(w/2 + a_vis/2, ySlit - plateThickness/2, w/2, plateThickness);
+            }
+            
+            ctx.fillStyle = theme.textMain;
+            ctx.font = 'bold 16px sans-serif';
+            ctx.textAlign = 'left';
+            ctx.fillText("狹縫片 (障礙物)", 15, ySlit - 15);
+
+            ctx.strokeStyle = theme.textMuted;
+            ctx.lineWidth = 1;
+            ctx.setLineDash([4, 4]);
+            ctx.beginPath();
+            const lineL_X = w/2 + Math.max(150, w*0.25); 
+            ctx.moveTo(lineL_X, ySlit);
+            ctx.lineTo(lineL_X, yScreen);
+            ctx.stroke();
+            ctx.setLineDash([]);
+            
+            ctx.beginPath(); ctx.moveTo(lineL_X - 5, ySlit + 10); ctx.lineTo(lineL_X, ySlit); ctx.lineTo(lineL_X + 5, ySlit + 10); ctx.stroke();
+            ctx.beginPath(); ctx.moveTo(lineL_X - 5, yScreen - 10); ctx.lineTo(lineL_X, yScreen); ctx.lineTo(lineL_X + 5, yScreen - 10); ctx.stroke();
+            
+            ctx.fillStyle = theme.textMuted;
+            ctx.textAlign = 'left';
+            ctx.fillText(`距離 L = ${L.toFixed(1)} m`, lineL_X + 15, (ySlit + yScreen)/2 + 5);
+
+            // ==========================================
+            // 2.5 互動式波前路徑與數值擷取 (Hover 狀態)
+            // ==========================================
+            if (mouseY > ySlit && mouseY < yScreen) {
+                // 先算出左右波源的起始位置
+                let SL_x, SL_y = ySlit;
+                let SR_x, SR_y = ySlit;
+                if (isDoubleSlit) {
+                    SL_x = w/2 - d_vis/2;
+                    SR_x = w/2 + d_vis/2;
+                } else {
+                    SL_x = w/2 - a_vis/2;
+                    SR_x = w/2 + a_vis/2;
+                }
+
+                // 畫出到達該游標點的波源路徑 (虛線)
+                ctx.beginPath();
+                ctx.setLineDash([5, 5]);
+                ctx.strokeStyle = `rgba(${dR}, ${dG}, ${dB}, 0.6)`;
+                ctx.lineWidth = 1.5;
+                ctx.moveTo(SL_x, ySlit); ctx.lineTo(mouseX, mouseY);
+                ctx.moveTo(SR_x, ySlit); ctx.lineTo(mouseX, mouseY);
+                ctx.stroke();
+                ctx.setLineDash([]);
+                
+                // 畫出波程差的幾何示意 (以游標為圓心畫弧，標示多出來的路徑)
+                let distL = Math.hypot(mouseX - SL_x, mouseY - SL_y);
+                let distR = Math.hypot(mouseX - SR_x, mouseY - SR_y);
+                
+                let S_short, S_long, dist_short, dist_long;
+                if (distL < distR) {
+                    S_short = {x: SL_x, y: SL_y}; S_long = {x: SR_x, y: SR_y};
+                    dist_short = distL; dist_long = distR;
+                } else {
+                    S_short = {x: SR_x, y: SR_y}; S_long = {x: SL_x, y: SL_y};
+                    dist_short = distR; dist_long = distL;
+                }
+
+                let pathDiff = dist_long - dist_short;
+                // 若波程差大於視覺像素閾值，才畫出輔助線，避免在中央亮紋區重疊干擾
+                if (pathDiff > 3) {
+                    let angle1 = Math.atan2(S_short.y - mouseY, S_short.x - mouseX);
+                    let angle2 = Math.atan2(S_long.y - mouseY, S_long.x - mouseX);
+                    
+                    let diffAngle = angle2 - angle1;
+                    while (diffAngle < -Math.PI) diffAngle += 2*Math.PI;
+                    while (diffAngle > Math.PI) diffAngle -= 2*Math.PI;
+                    let counterclockwise = diffAngle < 0;
+
+                    // 1. 等相位圓弧 (模擬課本作圖的垂直線截斷)
+                    ctx.beginPath();
+                    ctx.strokeStyle = theme.textMuted;
+                    ctx.lineWidth = 1.5;
+                    ctx.setLineDash([2, 2]);
+                    ctx.arc(mouseX, mouseY, dist_short, angle1, angle2, counterclockwise);
+                    ctx.stroke();
+                    ctx.setLineDash([]);
+
+                    // 2. 波程差線段高亮
+                    let Q_x = mouseX + dist_short * Math.cos(angle2);
+                    let Q_y = mouseY + dist_short * Math.sin(angle2);
+
+                    ctx.beginPath();
+                    ctx.strokeStyle = '#fbbf24'; // Tailwind 琥珀黃 (Amber-400) 高亮
+                    ctx.lineWidth = 3;
+                    ctx.lineCap = 'round';
+                    ctx.moveTo(S_long.x, S_long.y);
+                    ctx.lineTo(Q_x, Q_y);
+                    ctx.stroke();
+
+                    // 3. 文字標示 (放大字體並調整間距)
+                    let midX = (S_long.x + Q_x) / 2;
+                    let midY = (S_long.y + Q_y) / 2;
+                    ctx.fillStyle = '#fbbf24';
+                    ctx.font = 'bold 18px sans-serif'; // 將字體從 13px 放大至 18px
+                    ctx.textAlign = (S_long.x > w/2) ? 'left' : 'right';
+                    let textOffset = (S_long.x > w/2) ? 15 : -15; // 稍微增加文字與線段的水平間距
+                    ctx.fillText("波程差 Δr", midX + textOffset, midY + 6); // 微調垂直位置以對齊大字體
+                }
+                
+                ctx.beginPath();
+                ctx.arc(mouseX, mouseY, 5, 0, Math.PI*2);
+                ctx.fillStyle = `rgb(${dR}, ${dG}, ${dB})`;
+                ctx.shadowBlur = 12; 
+                ctx.shadowColor = ctx.fillStyle;
+                ctx.fill();
+                ctx.shadowBlur = 0; 
+
+                activeHoverData = {
+                    vx: mouseX - w/2,
+                    vy: mouseY - ySlit,
+                    d_vis: d_vis,
+                    a_vis: a_vis,
+                    lambda_vis: lambda_vis,
+                    k_vis: k_vis,
+                    omega: omega,
+                    colorStr: `rgb(${dR}, ${dG}, ${dB})`,
+                    isDark: isDark,
+                    isDouble: isDoubleSlit
+                };
+                canvas.style.cursor = 'pointer'; 
+            } else {
+                activeHoverData = null;
+                canvas.style.cursor = 'crosshair';
+            }
+
+            // ==========================================
+            // 3. 屏幕亮暗紋與圖表 (直接使用 pre-calculated 快取點陣列)
+            // ==========================================
+            for (let x = 0; x < w; x++) {
+                // Gamma 視覺增益
+                let visual_I = Math.pow(points[x].intensity, 0.4);
+                ctx.fillStyle = `rgba(${dR}, ${dG}, ${dB}, ${visual_I})`;
+                ctx.fillRect(x, yScreen, 1, hFringe);
+            }
+            
+            ctx.strokeStyle = theme.screenLine;
+            ctx.lineWidth = 2;
+            ctx.beginPath(); ctx.moveTo(0, yScreen); ctx.lineTo(w, yScreen); ctx.stroke();
+            
+            ctx.fillStyle = theme.textMain; 
+            ctx.font = 'bold 16px sans-serif'; 
+            ctx.textAlign = 'left';
+            ctx.fillText("觀測屏幕 (平均強度投影)", 15, yScreen - 15);
+
+            // ==========================================
+            // 4. 強度圖表繪製
+            // ==========================================
+            const graphTop = yScreen + hFringe;
+            const axisY = graphTop + hGraph * 0.75; 
+
+            ctx.strokeStyle = theme.gridLine; 
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+            ctx.moveTo(w / 2, yScreen); ctx.lineTo(w / 2, h); 
+            ctx.moveTo(0, axisY); ctx.lineTo(w, axisY);       
+            ctx.moveTo(0, graphTop + 20); ctx.lineTo(w, graphTop + 20); 
+            ctx.stroke();
+
+            ctx.fillStyle = theme.textMuted;
+            ctx.font = `${Math.max(12, h * 0.015)}px sans-serif`;
+            ctx.textAlign = 'center';
+            const tickCount = 5;
+            for(let i = 0; i <= tickCount; i++){
+                let pxX = (i / tickCount) * w;
+                let phyCm = (((i / tickCount) - 0.5) * 2 * Y_MAX * 100).toFixed(0);
+                ctx.beginPath(); ctx.moveTo(pxX, axisY); ctx.lineTo(pxX, axisY + 5); ctx.stroke();
+                ctx.fillText(`${phyCm} cm`, pxX, axisY + 20);
+            }
+            ctx.textAlign = 'left';
+            ctx.fillText("相對光強度 (I / I₀)", 10, graphTop + 15);
+
+            const plotHeight = axisY - (graphTop + 20);
+            
+            if (isDoubleSlit) {
+                ctx.beginPath();
+                ctx.setLineDash([5, 5]);
+                ctx.strokeStyle = `rgba(${dR}, ${dG}, ${dB}, 0.35)`;
+                ctx.lineWidth = 2;
+                for (let i = 0; i < points.length; i++) {
+                    let p = points[i];
+                    let beta = (Math.PI * a * (p.phyY / Math.sqrt(p.phyY * p.phyY + L * L))) / lambda;
+                    let env = (beta === 0) ? 1 : Math.pow(Math.sin(beta) / beta, 2);
+                    let py = axisY - (env * plotHeight);
+                    if (i === 0) ctx.moveTo(i, py); else ctx.lineTo(i, py);
+                }
+                ctx.stroke(); ctx.setLineDash([]);
+            }
+
+            ctx.beginPath();
+            ctx.strokeStyle = `rgb(${dR}, ${dG}, ${dB})`;
+            ctx.lineWidth = 3; 
+            ctx.lineJoin = 'round';
+            for (let i = 0; i < points.length; i++) {
+                let py = axisY - (points[i].intensity * plotHeight);
+                if (i === 0) ctx.moveTo(i, py); else ctx.lineTo(i, py);
+            }
+            ctx.stroke();
+            
+            ctx.lineTo(w, axisY); ctx.lineTo(0, axisY); ctx.closePath();
+            const gradient = ctx.createLinearGradient(0, graphTop, 0, axisY);
+            gradient.addColorStop(0, `rgba(${dR}, ${dG}, ${dB}, 0.4)`);
+            gradient.addColorStop(1, `rgba(${dR}, ${dG}, ${dB}, 0.0)`);
+            ctx.fillStyle = gradient;
+            ctx.fill();
+        }
+
+        init();
+    </script>
+</body>
+</html>
