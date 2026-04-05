@@ -165,52 +165,81 @@
     const [btnRun, btnPause, btnReset] = [el('run'), el('pause'), el('reset')];
     const [overlay, ovH, ovV, ovVt] = [el('overlay'), el('ov-h'), el('ov-v'), el('ov-vt')];
 
+    // 效能優化：離線畫布 (Off-screen Canvas) 用于緩存靜態背景
+    const cacheA = document.createElement('canvas');
+    const cacheC = document.createElement('canvas');
+    const ctxCacheA = cacheA.getContext('2d');
+    const ctxCacheC = cacheC.getContext('2d');
+
     let running = false, paused = false, rafId = null;
     let m, Cd, A, rho, h, v, t, dt = 0.01, g, vT, startH;
     let series = [];
+    let vMax = 0; // 增量追蹤最大值，避免每次重新遍歷
 
-    function derivatives(state, params) {
-      const [currH, currV] = state;
-      const { m, g, rho, Cd, A } = params;
-      const dv = (m * g - 0.5 * rho * Cd * A * currV * Math.abs(currV)) / m;
-      return [-currV, dv];
+    // 預繪製動畫背景
+    function preRenderAnim() {
+      cacheA.width = anim.width; cacheA.height = anim.height;
+      const groundY = anim.height - 40;
+      ctxCacheA.fillStyle = '#94a3b8';
+      ctxCacheA.fillRect(0, groundY, anim.width, 40);
     }
 
-    function rk4_step(state, dt, params) {
-      const k1 = derivatives(state, params);
-      const k2 = derivatives(state.map((s, i) => s + k1[i] * dt * 0.5), params);
-      const k3 = derivatives(state.map((s, i) => s + k2[i] * dt * 0.5), params);
-      const k4 = derivatives(state.map((s, i) => s + k3[i] * dt), params);
-      return state.map((s, i) => s + (dt / 6) * (k1[i] + 2 * k2[i] + 2 * k3[i] + k4[i]));
+    // 預繪製圖表背景
+    function preRenderChart() {
+      cacheC.width = chart.width; cacheC.height = chart.height;
+      const p = { l: 50, r: 20, t: 30, b: 50 }, w = chart.width - p.l - p.r, hgt = chart.height - p.t - p.b;
+      ctxCacheC.strokeStyle = '#94a3b8'; ctxCacheC.lineWidth = 1;
+      ctxCacheC.beginPath(); ctxCacheC.moveTo(p.l, p.t); ctxCacheC.lineTo(p.l, p.b + hgt); ctxCacheC.lineTo(p.l + w, p.b + hgt); ctxCacheC.stroke();
+    }
+
+    // RK4 運算優化：改為手動計算，減少 Array 機制帶來的記憶體負擔 (GC)
+    function rk4_step_optimized(h_val, v_val, dt_val, params) {
+      const { m, g, rho, Cd, A } = params;
+      const factor = 0.5 * rho * Cd * A;
+
+      const f = (valV) => (m * g - factor * valV * Math.abs(valV)) / m;
+
+      // k1
+      const k1h = -v_val;
+      const k1v = f(v_val);
+
+      // k2
+      const k2v = f(v_val + k1v * dt_val * 0.5);
+      const k2h = -(v_val + k1v * dt_val * 0.5);
+
+      // k3
+      const k3v = f(v_val + k2v * dt_val * 0.5);
+      const k3h = -(v_val + k2v * dt_val * 0.5);
+
+      // k4
+      const k4v = f(v_val + k3v * dt_val);
+      const k4h = -(v_val + k3v * dt_val);
+
+      return [
+        h_val + (dt_val / 6) * (k1h + 2 * k2h + 2 * k3h + k4h),
+        v_val + (dt_val / 6) * (k1v + 2 * k2v + 2 * k3v + k4v)
+      ];
     }
 
     function drawAnim() {
       ctxA.clearRect(0, 0, anim.width, anim.height);
-      const floorH = 40;
-      const groundY = anim.height - floorH;
-
-      // 地面
-      ctxA.fillStyle = '#94a3b8';
-      ctxA.fillRect(0, groundY, anim.width, floorH);
-
-      // 映射物理座標至視覺座標
+      ctxA.drawImage(cacheA, 0, 0); // 使用緩存背景
+      
+      const groundY = anim.height - 40;
       const padding = 60;
       const effectiveH = groundY - padding - 20;
       const frac = Math.max(0, Math.min(1, h / startH));
       const ballY = padding + effectiveH * (1 - frac);
 
-      // 影子效果
       const shadowSize = Math.max(0, 15 * (1 - frac * 0.6));
       ctxA.beginPath();
       ctxA.ellipse(anim.width / 2, groundY, shadowSize * 2, shadowSize / 2, 0, 0, Math.PI * 2);
       ctxA.fillStyle = 'rgba(0,0,0,0.15)';
       ctxA.fill();
 
-      // 物體渲染 (球體)
       ctxA.beginPath();
       const grad = ctxA.createRadialGradient(anim.width / 2 - 5, ballY - 5, 2, anim.width / 2, ballY, 15);
-      grad.addColorStop(0, '#818cf8');
-      grad.addColorStop(1, '#4f46e5');
+      grad.addColorStop(0, '#818cf8'); grad.addColorStop(1, '#4f46e5');
       ctxA.arc(anim.width / 2, ballY, 15, 0, Math.PI * 2);
       ctxA.fillStyle = grad;
       ctxA.fill();
@@ -222,27 +251,25 @@
 
     function drawChart() {
       ctxC.clearRect(0, 0, chart.width, chart.height);
+      ctxC.drawImage(cacheC, 0, 0); // 使用緩存背景
+      
       const p = { l: 50, r: 20, t: 30, b: 50 }, w = chart.width - p.l - p.r, hgt = chart.height - p.t - p.b;
-
-      // 座標軸
-      ctxC.strokeStyle = '#94a3b8'; ctxC.setLineDash([]); ctxC.lineWidth = 1;
-      ctxC.beginPath(); ctxC.moveTo(p.l, p.t); ctxC.lineTo(p.l, p.b + hgt); ctxC.lineTo(p.l + w, p.b + hgt); ctxC.stroke();
-
       if (series.length < 2) return;
-      const tMax = Math.max(5, series[series.length - 1].t), vMax = Math.max(vT * 1.2, ...series.map(s => s.v));
+      
+      const tMax = Math.max(5, series[series.length - 1].t);
+      const vLimitMax = Math.max(vT * 1.2, vMax);
 
-      // 終端速度參考線
+      const ty = p.t + hgt * (1 - vT / vLimitMax);
       ctxC.strokeStyle = '#f59e0b'; ctxC.setLineDash([5, 5]);
-      const ty = p.t + hgt * (1 - vT / vMax);
       ctxC.beginPath(); ctxC.moveTo(p.l, ty); ctxC.lineTo(p.l + w, ty); ctxC.stroke();
-
-      // 速度曲線
+      
       ctxC.strokeStyle = '#6366f1'; ctxC.setLineDash([]); ctxC.lineWidth = 2.5;
       ctxC.beginPath();
-      series.forEach((s, i) => {
-        const x = p.l + (s.t / tMax) * w, y = p.t + hgt * (1 - s.v / vMax);
+      for (let i = 0; i < series.length; i++) {
+        const x = p.l + (series[i].t / tMax) * w;
+        const y = p.t + hgt * (1 - series[i].v / vLimitMax);
         if (i === 0) ctxC.moveTo(x, y); else ctxC.lineTo(x, y);
-      });
+      }
       ctxC.stroke();
     }
 
@@ -253,11 +280,13 @@
       rho = Math.max(0, +rhoEl.value || 1.225);
       startH = Math.max(1, +h0El.value || 100);
       g = +gEl.value || 9.81;
-
+      
       h = startH; v = 0; t = 0;
       vT = Math.sqrt((2 * m * g) / (rho * Cd * A));
+      vMax = v;
       series = [{ t, v }];
       overlay.classList.remove('hidden');
+      preRenderAnim(); preRenderChart(); // 重新生成背景緩存
       drawAnim(); drawChart();
     }
 
@@ -267,24 +296,32 @@
         h = 0; v = 0; running = false;
         drawAnim(); drawChart(); return;
       }
-      const state = rk4_step([h, v], dt, { m, g, rho, Cd, A });
+      // 使用優化版的物理運算
+      const state = rk4_step_optimized(h, v, dt, { m, g, rho, Cd, A });
       [h, v] = state; t += dt;
+      
+      // 增量更新最大值，減少遍歷開銷
+      if (v > vMax) vMax = v;
       series.push({ t, v });
-      if (series.length > 5000) series.shift();
+      if (series.length > 3000) series.shift(); // 限制序列長度以維持渲染效率
+
       drawAnim();
-      if (series.length % 2 === 0) drawChart();
+      // 降低圖表更新頻率 (每 4 幀更新一次)，圖表對即時性要求更低，可節省大量 GPU 負擔
+      if (series.length % 4 === 0) drawChart();
       rafId = requestAnimationFrame(loop);
     }
 
     btnRun.onclick = () => { if (!running) { init(); running = true; paused = false; loop(); } };
-    btnPause.onclick = () => { if (running) paused = !paused; if (!paused) loop(); };
+    btnPause.onclick = () => { if (running) { paused = !paused; if (!paused) loop(); } };
     btnReset.onclick = () => { cancelAnimationFrame(rafId); running = paused = false; init(); };
 
-    // 隨系統主題改變時自動重繪
-    window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => { drawAnim(); drawChart(); });
-
+    window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => { 
+      preRenderAnim(); preRenderChart(); drawAnim(); drawChart(); 
+    });
+    
     init();
   </script>
+
 </body>
 
 </html>
