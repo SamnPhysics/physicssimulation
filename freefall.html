@@ -159,7 +159,7 @@
 
   <script>
     const el = (id) => document.getElementById(id);
-    const [mEl, cdEl, AEl, rhoEl, h0El, gEl, dtEl] = ['m', 'cd', 'A', 'rho', 'h0', 'g', 'dt'].map(el);
+    const [mEl, cdEl, AEl, rhoEl, h0El, gEl] = ['m', 'cd', 'A', 'rho', 'h0', 'g'].map(el);
     const [anim, chart] = [el('anim'), el('chart')];
     const [ctxA, ctxC] = [anim.getContext('2d'), chart.getContext('2d')];
     const [btnRun, btnPause, btnReset] = [el('run'), el('pause'), el('reset')];
@@ -179,6 +179,7 @@
     // 預繪製動畫背景
     function preRenderAnim() {
       cacheA.width = anim.width; cacheA.height = anim.height;
+      ctxCacheA.clearRect(0, 0, cacheA.width, cacheA.height);
       const groundY = anim.height - 40;
       ctxCacheA.fillStyle = '#94a3b8';
       ctxCacheA.fillRect(0, groundY, anim.width, 40);
@@ -187,6 +188,7 @@
     // 預繪製圖表背景
     function preRenderChart() {
       cacheC.width = chart.width; cacheC.height = chart.height;
+      ctxCacheC.clearRect(0, 0, cacheC.width, cacheC.height);
       const p = { l: 50, r: 20, t: 30, b: 50 }, w = chart.width - p.l - p.r, hgt = chart.height - p.t - p.b;
       ctxCacheC.strokeStyle = '#94a3b8'; ctxCacheC.lineWidth = 1;
       ctxCacheC.beginPath(); ctxCacheC.moveTo(p.l, p.t); ctxCacheC.lineTo(p.l, p.b + hgt); ctxCacheC.lineTo(p.l + w, p.b + hgt); ctxCacheC.stroke();
@@ -257,6 +259,8 @@
       if (series.length < 2) return;
       
       const tMax = Math.max(5, series[series.length - 1].t);
+      const tMin = series[0].t;
+      const tRange = Math.max(tMax - tMin, 5);
       const vLimitMax = Math.max(vT * 1.2, vMax);
 
       const ty = p.t + hgt * (1 - vT / vLimitMax);
@@ -266,7 +270,7 @@
       ctxC.strokeStyle = '#6366f1'; ctxC.setLineDash([]); ctxC.lineWidth = 2.5;
       ctxC.beginPath();
       for (let i = 0; i < series.length; i++) {
-        const x = p.l + (series[i].t / tMax) * w;
+        const x = p.l + ((series[i].t - tMin) / tRange) * w;
         const y = p.t + hgt * (1 - series[i].v / vLimitMax);
         if (i === 0) ctxC.moveTo(x, y); else ctxC.lineTo(x, y);
       }
@@ -292,23 +296,32 @@
 
     function loop() {
       if (!running || paused) return;
-      if (h <= 0) {
-        h = 0; v = 0; running = false;
-        drawAnim(); drawChart(); return;
+
+      // 每幀執行多次物理計算，確保模擬速度平滑且不受限於螢幕刷新率
+      const stepsPerFrame = 2; 
+      for (let i = 0; i < stepsPerFrame; i++) {
+        if (h <= 0) {
+          h = 0; v = 0; running = false;
+          break;
+        }
+        const state = rk4_step_optimized(h, v, dt, { m, g, rho, Cd, A });
+        [h, v] = state; t += dt;
+        
+        if (v > vMax) vMax = v;
+        series.push({ t, v });
       }
-      // 使用優化版的物理運算
-      const state = rk4_step_optimized(h, v, dt, { m, g, rho, Cd, A });
-      [h, v] = state; t += dt;
-      
-      // 增量更新最大值，減少遍歷開銷
-      if (v > vMax) vMax = v;
-      series.push({ t, v });
-      if (series.length > 3000) series.shift(); // 限制序列長度以維持渲染效率
+
+      // 使用 splice 一次性移除多餘數據，效能優於多次 shift
+      if (series.length > 3000) {
+        series.splice(0, series.length - 3000);
+      }
 
       drawAnim();
-      // 降低圖表更新頻率 (每 4 幀更新一次)，圖表對即時性要求更低，可節省大量 GPU 負擔
-      if (series.length % 4 === 0) drawChart();
-      rafId = requestAnimationFrame(loop);
+      drawChart(); // 由於效能充裕，可直接每幀更新圖表確保平滑
+      
+      if (running) {
+        rafId = requestAnimationFrame(loop);
+      }
     }
 
     btnRun.onclick = () => { if (!running) { init(); running = true; paused = false; loop(); } };
