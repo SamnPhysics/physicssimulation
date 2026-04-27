@@ -1,0 +1,1137 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>光的干涉與繞射 - 物理模擬動畫</title>
+
+    <script>
+        MathJax = {
+            tex: {
+                inlineMath: [
+                    ['$', '$'],
+                    ['\\(', '\\)']
+                ],
+                displayMath: [
+                    ['$$', '$$'],
+                    ['\\[', '\\]']
+                ]
+            },
+            svg: {
+                fontCache: 'global'
+            }
+        };
+    </script>
+    <script async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js">
+    </script>
+
+    <style>
+        :root {
+            --bg-color: #1a1a2e;
+            --panel-bg: #16213e;
+            --text-color: #e0e0e0;
+            --accent: #4da6ff;
+            --accent2: #ff6b6b;
+            --slider-track: #2a3a5c;
+            --border: #3a4a6c;
+            --button-bg: #2a4a7f;
+            --button-hover: #3a5a9f;
+            --golden: #f0c060;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Segoe UI', 'Noto Sans TC', 'Helvetica Neue', Arial, sans-serif;
+            background: #0d0d1a;
+            color: var(--text-color);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            -webkit-tap-highlight-color: transparent;
+            user-select: none;
+            -webkit-user-select: none;
+            overflow-x: hidden;
+        }
+
+        .main-container {
+            display: flex;
+            width: 100%;
+            max-width: 1400px;
+            /* 關鍵修正：必須有明確高度，子元素的百分比高度才能生效 */
+            height: 75vh;
+            min-height: 70vh;
+            padding: 10px;
+            gap: 10px;
+            flex-wrap: nowrap;
+        }
+
+        .canvas-container {
+            flex: 3;
+            min-width: 0;
+            background: #0a0a18;
+            border-radius: 12px;
+            border: 1px solid var(--border);
+            position: relative;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+        }
+
+        canvas {
+            display: block;
+            width: 100%;
+            height: 100%;
+            cursor: default;
+        }
+
+        .control-panel {
+            flex: 1;
+            min-width: 260px;
+            max-width: 380px;
+            background: var(--panel-bg);
+            border-radius: 12px;
+            padding: 18px 16px;
+            border: 1px solid var(--border);
+            display: flex;
+            flex-direction: column;
+            gap: 14px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+            overflow-y: auto;
+            max-height: 85vh;
+        }
+
+        .control-panel h3 {
+            text-align: center;
+            font-size: 1.2em;
+            color: var(--accent);
+            letter-spacing: 0.04em;
+            margin-bottom: 2px;
+            font-weight: 700;
+        }
+
+        .control-panel .subtitle {
+            text-align: center;
+            font-size: 0.78em;
+            color: #8899bb;
+            margin-top: -8px;
+            margin-bottom: 4px;
+        }
+
+        .toggle-btn-group {
+            display: flex;
+            gap: 6px;
+            width: 100%;
+        }
+        .toggle-btn {
+            flex: 1;
+            padding: 10px 8px;
+            border: 2px solid var(--border);
+            border-radius: 8px;
+            background: #1a2a44;
+            color: #8899bb;
+            cursor: pointer;
+            font-size: 0.9em;
+            font-weight: 600;
+            letter-spacing: 0.03em;
+            transition: all 0.25s ease;
+            text-align: center;
+            white-space: nowrap;
+        }
+        .toggle-btn.active {
+            background: var(--button-bg);
+            border-color: var(--accent);
+            color: #ffffff;
+            box-shadow: 0 0 12px rgba(77, 166, 255, 0.3);
+        }
+        .toggle-btn:hover {
+            border-color: var(--accent);
+            background: #223355;
+            color: #ccc;
+        }
+        .toggle-btn.active:hover {
+            background: var(--button-hover);
+            color: #fff;
+        }
+
+        .slider-group {
+            display: flex;
+            flex-direction: column;
+            gap: 3px;
+        }
+        .slider-group label {
+            font-size: 0.82em;
+            font-weight: 600;
+            color: #bcc8dd;
+            letter-spacing: 0.02em;
+            display: flex;
+            justify-content: space-between;
+            align-items: baseline;
+        }
+        .slider-group label .val {
+            color: var(--accent);
+            font-weight: 700;
+            font-size: 0.9em;
+            min-width: 70px;
+            text-align: right;
+            font-variant-numeric: tabular-nums;
+            font-family: 'SF Mono', 'Consolas', 'Menlo', monospace;
+        }
+        .slider-group input[type="range"] {
+            -webkit-appearance: none;
+            width: 100%;
+            height: 8px;
+            border-radius: 4px;
+            background: var(--slider-track);
+            outline: none;
+            cursor: pointer;
+            margin: 2px 0;
+        }
+        .slider-group input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 26px;
+            height: 26px;
+            border-radius: 50%;
+            background: #e8e8f0;
+            border: 2px solid var(--accent);
+            cursor: pointer;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+            transition: all 0.15s ease;
+        }
+        .slider-group input[type="range"]::-webkit-slider-thumb:hover {
+            background: #fff;
+            box-shadow: 0 0 16px rgba(77, 166, 255, 0.5);
+            transform: scale(1.08);
+        }
+        .slider-group input[type="range"].disabled-slider {
+            opacity: 0.35;
+            pointer-events: none;
+            cursor: not-allowed;
+        }
+        .slider-group.disabled-group label {
+            color: #556677;
+        }
+        .slider-group.disabled-group .val {
+            color: #556677;
+        }
+
+        .theory-section {
+            width: 100%;
+            max-width: 1400px;
+            margin: 10px auto;
+            padding: 18px 22px;
+            background: var(--panel-bg);
+            border-radius: 12px;
+            border: 1px solid var(--border);
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
+            font-size: 0.9em;
+            line-height: 1.7;
+            color: #c8d4e8;
+        }
+        .theory-section h3 {
+            color: var(--accent);
+            margin-bottom: 10px;
+            font-size: 1.05em;
+            letter-spacing: 0.03em;
+        }
+        .theory-section .formula-block {
+            background: #0d0d1f;
+            border-radius: 8px;
+            padding: 12px 16px;
+            margin: 8px 0;
+            overflow-x: auto;
+            border-left: 3px solid var(--accent);
+        }
+        .theory-section p {
+            margin: 6px 0;
+        }
+        .theory-section .note {
+            font-size: 0.82em;
+            color: #8899bb;
+            margin-top: 8px;
+            font-style: italic;
+        }
+
+        /* RWD: 手機螢幕 (≤768px) */
+        @media (max-width: 768px) {
+            .main-container {
+                flex-direction: column;
+                padding: 6px;
+                gap: 8px;
+                height: auto;
+                min-height: auto;
+            }
+            .canvas-container {
+                flex: none;
+                width: 100%;
+                height: 55vh;
+                min-height: 380px;
+                border-radius: 8px;
+            }
+            .control-panel {
+                flex: none;
+                width: 100%;
+                max-width: 100%;
+                min-width: 0;
+                max-height: none;
+                border-radius: 8px;
+                padding: 14px 12px;
+                gap: 10px;
+                flex-direction: column;
+                flex-wrap: wrap;
+            }
+            .control-panel h3 {
+                font-size: 1em;
+            }
+            .slider-group label {
+                font-size: 0.76em;
+            }
+            .toggle-btn {
+                font-size: 0.8em;
+                padding: 8px 6px;
+            }
+            .theory-section {
+                padding: 12px 14px;
+                font-size: 0.8em;
+            }
+            .theory-section .formula-block {
+                padding: 8px 10px;
+                font-size: 0.85em;
+            }
+        }
+        @media (max-width: 400px) {
+            .canvas-container {
+                height: 40vh;
+                min-height: 300px;
+            }
+            .control-panel {
+                padding: 8px 6px;
+                gap: 6px;
+            }
+            .slider-group label {
+                font-size: 0.7em;
+            }
+            .toggle-btn {
+                font-size: 0.7em;
+                padding: 6px 4px;
+            }
+            .slider-group input[type="range"]::-webkit-slider-thumb {
+                width: 22px;
+                height: 22px;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="main-container">
+        <div class="canvas-container" id="canvasContainer">
+            <canvas id="mainCanvas"></canvas>
+        </div>
+
+        <div class="control-panel" id="controlPanel">
+            <h3>🔬 光的干涉與繞射</h3>
+            <div class="subtitle">Young's Double Slit &amp; Single Slit Diffraction</div>
+
+            <div class="toggle-btn-group" id="toggleGroup">
+                <button class="toggle-btn active" id="btnDouble" data-mode="double">🟢 雙狹縫 (Double Slit)</button>
+                <button class="toggle-btn" id="btnSingle" data-mode="single">🔵 單狹縫 (Single Slit)</button>
+            </div>
+
+            <div class="slider-group" id="groupWavelength">
+                <label>波長 $\lambda$ <span class="val" id="valWavelength">532 nm</span></label>
+                <input type="range" id="sliderWavelength" min="380" max="780" value="532" step="1">
+            </div>
+
+            <div class="slider-group" id="groupSeparation">
+                <label>狹縫間距 $d$ <span class="val" id="valSeparation">0.20 mm</span></label>
+                <input type="range" id="sliderSeparation" min="5" max="50" value="20" step="1">
+            </div>
+
+            <div class="slider-group" id="groupSlitWidth">
+                <label>狹縫寬度 $a$ <span class="val" id="valSlitWidth">0.05 mm</span></label>
+                <input type="range" id="sliderSlitWidth" min="2" max="20" value="5" step="1">
+            </div>
+
+            <div class="slider-group" id="groupDistance">
+                <label>狹縫到屏幕距離 $L$ <span class="val" id="valDistance">100 cm</span></label>
+                <input type="range" id="sliderDistance" min="10" max="200" value="100" step="1">
+            </div>
+        </div>
+    </div>
+
+    <div class="theory-section" id="theorySection">
+        <h3>📐 物理理論說明</h3>
+        <p>
+            <strong>雙狹縫干涉</strong>：當雷射光通過兩個相距 $d$ 的狹縫時，兩道光波在屏幕上產生干涉。
+            亮紋條件為 $d\sin\theta = m\lambda$（$m = 0, \pm 1, \pm 2, \ldots$），暗紋條件為 $d\sin\theta = (m+\frac{1}{2})\lambda$。
+            條紋間距 $\Delta y \approx \dfrac{\lambda L}{d}$（小角度近似）。
+        </p>
+        <div class="formula-block">
+            <strong>雙狹縫光強度分布：</strong>
+            $$I(y) = I_0 \cos^2\!\left(\frac{\pi d\, y}{\lambda L}\right) \cdot \left[\frac{\sin(\pi a\, y / (\lambda L))}{\pi a\, y / (\lambda L)}\right]^2$$
+            <em>干涉因子 $\cos^2$ × 繞射包絡 $\operatorname{sinc}^2$</em>
+        </div>
+        <p>
+            <strong>單狹縫繞射</strong>：當雷射光通過寬度 $a$ 的單狹縫時，發生繞射。暗紋條件為 $a\sin\theta = m\lambda$（$m = \pm 1, \pm 2, \ldots$）。
+            中央亮紋寬度約為 $\dfrac{2\lambda L}{a}$，兩側次級亮紋強度迅速衰減。
+        </p>
+        <div class="formula-block">
+            <strong>單狹縫光強度分布：</strong>
+            $$I(y) = I_0 \left[\frac{\sin(\pi a\, y / (\lambda L))}{\pi a\, y / (\lambda L)}\right]^2$$
+        </div>
+        <p class="note">
+            ※ 雙狹縫實驗中，繞射包絡會調製干涉條紋的強度。當 $d$ 為 $a$ 的整數倍時，對應的干涉級數會消失（缺失級數現象）。
+            滑桿調整時，動畫中的狹縫配置與屏幕條紋皆即時更新，符合實際物理比例關係。
+        </p>
+    </div>
+
+    <script>
+        (function() {
+            // ============================================================
+            //  第一部分：物理計算模組 (Physics Module)
+            // ============================================================
+            const Physics = {
+                wavelengthToRGB(wavelength) {
+                    let r, g, b;
+                    const wl = Math.max(380, Math.min(780, wavelength));
+                    if (wl >= 380 && wl < 440) {
+                        r = -(wl - 440) / (440 - 380);
+                        g = 0;
+                        b = 1;
+                    } else if (wl >= 440 && wl < 490) {
+                        r = 0;
+                        g = (wl - 440) / (490 - 440);
+                        b = 1;
+                    } else if (wl >= 490 && wl < 510) {
+                        r = 0;
+                        g = 1;
+                        b = -(wl - 510) / (510 - 490);
+                    } else if (wl >= 510 && wl < 580) {
+                        r = (wl - 510) / (580 - 510);
+                        g = 1;
+                        b = 0;
+                    } else if (wl >= 580 && wl < 645) {
+                        r = 1;
+                        g = -(wl - 645) / (645 - 580);
+                        b = 0;
+                    } else if (wl >= 645 && wl <= 780) {
+                        r = 1;
+                        g = 0;
+                        b = 0;
+                    } else {
+                        r = 0;
+                        g = 0;
+                        b = 0;
+                    }
+                    let factor;
+                    if (wl >= 380 && wl < 420) {
+                        factor = 0.3 + 0.7 * (wl - 380) / (420 - 380);
+                    } else if (wl >= 420 && wl <= 700) {
+                        factor = 1.0;
+                    } else if (wl > 700 && wl <= 780) {
+                        factor = 0.3 + 0.7 * (780 - wl) / (780 - 700);
+                    } else {
+                        factor = 0;
+                    }
+                    const gamma = 0.8;
+                    r = Math.round(255 * Math.pow(Math.max(0, r * factor), gamma));
+                    g = Math.round(255 * Math.pow(Math.max(0, g * factor), gamma));
+                    b = Math.round(255 * Math.pow(Math.max(0, b * factor), gamma));
+                    return { r: Math.min(255, Math.max(0, r)), g: Math.min(255, Math.max(0, g)), b: Math.min(255, Math.max(0, b)) };
+                },
+                wavelengthToColor(wavelength) {
+                    const c = this.wavelengthToRGB(wavelength);
+                    return `rgb(${c.r},${c.g},${c.b})`;
+                },
+                wavelengthToRGBA(wavelength, alpha) {
+                    const c = this.wavelengthToRGB(wavelength);
+                    return `rgba(${c.r},${c.g},${c.b},${alpha})`;
+                },
+                sinc(x) {
+                    if (Math.abs(x) < 1e-12) return 1.0;
+                    return Math.sin(x) / x;
+                },
+                doubleSlitIntensity(y, wavelength, slitWidth, slitSeparation, distance) {
+                    if (wavelength <= 0 || distance <= 0) return 0;
+                    const beta = Math.PI * slitWidth * y / (wavelength * distance);
+                    const delta = Math.PI * slitSeparation * y / (wavelength * distance);
+                    const diffraction = this.sinc(beta);
+                    const interference = Math.cos(delta);
+                    return interference * interference * diffraction * diffraction;
+                },
+                singleSlitIntensity(y, wavelength, slitWidth, distance) {
+                    if (wavelength <= 0 || distance <= 0) return 0;
+                    const beta = Math.PI * slitWidth * y / (wavelength * distance);
+                    const s = this.sinc(beta);
+                    return s * s;
+                },
+                fringeSpacing(wavelength, slitSeparation, distance) {
+                    if (slitSeparation <= 0) return Infinity;
+                    return wavelength * distance / slitSeparation;
+                },
+                centralHalfWidth(wavelength, slitWidth, distance) {
+                    if (slitWidth <= 0) return Infinity;
+                    return wavelength * distance / slitWidth;
+                },
+            };
+
+            // ============================================================
+            //  第二部分：UI 控制與繪圖模組 (UI Module)
+            // ============================================================
+            const UI = (function() {
+                const canvasContainer = document.getElementById('canvasContainer');
+                const canvas = document.getElementById('mainCanvas');
+                const ctx = canvas.getContext('2d');
+
+                const sliderWavelength = document.getElementById('sliderWavelength');
+                const sliderSeparation = document.getElementById('sliderSeparation');
+                const sliderSlitWidth = document.getElementById('sliderSlitWidth');
+                const sliderDistance = document.getElementById('sliderDistance');
+                const valWavelength = document.getElementById('valWavelength');
+                const valSeparation = document.getElementById('valSeparation');
+                const valSlitWidth = document.getElementById('valSlitWidth');
+                const valDistance = document.getElementById('valDistance');
+                const btnDouble = document.getElementById('btnDouble');
+                const btnSingle = document.getElementById('btnSingle');
+                const groupSeparation = document.getElementById('groupSeparation');
+
+                let mode = 'double';
+                let wavelength_nm = 532;
+                let slitSeparation_mm = 0.20;
+                let slitWidth_mm = 0.05;
+                let distance_cm = 100;
+                let rawSeparation = 20;
+                let rawSlitWidth = 5;
+                let rawDistance = 100;
+                let canvasWidth = 800;
+                let canvasHeight = 550;
+                let dpr = 1;
+
+                function updatePhysicalValues() {
+                    wavelength_nm = parseInt(sliderWavelength.value);
+                    rawSeparation = parseInt(sliderSeparation.value);
+                    rawSlitWidth = parseInt(sliderSlitWidth.value);
+                    rawDistance = parseInt(sliderDistance.value);
+                    slitSeparation_mm = rawSeparation / 100;
+                    slitWidth_mm = rawSlitWidth / 100;
+                    distance_cm = rawDistance;
+                }
+
+                function updateLabels() {
+                    valWavelength.textContent = wavelength_nm + ' nm';
+                    valSeparation.textContent = slitSeparation_mm.toFixed(2) + ' mm';
+                    valSlitWidth.textContent = slitWidth_mm.toFixed(2) + ' mm';
+                    valDistance.textContent = distance_cm + ' cm';
+                    valWavelength.style.color = Physics.wavelengthToColor(wavelength_nm);
+                }
+
+                function resizeCanvas() {
+                    const rect = canvasContainer.getBoundingClientRect();
+                    const cssW = rect.width;
+                    const cssH = rect.height;
+                    // 避免尺寸為 0 時繪製
+                    if (cssW === 0 || cssH === 0) {
+                        return false;
+                    }
+                    dpr = Math.min(window.devicePixelRatio || 1, 2);
+                    const newWidth = Math.floor(cssW * dpr);
+                    const newHeight = Math.floor(cssH * dpr);
+                    if (canvas.width !== newWidth || canvas.height !== newHeight) {
+                        canvas.width = newWidth;
+                        canvas.height = newHeight;
+                        canvasWidth = newWidth;
+                        canvasHeight = newHeight;
+                        ctx.setTransform(1, 0, 0, 1, 0, 0);
+                        ctx.scale(dpr, dpr);
+                    }
+                    return true;
+                }
+
+                function draw() {
+                    if (!resizeCanvas()) {
+                        // 如果尺寸為 0，稍後重試
+                        requestAnimationFrame(draw);
+                        return;
+                    }
+                    const cssW = canvasWidth / dpr;
+                    const cssH = canvasHeight / dpr;
+                    ctx.clearRect(0, 0, cssW, cssH);
+                    const bgGrad = ctx.createLinearGradient(0, 0, 0, cssH);
+                    bgGrad.addColorStop(0, '#0a0a1c');
+                    bgGrad.addColorStop(1, '#0d0d22');
+                    ctx.fillStyle = bgGrad;
+                    ctx.fillRect(0, 0, cssW, cssH);
+
+                    const topRatio = 0.56;
+                    const topHeight = cssH * topRatio;
+                    const bottomTop = topHeight;
+                    const bottomHeight = cssH - topHeight;
+                    drawTopView(0, 0, cssW, topHeight);
+                    ctx.strokeStyle = 'rgba(100,140,200,0.35)';
+                    ctx.lineWidth = 1.5;
+                    ctx.setLineDash([8, 6]);
+                    ctx.beginPath();
+                    ctx.moveTo(30, bottomTop);
+                    ctx.lineTo(cssW - 30, bottomTop);
+                    ctx.stroke();
+                    ctx.setLineDash([]);
+                    drawIntensityGraph(0, bottomTop, cssW, bottomHeight);
+                }
+
+                function drawTopView(x0, y0, w, h) {
+                    const marginX = w * 0.06;
+                    const marginY = h * 0.08;
+                    const innerW = w - 2 * marginX;
+                    const innerH = h - 2 * marginY;
+                    const sourceX = marginX + innerW * 0.04;
+                    const screenX = marginX + innerW * 0.90;
+                    const totalDistX = screenX - sourceX;
+                    const L_m = distance_cm / 100;
+                    const totalPhysicalDist_m = 2.5;
+                    const sourceToSlitPhysical_m = totalPhysicalDist_m - L_m;
+                    const slitFraction = sourceToSlitPhysical_m / totalPhysicalDist_m;
+                    const slitX = sourceX + slitFraction * totalDistX;
+                    const screenLineX = screenX;
+                    const centerY = y0 + marginY + innerH / 2;
+
+                    ctx.strokeStyle = 'rgba(40,55,80,0.3)';
+                    ctx.lineWidth = 0.5;
+                    for (let gy = y0 + marginY; gy <= y0 + marginY + innerH; gy += innerH / 10) {
+                        ctx.beginPath();
+                        ctx.moveTo(marginX, gy);
+                        ctx.lineTo(marginX + innerW, gy);
+                        ctx.stroke();
+                    }
+
+                    const sourceBoxW = w * 0.04;
+                    const sourceBoxH = h * 0.12;
+                    const sourceColor = Physics.wavelengthToColor(wavelength_nm);
+                    const sourceGlow = Physics.wavelengthToRGBA(wavelength_nm, 0.6);
+                    const sx1 = sourceX - sourceBoxW;
+                    const sy1 = centerY - sourceBoxH / 2;
+                    const sx2 = sourceX;
+                    const glowGrad = ctx.createRadialGradient(sourceX, centerY, sourceBoxW * 0.3, sourceX, centerY, sourceBoxW * 3);
+                    glowGrad.addColorStop(0, sourceGlow);
+                    glowGrad.addColorStop(0.5, Physics.wavelengthToRGBA(wavelength_nm, 0.2));
+                    glowGrad.addColorStop(1, 'rgba(0,0,0,0)');
+                    ctx.fillStyle = glowGrad;
+                    ctx.fillRect(sourceX - sourceBoxW * 4, centerY - sourceBoxW * 4, sourceBoxW * 8, sourceBoxW * 8);
+
+                    const srcGrad = ctx.createLinearGradient(sx1, 0, sx2, 0);
+                    srcGrad.addColorStop(0, '#111122');
+                    srcGrad.addColorStop(0.3, sourceColor);
+                    srcGrad.addColorStop(0.7, sourceColor);
+                    srcGrad.addColorStop(1, '#ffffff');
+                    ctx.fillStyle = srcGrad;
+                    ctx.strokeStyle = 'rgba(255,255,255,0.5)';
+                    ctx.lineWidth = 1.5;
+                    roundRect(sx1, sy1, sourceBoxW, sourceBoxH, 6);
+                    ctx.fill();
+                    ctx.stroke();
+
+                    ctx.fillStyle = '#ffffff';
+                    ctx.font = `bold ${Math.max(10, w*0.016)}px "Noto Sans TC","Segoe UI",sans-serif`;
+                    ctx.textAlign = 'center';
+                    ctx.fillText('雷射光源', sourceX, sy1 - h * 0.03);
+
+                    ctx.strokeStyle = Physics.wavelengthToRGBA(wavelength_nm, 0.5);
+                    ctx.lineWidth = Math.max(1.5, w * 0.003);
+                    ctx.setLineDash([6, 4]);
+                    ctx.beginPath();
+                    ctx.moveTo(sourceX, centerY);
+                    ctx.lineTo(slitX - w * 0.015, centerY);
+                    ctx.stroke();
+                    ctx.setLineDash([]);
+
+                    const arrowMidX = (sourceX + slitX) / 2;
+                    drawArrow(arrowMidX, centerY, slitX - sourceX > 0 ? 0 : Math.PI, Math.max(8, w * 0.014), sourceColor);
+
+                    const barrierHalfH = innerH * 0.44;
+                    const barrierTop = centerY - barrierHalfH;
+                    const barrierBottom = centerY + barrierHalfH;
+                    const barrierThickness = Math.max(3, w * 0.006);
+                    ctx.fillStyle = 'rgba(0,0,0,0.4)';
+                    ctx.fillRect(slitX - barrierThickness / 2 + 3, barrierTop + 3, barrierThickness, barrierHalfH * 2);
+
+                    const barrierGrad = ctx.createLinearGradient(slitX - barrierThickness / 2, 0, slitX + barrierThickness / 2, 0);
+                    barrierGrad.addColorStop(0, '#3a3a4a');
+                    barrierGrad.addColorStop(0.3, '#5a5a6e');
+                    barrierGrad.addColorStop(0.5, '#6e6e82');
+                    barrierGrad.addColorStop(0.7, '#5a5a6e');
+                    barrierGrad.addColorStop(1, '#3a3a4a');
+                    ctx.fillStyle = barrierGrad;
+                    ctx.fillRect(slitX - barrierThickness / 2, barrierTop, barrierThickness, barrierHalfH * 2);
+                    ctx.strokeStyle = 'rgba(180,185,200,0.6)';
+                    ctx.lineWidth = 1;
+                    ctx.strokeRect(slitX - barrierThickness / 2, barrierTop, barrierThickness, barrierHalfH * 2);
+
+                    const slitWidthDisplay = mapSlitWidthToDisplay(slitWidth_mm, innerH);
+                    const slitSepDisplay = mapSeparationToDisplay(slitSeparation_mm, innerH);
+                    if (mode === 'single') {
+                        const openingTop = centerY - slitWidthDisplay / 2;
+                        const openingBottom = centerY + slitWidthDisplay / 2;
+                        drawSlitOpening(slitX, openingTop, openingBottom, barrierThickness, sourceColor);
+                    } else {
+                        const sepHalf = slitSepDisplay / 2;
+                        const opening1Top = centerY - sepHalf - slitWidthDisplay / 2;
+                        const opening1Bottom = centerY - sepHalf + slitWidthDisplay / 2;
+                        const opening2Top = centerY + sepHalf - slitWidthDisplay / 2;
+                        const opening2Bottom = centerY + sepHalf + slitWidthDisplay / 2;
+                        drawSlitOpening(slitX, opening1Top, opening1Bottom, barrierThickness, sourceColor);
+                        drawSlitOpening(slitX, opening2Top, opening2Bottom, barrierThickness, sourceColor);
+                    }
+
+                    ctx.fillStyle = '#ccd';
+                    ctx.font = `${Math.max(9, w*0.014)}px "Noto Sans TC","Segoe UI",sans-serif`;
+                    ctx.textAlign = 'center';
+                    ctx.fillText(mode === 'double' ? '雙狹縫' : '單狹縫', slitX, barrierTop - h * 0.025);
+
+                    const screenLineHalfH = innerH * 0.42;
+                    const screenTop = centerY - screenLineHalfH;
+                    const screenBottom = centerY + screenLineHalfH;
+                    if (mode === 'single') {
+                        drawFanRays(slitX, centerY, screenLineX, screenTop, screenBottom, sourceColor, 30);
+                    } else {
+                        const sepHalf = slitSepDisplay / 2;
+                        drawFanRays(slitX, centerY - sepHalf, screenLineX, screenTop, screenBottom, sourceColor, 20);
+                        drawFanRays(slitX, centerY + sepHalf, screenLineX, screenTop, screenBottom, sourceColor, 20);
+                    }
+
+                    const screenThickness = Math.max(4, w * 0.008);
+                    const screenGrad = ctx.createLinearGradient(screenLineX - screenThickness / 2, 0, screenLineX + screenThickness / 2, 0);
+                    screenGrad.addColorStop(0, '#d8d8e8');
+                    screenGrad.addColorStop(0.4, '#f0f0f8');
+                    screenGrad.addColorStop(0.6, '#f8f8ff');
+                    screenGrad.addColorStop(1, '#c8c8d8');
+                    ctx.fillStyle = screenGrad;
+                    ctx.fillRect(screenLineX - screenThickness / 2, screenTop, screenThickness, screenLineHalfH * 2);
+                    ctx.strokeStyle = 'rgba(200,200,220,0.8)';
+                    ctx.lineWidth = 1.5;
+                    ctx.strokeRect(screenLineX - screenThickness / 2, screenTop, screenThickness, screenLineHalfH * 2);
+
+                    const fringeViewX = screenLineX + screenThickness / 2 + w * 0.012;
+                    const fringeViewW = Math.max(18, w * 0.03);
+                    drawScreenFringePattern(fringeViewX, screenTop, fringeViewW, screenLineHalfH * 2, centerY);
+
+                    ctx.fillStyle = '#ffffff';
+                    ctx.font = `bold ${Math.max(10, w*0.016)}px "Noto Sans TC","Segoe UI",sans-serif`;
+                    ctx.textAlign = 'center';
+                    ctx.fillText('屏幕', screenLineX, screenTop - h * 0.03);
+
+                    const annotY = centerY + barrierHalfH + h * 0.08;
+                    ctx.strokeStyle = 'rgba(200,200,220,0.5)';
+                    ctx.lineWidth = 1;
+                    ctx.setLineDash([4, 3]);
+                    ctx.beginPath();
+                    ctx.moveTo(slitX, annotY - h * 0.015);
+                    ctx.lineTo(slitX, annotY);
+                    ctx.lineTo(screenLineX, annotY);
+                    ctx.lineTo(screenLineX, annotY - h * 0.015);
+                    ctx.stroke();
+                    ctx.setLineDash([]);
+                    drawHorizontalArrow(slitX, screenLineX, annotY, 'rgba(200,200,220,0.7)', Math.max(7, w * 0.012));
+                    ctx.fillStyle = '#dde';
+                    ctx.font = `${Math.max(9, w*0.013)}px "Noto Sans TC","Segoe UI",sans-serif`;
+                    ctx.textAlign = 'center';
+                    ctx.fillText(`L = ${distance_cm} cm`, (slitX + screenLineX) / 2, annotY + h * 0.035);
+
+                    const annotY2 = centerY - barrierHalfH - h * 0.09;
+                    ctx.strokeStyle = 'rgba(180,180,200,0.4)';
+                    ctx.lineWidth = 0.8;
+                    ctx.setLineDash([3, 4]);
+                    ctx.beginPath();
+                    ctx.moveTo(sourceX, annotY2 + h * 0.01);
+                    ctx.lineTo(sourceX, annotY2);
+                    ctx.lineTo(slitX, annotY2);
+                    ctx.lineTo(slitX, annotY2 + h * 0.01);
+                    ctx.stroke();
+                    ctx.setLineDash([]);
+                    ctx.fillStyle = '#aab';
+                    ctx.fillText(`${(totalPhysicalDist_m - L_m).toFixed(2)} m`, (sourceX + slitX) / 2, annotY2 - h * 0.01);
+                }
+
+                function drawSlitOpening(slitX, top, bottom, barrierThickness, color) {
+                    const openingH = bottom - top;
+                    if (openingH <= 0) return;
+                    ctx.fillStyle = '#0a0a1c';
+                    ctx.fillRect(slitX - barrierThickness / 2 - 1, top, barrierThickness + 2, openingH);
+                    const glowGrad = ctx.createLinearGradient(slitX - barrierThickness, 0, slitX + barrierThickness, 0);
+                    glowGrad.addColorStop(0, 'rgba(0,0,0,0)');
+                    glowGrad.addColorStop(0.2, Physics.wavelengthToRGBA(wavelength_nm, 0.7));
+                    glowGrad.addColorStop(0.5, 'rgba(255,255,255,0.9)');
+                    glowGrad.addColorStop(0.8, Physics.wavelengthToRGBA(wavelength_nm, 0.7));
+                    glowGrad.addColorStop(1, 'rgba(0,0,0,0)');
+                    ctx.fillStyle = glowGrad;
+                    ctx.fillRect(slitX - barrierThickness * 1.5, top, barrierThickness * 3, openingH);
+                    ctx.strokeStyle = 'rgba(255,255,255,0.6)';
+                    ctx.lineWidth = 1;
+                    ctx.strokeRect(slitX - barrierThickness / 2, top, barrierThickness, openingH);
+                }
+
+                function drawFanRays(originX, originY, screenX, screenTop, screenBottom, color, numRays) {
+                    const totalSpan = screenBottom - screenTop;
+                    ctx.strokeStyle = Physics.wavelengthToRGBA(wavelength_nm, 0.25);
+                    ctx.lineWidth = 0.7;
+                    for (let i = 0; i <= numRays; i++) {
+                        const t = i / numRays;
+                        const targetY = screenTop + t * totalSpan;
+                        ctx.beginPath();
+                        ctx.moveTo(originX, originY);
+                        ctx.lineTo(screenX, targetY);
+                        ctx.stroke();
+                    }
+                }
+
+                function drawScreenFringePattern(x, top, width, totalH, centerY) {
+                    const L_m = distance_cm / 100;
+                    const wl_m = wavelength_nm * 1e-9;
+                    const a_m = slitWidth_mm * 1e-3;
+                    const d_m = slitSeparation_mm * 1e-3;
+                    const viewPhysicalHalf = calculateViewRange(wl_m, a_m, d_m, L_m, mode);
+                    const halfH = totalH / 2;
+                    const steps = Math.floor(totalH);
+                    const stepSize = totalH / steps;
+                    for (let i = 0; i <= steps; i++) {
+                        const py = top + i * stepSize;
+                        const frac = (py - centerY) / halfH;
+                        const yPhysical = frac * viewPhysicalHalf;
+                        let intensity;
+                        if (mode === 'double') {
+                            intensity = Physics.doubleSlitIntensity(yPhysical, wl_m, a_m, d_m, L_m);
+                        } else {
+                            intensity = Physics.singleSlitIntensity(yPhysical, wl_m, a_m, L_m);
+                        }
+                        const alpha = Math.min(1, Math.max(0, intensity));
+                        const laserColor = Physics.wavelengthToRGB(wavelength_nm);
+                        const rr = Math.round(laserColor.r * alpha + 10 * (1 - alpha));
+                        const gg = Math.round(laserColor.g * alpha + 8 * (1 - alpha));
+                        const bb = Math.round(laserColor.b * alpha + 15 * (1 - alpha));
+                        ctx.fillStyle = `rgb(${Math.min(255,rr)},${Math.min(255,gg)},${Math.min(255,bb)})`;
+                        ctx.fillRect(x, py, width, Math.max(1, stepSize));
+                    }
+                    ctx.strokeStyle = 'rgba(180,190,210,0.5)';
+                    ctx.lineWidth = 1;
+                    ctx.strokeRect(x, top, width, totalH);
+                    ctx.fillStyle = '#aab';
+                    ctx.font = `${Math.max(8, width*0.35)}px "Noto Sans TC","Segoe UI",sans-serif`;
+                    ctx.textAlign = 'center';
+                    ctx.save();
+                    ctx.translate(x + width + width * 0.6, centerY);
+                    ctx.rotate(-Math.PI / 2);
+                    ctx.fillText('條紋圖案', 0, 0);
+                    ctx.restore();
+                }
+
+                function drawIntensityGraph(x0, y0, w, h) {
+                    const marginX = w * 0.1;
+                    const marginY = h * 0.12;
+                    const graphX = x0 + marginX;
+                    const graphY = y0 + marginY;
+                    const graphW = w - 2 * marginX;
+                    const graphH = h - 2 * marginY;
+                    const centerGraphX = graphX + graphW / 2;
+                    const bottomGraphY = graphY + graphH;
+                    const L_m = distance_cm / 100;
+                    const wl_m = wavelength_nm * 1e-9;
+                    const a_m = slitWidth_mm * 1e-3;
+                    const d_m = slitSeparation_mm * 1e-3;
+                    const viewPhysicalHalf = calculateViewRange(wl_m, a_m, d_m, L_m, mode);
+
+                    ctx.fillStyle = 'rgba(8,8,20,0.7)';
+                    ctx.fillRect(graphX, graphY, graphW, graphH);
+                    ctx.strokeStyle = 'rgba(180,190,210,0.6)';
+                    ctx.lineWidth = 1.2;
+                    ctx.beginPath();
+                    ctx.moveTo(graphX, bottomGraphY);
+                    ctx.lineTo(graphX + graphW, bottomGraphY);
+                    ctx.moveTo(centerGraphX, graphY);
+                    ctx.lineTo(centerGraphX, bottomGraphY);
+                    ctx.stroke();
+
+                    ctx.fillStyle = '#aab';
+                    ctx.font = `${Math.max(9, w*0.016)}px "Segoe UI",sans-serif`;
+                    ctx.textAlign = 'right';
+                    for (let i = 0; i <= 4; i++) {
+                        const val = i / 4;
+                        const tickY = bottomGraphY - val * graphH;
+                        ctx.fillText(val.toFixed(2), graphX - 6, tickY + 4);
+                        ctx.strokeStyle = 'rgba(150,160,180,0.25)';
+                        ctx.lineWidth = 0.5;
+                        ctx.beginPath();
+                        ctx.moveTo(graphX, tickY);
+                        ctx.lineTo(graphX + graphW, tickY);
+                        ctx.stroke();
+                    }
+                    ctx.fillText('0', graphX - 6, bottomGraphY + 4);
+                    ctx.fillStyle = '#ccd';
+                    ctx.textAlign = 'center';
+                    ctx.font = `${Math.max(9, w*0.015)}px "Noto Sans TC","Segoe UI",sans-serif`;
+                    ctx.fillText('屏幕位置 y (mm)', centerGraphX, bottomGraphY + graphH * 0.13);
+                    ctx.fillText('0', centerGraphX, bottomGraphY + graphH * 0.06);
+
+                    const tickInterval = viewPhysicalHalf / 2;
+                    for (let sign = -1; sign <= 1; sign += 2) {
+                        for (let t = 1; t <= 2; t++) {
+                            const physVal = sign * t * tickInterval;
+                            const px = centerGraphX + (physVal / viewPhysicalHalf) * (graphW / 2);
+                            if (px >= graphX && px <= graphX + graphW) {
+                                ctx.fillText((physVal * 1000).toFixed(1), px, bottomGraphY + graphH * 0.06);
+                                ctx.strokeStyle = 'rgba(150,160,180,0.3)';
+                                ctx.lineWidth = 0.5;
+                                ctx.beginPath();
+                                ctx.moveTo(px, bottomGraphY);
+                                ctx.lineTo(px, bottomGraphY + 4);
+                                ctx.stroke();
+                            }
+                        }
+                    }
+
+                    const steps = Math.floor(graphW * 1.5);
+                    const laserColor = Physics.wavelengthToRGB(wavelength_nm);
+                    ctx.beginPath();
+                    let firstPoint = true;
+                    const points = [];
+                    for (let i = 0; i <= steps; i++) {
+                        const px = graphX + (i / steps) * graphW;
+                        const frac = (px - centerGraphX) / (graphW / 2);
+                        const yPhysical = frac * viewPhysicalHalf;
+                        let intensity;
+                        if (mode === 'double') {
+                            intensity = Physics.doubleSlitIntensity(yPhysical, wl_m, a_m, d_m, L_m);
+                        } else {
+                            intensity = Physics.singleSlitIntensity(yPhysical, wl_m, a_m, L_m);
+                        }
+                        intensity = Math.max(0, Math.min(1, intensity));
+                        const py = bottomGraphY - intensity * graphH;
+                        points.push({ px, py, intensity });
+                        if (firstPoint) {
+                            ctx.moveTo(px, bottomGraphY);
+                            ctx.lineTo(px, py);
+                            firstPoint = false;
+                        } else {
+                            ctx.lineTo(px, py);
+                        }
+                    }
+                    const lastPx = points[points.length - 1].px;
+                    ctx.lineTo(lastPx, bottomGraphY);
+                    ctx.closePath();
+
+                    const fillGrad = ctx.createLinearGradient(0, graphY, 0, bottomGraphY);
+                    fillGrad.addColorStop(0, Physics.wavelengthToRGBA(wavelength_nm, 0.85));
+                    fillGrad.addColorStop(0.5, Physics.wavelengthToRGBA(wavelength_nm, 0.5));
+                    fillGrad.addColorStop(1, Physics.wavelengthToRGBA(wavelength_nm, 0.08));
+                    ctx.fillStyle = fillGrad;
+                    ctx.fill();
+
+                    ctx.beginPath();
+                    for (let i = 0; i < points.length; i++) {
+                        if (i === 0) ctx.moveTo(points[i].px, points[i].py);
+                        else ctx.lineTo(points[i].px, points[i].py);
+                    }
+                    ctx.strokeStyle = Physics.wavelengthToRGBA(wavelength_nm, 0.95);
+                    ctx.lineWidth = Math.max(2, w * 0.0035);
+                    ctx.shadowColor = Physics.wavelengthToRGBA(wavelength_nm, 0.6);
+                    ctx.shadowBlur = 6;
+                    ctx.stroke();
+                    ctx.shadowColor = 'transparent';
+                    ctx.shadowBlur = 0;
+
+                    ctx.fillStyle = '#ffffff';
+                    ctx.font = `bold ${Math.max(10, w*0.018)}px "Noto Sans TC","Segoe UI",sans-serif`;
+                    ctx.textAlign = 'center';
+                    ctx.fillText('相對光強度分布', centerGraphX, graphY - graphH * 0.06);
+
+                    ctx.save();
+                    ctx.translate(graphX - marginX * 0.7, graphY + graphH / 2);
+                    ctx.rotate(-Math.PI / 2);
+                    ctx.fillText('相對光強度', 0, 0);
+                    ctx.restore();
+
+                    ctx.fillStyle = '#8899bb';
+                    ctx.font = `${Math.max(8, w*0.013)}px "Noto Sans TC","Segoe UI",sans-serif`;
+                    ctx.textAlign = 'right';
+                    const modeLabel = mode === 'double' ? '雙狹縫 (干涉+繞射)' : '單狹縫 (繞射)';
+                    ctx.fillText(modeLabel, graphX + graphW, graphY - graphH * 0.02);
+                }
+
+                function calculateViewRange(wl_m, a_m, d_m, L_m, mode) {
+                    if (mode === 'single') {
+                        const halfW = Physics.centralHalfWidth(wl_m, a_m, L_m);
+                        return Math.max(halfW * 4, 0.005);
+                    } else {
+                        const fringeSpacing = Physics.fringeSpacing(wl_m, d_m, L_m);
+                        const halfW = Physics.centralHalfWidth(wl_m, a_m, L_m);
+                        const rangeByFringe = fringeSpacing * 8;
+                        const rangeByEnvelope = halfW * 3.5;
+                        return Math.max(rangeByFringe, rangeByEnvelope, 0.004);
+                    }
+                }
+
+                function mapSlitWidthToDisplay(slitWidthMM, availableH) {
+                    const minMM = 0.02;
+                    const maxMM = 0.20;
+                    const clamped = Math.max(minMM, Math.min(maxMM, slitWidthMM));
+                    const frac = (clamped - minMM) / (maxMM - minMM);
+                    const minPx = Math.max(4, availableH * 0.02);
+                    const maxPx = Math.max(30, availableH * 0.14);
+                    return minPx + frac * (maxPx - minPx);
+                }
+
+                function mapSeparationToDisplay(separationMM, availableH) {
+                    const minMM = 0.05;
+                    const maxMM = 0.50;
+                    const clamped = Math.max(minMM, Math.min(maxMM, separationMM));
+                    const frac = (clamped - minMM) / (maxMM - minMM);
+                    const minPx = Math.max(8, availableH * 0.04);
+                    const maxPx = Math.max(70, availableH * 0.32);
+                    return minPx + frac * (maxPx - minPx);
+                }
+
+                function drawArrow(fromX, fromY, angle, size, color) {
+                    const tipX = fromX + Math.cos(angle) * size;
+                    const tipY = fromY + Math.sin(angle) * size;
+                    const arrowAngle = Math.PI / 7;
+                    const arrowLen = size * 0.5;
+                    ctx.fillStyle = color;
+                    ctx.beginPath();
+                    ctx.moveTo(tipX, tipY);
+                    ctx.lineTo(tipX - arrowLen * Math.cos(angle - arrowAngle), tipY - arrowLen * Math.sin(angle - arrowAngle));
+                    ctx.lineTo(tipX - arrowLen * Math.cos(angle + arrowAngle), tipY - arrowLen * Math.sin(angle + arrowAngle));
+                    ctx.closePath();
+                    ctx.fill();
+                }
+
+                function drawHorizontalArrow(x1, x2, y, color, size) {
+                    const midX = (x1 + x2) / 2;
+                    ctx.strokeStyle = color;
+                    ctx.lineWidth = 1.2;
+                    ctx.beginPath();
+                    ctx.moveTo(x1, y);
+                    ctx.lineTo(x2, y);
+                    ctx.stroke();
+                    ctx.fillStyle = color;
+                    ctx.beginPath();
+                    ctx.moveTo(x1, y);
+                    ctx.lineTo(x1 + size * 0.6, y - size * 0.35);
+                    ctx.lineTo(x1 + size * 0.6, y + size * 0.35);
+                    ctx.closePath();
+                    ctx.fill();
+                    ctx.beginPath();
+                    ctx.moveTo(x2, y);
+                    ctx.lineTo(x2 - size * 0.6, y - size * 0.35);
+                    ctx.lineTo(x2 - size * 0.6, y + size * 0.35);
+                    ctx.closePath();
+                    ctx.fill();
+                }
+
+                function roundRect(x, y, w, h, r) {
+                    ctx.beginPath();
+                    ctx.moveTo(x + r, y);
+                    ctx.lineTo(x + w - r, y);
+                    ctx.quadraticCurveTo(x + w, y, x + w, y + r);
+                    ctx.lineTo(x + w, y + h - r);
+                    ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
+                    ctx.lineTo(x + r, y + h);
+                    ctx.quadraticCurveTo(x, y + h, x, y + h - r);
+                    ctx.lineTo(x, y + r);
+                    ctx.quadraticCurveTo(x, y, x + r, y);
+                    ctx.closePath();
+                }
+
+                function updateSeparationSliderState() {
+                    if (mode === 'single') {
+                        sliderSeparation.classList.add('disabled-slider');
+                        groupSeparation.classList.add('disabled-group');
+                    } else {
+                        sliderSeparation.classList.remove('disabled-slider');
+                        groupSeparation.classList.remove('disabled-group');
+                    }
+                }
+
+                function setMode(newMode) {
+                    if (mode === newMode) return;
+                    mode = newMode;
+                    if (mode === 'double') {
+                        btnDouble.classList.add('active');
+                        btnSingle.classList.remove('active');
+                    } else {
+                        btnSingle.classList.add('active');
+                        btnDouble.classList.remove('active');
+                    }
+                    updateSeparationSliderState();
+                    updatePhysicalValues();
+                    updateLabels();
+                    draw();
+                }
+
+                function onSliderInput() {
+                    updatePhysicalValues();
+                    updateLabels();
+                    draw();
+                }
+
+                function onResize() {
+                    draw();
+                }
+
+                function initEvents() {
+                    sliderWavelength.addEventListener('input', onSliderInput);
+                    sliderSeparation.addEventListener('input', onSliderInput);
+                    sliderSlitWidth.addEventListener('input', onSliderInput);
+                    sliderDistance.addEventListener('input', onSliderInput);
+                    btnDouble.addEventListener('click', () => setMode('double'));
+                    btnSingle.addEventListener('click', () => setMode('single'));
+                    window.addEventListener('resize', onResize);
+                    if (window.ResizeObserver) {
+                        const ro = new ResizeObserver(() => {
+                            onResize();
+                        });
+                        ro.observe(canvasContainer);
+                    }
+                }
+
+                function init() {
+                    updatePhysicalValues();
+                    updateLabels();
+                    updateSeparationSliderState();
+                    // 確保 canvas 尺寸已就緒再繪製
+                    if (!resizeCanvas()) {
+                        // 重試直到有效尺寸
+                        const retry = () => {
+                            if (resizeCanvas()) {
+                                draw();
+                            } else {
+                                requestAnimationFrame(retry);
+                            }
+                        };
+                        requestAnimationFrame(retry);
+                    } else {
+                        draw();
+                    }
+                    initEvents();
+                }
+
+                return { init, draw, resizeCanvas, setMode };
+            })();
+
+            document.addEventListener('DOMContentLoaded', () => {
+                UI.init();
+            });
+
+            if (document.readyState === 'interactive' || document.readyState === 'complete') {
+                UI.init();
+            }
+
+            console.log('🔬 光的干涉與繞射模擬動畫已就緒');
+        })();
+    </script>
+</body>
+</html>
