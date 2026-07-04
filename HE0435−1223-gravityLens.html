@@ -11,26 +11,29 @@
             overflow: hidden;
             background-color: #050510;
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            color: #fff;
+            color: #fff; /* 背景為深色，預設文字為白色 */
         }
         #canvas-container {
             width: 100vw;
             height: 100vh;
             display: block;
         }
+        
+        /* UI 面板改為淡色系 */
         #ui-panel {
             position: absolute;
             top: 20px;
             left: 20px;
-            background: rgba(15, 20, 35, 0.85);
-            backdrop-filter: blur(10px);
+            background: rgba(245, 247, 250, 0.92); /* 淡灰色半透明背景 */
+            backdrop-filter: blur(12px);
             padding: 25px;
             border-radius: 15px;
-            border: 1px solid rgba(255, 255, 255, 0.15);
-            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+            border: 1px solid rgba(0, 0, 0, 0.1); /* 淡色邊框 */
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
             width: 320px;
             z-index: 10;
             transition: padding-bottom 0.3s ease;
+            color: #333; /* 面板內預設文字改為深灰色 */
         }
         
         /* 面板標題列 (包含標題與收合按鈕) */
@@ -43,20 +46,19 @@
         h1 {
             margin: 0;
             font-size: 20px;
-            font-weight: 600;
-            letter-spacing: 1px;
-            color: #ffaa00;
-            text-shadow: 0 0 10px rgba(255, 170, 0, 0.3);
+            font-weight: 700;
+            letter-spacing: 0.5px;
+            color: #d35400; /* 深橘色，在亮色背景下更易讀 */
             flex: 1;
             padding-right: 15px;
             line-height: 1.3;
         }
 
-        /* 收合按鈕樣式 */
+        /* 收合按鈕樣式 - 淡色系對應 */
         #togglePanelBtn {
-            background: rgba(255, 255, 255, 0.05);
-            border: 1px solid rgba(255, 255, 255, 0.2);
-            color: #ffaa00;
+            background: rgba(0, 0, 0, 0.05);
+            border: 1px solid rgba(0, 0, 0, 0.1);
+            color: #d35400;
             border-radius: 8px;
             width: 32px;
             height: 32px;
@@ -70,8 +72,8 @@
         }
 
         #togglePanelBtn:hover {
-            background: rgba(255, 255, 255, 0.2);
-            color: #fff;
+            background: rgba(0, 0, 0, 0.1);
+            color: #b33c00;
         }
 
         #togglePanelBtn svg {
@@ -101,51 +103,104 @@
             transform: rotate(180deg); /* 收合時箭頭朝下 */
         }
 
-        /* 參數控制樣式 */
+        /* 參數控制樣式 - 淡色系對應 */
         .control-group {
             margin-bottom: 20px;
         }
-        .control-group label {
+        .control-header {
             display: flex;
             justify-content: space-between;
+            align-items: center;
             margin-bottom: 8px;
+        }
+        .control-header label {
             font-size: 14px;
-            color: #ddd;
+            color: #444;
+            font-weight: 500;
+            margin: 0;
+        }
+        .input-with-unit {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 13px;
+            color: #666;
+            font-weight: 600;
+        }
+        .input-with-unit input[type=number] {
+            width: 55px;
+            padding: 2px 4px;
+            border: 1px solid rgba(0, 0, 0, 0.2);
+            border-radius: 4px;
+            background: rgba(255, 255, 255, 0.8);
+            color: #d35400;
+            font-weight: bold;
+            text-align: right;
+            outline: none;
+            font-family: inherit;
+        }
+        .input-with-unit input[type=number]:focus {
+            border-color: #d35400;
         }
         input[type=range] {
             width: 100%;
             cursor: pointer;
-            accent-color: #ffaa00;
+            accent-color: #d35400; /* 與標題相呼應的橘色 */
         }
+        
+        /* 新增：重置按鈕 */
+        #resetBtn {
+            width: 100%;
+            margin-top: 5px;
+            padding: 8px;
+            background: rgba(0, 0, 0, 0.05);
+            border: 1px solid rgba(0, 0, 0, 0.1);
+            border-radius: 6px;
+            color: #444;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 6px;
+        }
+        #resetBtn:hover {
+            background: #d35400;
+            color: white;
+            border-color: #d35400;
+        }
+
         .instructions {
             margin-top: 20px;
             font-size: 12px;
-            color: #8892b0;
+            color: #556; /* 說明文字深灰色 */
             line-height: 1.6;
             padding-top: 15px;
-            border-top: 1px solid rgba(255, 255, 255, 0.1);
+            border-top: 1px solid rgba(0, 0, 0, 0.1); /* 黑色淡邊框 */
         }
         .instructions span {
-            color: #ffaa00;
+            color: #c0392b; /* 強調顏色 */
+            font-weight: 600;
         }
         
-        /* 真實照片說明樣式 */
+        /* 真實照片說明樣式 - 淡色系對應 */
         .real-image-info {
             margin-top: 15px;
             font-size: 12px;
-            color: #8892b0;
+            color: #445;
             line-height: 1.5;
-            padding: 10px;
-            background: rgba(0, 0, 0, 0.2);
+            padding: 10px 12px;
+            background: rgba(0, 0, 0, 0.04); /* 極淡的灰色背景 */
             border-radius: 8px;
-            border-left: 3px solid #ffaa00;
+            border-left: 4px solid #d35400;
         }
         
         .license-note {
             display: block;
             margin-top: 8px;
             font-size: 11px;
-            color: #667799;
+            color: #778;
             font-style: italic;
         }
 
@@ -157,8 +212,56 @@
             font-size: 24px;
             color: #ffaa00;
             pointer-events: none;
+            text-shadow: 0 0 10px rgba(255, 170, 0, 0.5);
+        }
+
+        /* 新增：右上角 XYZ 坐標軸小圖背景 */
+        #axes-hud-bg {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            width: 120px;
+            height: 120px;
+            background: rgba(245, 247, 250, 0.05);
+            border-radius: 50%;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            pointer-events: none;
+            z-index: 5;
+        }
+
+        /* 新增：視角快速切換按鈕群組 */
+        #view-controls {
+            position: absolute;
+            top: 150px; /* 在坐標雷達下方 */
+            right: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            z-index: 10;
+        }
+
+        .view-btn {
+            background: rgba(245, 247, 250, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            color: #ddd;
+            padding: 6px 12px;
+            border-radius: 6px;
+            font-size: 12px;
+            font-weight: 600;
+            cursor: pointer;
+            backdrop-filter: blur(5px);
+            transition: all 0.2s ease;
+            text-align: center;
+        }
+
+        .view-btn:hover {
+            background: rgba(211, 84, 0, 0.8); /* 懸停時使用主題橘色 */
+            color: #fff;
+            border-color: rgba(255, 255, 255, 0.5);
         }
     </style>
+    <!-- 引入 GSAP 用於平滑相機動畫 -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
     <script type="importmap">
         {
             "imports": {
@@ -184,39 +287,57 @@
         
         <div id="panel-content">
             <div class="control-group">
-                <label for="massSlider">
-                    <span>恆星質量 (時空曲率)</span>
-                    <span id="massValue">2.5 M☉</span>
-                </label>
-                <input type="range" id="massSlider" min="0.1" max="5.0" step="0.1" value="2.5">
+                <div class="control-header">
+                    <label for="massSlider">透鏡星系質量 (時空曲率)</label>
+                    <div class="input-with-unit">
+                        <input type="number" id="massInput" min="1" max="300" step="1" value="100">
+                        <span>億 M☉</span>
+                    </div>
+                </div>
+                <!-- 加大範圍以完美契合 Hubble 影像的真實比例半徑 -->
+                <input type="range" id="massSlider" min="1" max="300" step="1" value="100">
             </div>
             
             <div class="control-group">
-                <label for="raySlider">
-                    <span>觀測光線數量 (愛因斯坦環)</span>
-                    <span id="rayValue">4 道</span>
-                </label>
+                <div class="control-header">
+                    <label for="raySlider">觀測光線數量 (愛因斯坦環)</label>
+                    <div class="input-with-unit">
+                        <input type="number" id="rayInput" min="1" max="4" step="1" value="4">
+                        <span>道</span>
+                    </div>
+                </div>
                 <input type="range" id="raySlider" min="1" max="4" step="1" value="4">
             </div>
 
+            <!-- 新增：還原預設按鈕 -->
+            <button id="resetBtn">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
+                還原預設設定
+            </button>
+
             <div class="instructions">
-                <strong>物理原理：</strong> 根據廣義相對論，大質量天體會扭曲其周圍的時空結構。當背景星系的光經過時，會沿著彎曲的測地線前進，產生如同透鏡般的放大與變形效果。<br><br>
-                <strong>操作方式：</strong><br>
-                • <span>滑鼠左鍵</span>：旋轉觀察視角<br>
-                • <span>滑鼠滾輪</span>：縮放 (Zoom)<br>
-                • <span>滑鼠右鍵</span>：平移視角
+                <strong>物理原理：</strong> 根據廣義相對論，大質量天體會扭曲其周圍的時空結構。當背景星系的光經過時，會沿著彎曲的測地線前進，產生如同透鏡般的放大與變形效果。
             </div>
 
             <!-- 真實案例與授權說明 -->
             <div class="real-image-info">
-                <strong>觀測案例 (愛因斯坦十字)：</strong><br>
-                投影幕上顯示的是哈伯望遠鏡拍攝的真實影像。環內的亮點是充當透鏡的星系。周圍的環與 4 個光點實際上是更遙遠的類星體，受到重力場彎曲而形成的虛像。
-                <span class="license-note">📸 圖片授權：NASA / ESA Hubble 公開授權 (Public Domain)</span>
+                <strong>觀測案例：HE 0435−1223</strong><br>
+                投影幕上模擬的是四重引力透鏡類星體，這是一個罕見的「愛因斯坦十字」。中心充當透鏡的星系，其核心黑洞質量高達約 100 億個太陽質量。強大的重力場將背後更遙遠的類星體光線彎曲，形成了四個對稱的虛像。<br>
+                💡 <em>互動：您可以微調「透鏡質量」(約 100 億 M☉ 左右)，讓模擬的虛線環與背景真實照片中的光點完美對齊！</em>
+                <span class="license-note">📸 影像來源：NASA / ESA Hubble</span>
             </div>
         </div>
     </div>
 
     <div id="canvas-container"></div>
+    <div id="axes-hud-bg"></div> <!-- 新增背景裝飾 -->
+    
+    <!-- 新增：視角快速切換按鈕 -->
+    <div id="view-controls">
+        <button class="view-btn" id="btn-view-xy" title="從正上方俯視 (Z軸方向)">XY 平面 (上視圖)</button>
+        <button class="view-btn" id="btn-view-xz" title="從正前方平視 (Y軸方向)">XZ 平面 (正視圖)</button>
+        <button class="view-btn" id="btn-view-yz" title="從側面平視 (X軸方向)">YZ 平面 (側視圖)</button>
+    </div>
 
     <script type="module">
         import * as THREE from 'three';
@@ -227,13 +348,15 @@
         const loading = document.getElementById('loading');
         
         let scene, camera, renderer, controls;
+        let sceneHUD, cameraHUD; // 新增：用於獨立渲染 XYZ 坐標的小場景與相機
         let spacetimeGrid, lensStar, sourceGalaxy, imagePlane;
         let rayLines = [], photonParticles = [];
         let virtualRayLines = []; 
+        let projectedPoints = []; // 儲存精確投影的 2D 座標以供對齊
         let currentVirtualRadius = 0; 
         
-        // 物理與控制參數
-        let currentMass = 2.5;
+        // 物理與控制參數 (預設質量調整為 100 以完美對齊照片中亮點的中心)
+        let currentMass = 100; // 單位：億太陽質量
         let currentRaysCount = 4;
         const systemWidth = 30; 
         const photonsPerRay = 8; 
@@ -256,6 +379,7 @@
             renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
             renderer.setSize(window.innerWidth, window.innerHeight);
             renderer.setPixelRatio(window.devicePixelRatio);
+            renderer.autoClear = false; // 新增：關閉自動清除，以便後續疊加渲染 HUD
             container.appendChild(renderer.domElement);
 
             // 軌道控制
@@ -275,6 +399,7 @@
             createCelestialBodies();
             createTelescopes();
             createImagePlane();
+            createHUD(); // 新增：建立右上角坐標軸 HUD
             
             // 初始更新物理狀態
             updatePhysics();
@@ -289,23 +414,107 @@
                 uiPanel.classList.toggle('collapsed');
             });
             
-            document.getElementById('massSlider').addEventListener('input', (e) => {
-                currentMass = parseFloat(e.target.value);
-                document.getElementById('massValue').innerText = currentMass.toFixed(1) + ' M☉';
+            // --- 質量控制同步邏輯 (滑桿與輸入框) ---
+            function syncMass(val) {
+                let v = Math.max(1, Math.min(300, parseFloat(val) || 100)); // 限制範圍 1~300
+                currentMass = v;
+                document.getElementById('massSlider').value = v;
+                document.getElementById('massInput').value = v;
                 updatePhysics();
+            }
+            
+            document.getElementById('massSlider').addEventListener('input', (e) => syncMass(e.target.value));
+            document.getElementById('massInput').addEventListener('change', (e) => syncMass(e.target.value));
+            document.getElementById('massInput').addEventListener('input', (e) => {
+                if (e.target.value !== '') syncMass(e.target.value);
             });
 
-            document.getElementById('raySlider').addEventListener('input', (e) => {
-                currentRaysCount = parseInt(e.target.value);
-                document.getElementById('rayValue').innerText = currentRaysCount + ' 道';
+            // --- 光線數量控制同步邏輯 (滑桿與輸入框) ---
+            function syncRays(val) {
+                let v = Math.max(1, Math.min(4, parseInt(val) || 4)); // 限制範圍 1~4
+                currentRaysCount = v;
+                document.getElementById('raySlider').value = v;
+                document.getElementById('rayInput').value = v;
                 updatePhysics();
+            }
+
+            document.getElementById('raySlider').addEventListener('input', (e) => syncRays(e.target.value));
+            document.getElementById('rayInput').addEventListener('change', (e) => syncRays(e.target.value));
+            document.getElementById('rayInput').addEventListener('input', (e) => {
+                if (e.target.value !== '') syncRays(e.target.value);
             });
+
+            // --- 新增：重置按鈕邏輯 ---
+            document.getElementById('resetBtn').addEventListener('click', () => {
+                // 恢復物理預設數值
+                syncMass(100);
+                syncRays(4);
+                
+                // 結合 GSAP 平滑重置相機至初始視角
+                gsap.to(camera.position, {
+                    x: 15, y: 15, z: 35,
+                    duration: 1.5,
+                    ease: "power2.inOut",
+                    onUpdate: () => controls.update()
+                });
+                gsap.to(controls.target, {
+                    x: 0, y: -2, z: 0,
+                    duration: 1.5,
+                    ease: "power2.inOut"
+                });
+            });
+
+            // 新增：視角切換按鈕事件監聽
+            setupViewButtons();
 
             loading.style.display = 'none';
         }
 
-        // --- 2. 建立 3D 元件 ---
+        // --- 新增：設定視角切換動畫 ---
+        function setupViewButtons() {
+            const distance = 40; // 相機距離原點的距離
 
+            document.getElementById('btn-view-xy').addEventListener('click', () => {
+                // 上視圖：相機在 Z 軸正向，看向原點
+                moveCameraTo(0, 0, distance);
+            });
+
+            document.getElementById('btn-view-xz').addEventListener('click', () => {
+                // 正視圖：相機在 Y 軸正向，看向原點
+                moveCameraTo(0, distance, 0.1); // Y 軸給一點點偏移避免 OrbitControls 翻轉問題
+            });
+
+            document.getElementById('btn-view-yz').addEventListener('click', () => {
+                // 側視圖：相機在 X 軸正向，看向原點
+                moveCameraTo(distance, 0, 0);
+            });
+        }
+
+        // --- 新增：平滑移動相機函數 ---
+        function moveCameraTo(x, y, z) {
+            // 使用 GSAP 平滑過渡相機位置
+            gsap.to(camera.position, {
+                x: x,
+                y: y,
+                z: z,
+                duration: 1.5,
+                ease: "power2.inOut",
+                onUpdate: () => {
+                    controls.update(); // 確保控制器的目標同步更新
+                }
+            });
+            
+            // 同時確保相機目標看向中心
+            gsap.to(controls.target, {
+                x: 0,
+                y: -2, // 與原先設定的 target 一致
+                z: 0,
+                duration: 1.5,
+                ease: "power2.inOut"
+            });
+        }
+
+        // --- 2. 建立 3D 元件 ---
         function createSpacetimeGrid() {
             const size = 40;
             const divisions = 80;
@@ -410,13 +619,28 @@
             imagePlane.userData.ctx = imagePlane.userData.canvas.getContext('2d');
             imagePlane.material.map = new THREE.CanvasTexture(imagePlane.userData.canvas);
             
-            // 載入真實照片
-            imagePlane.userData.realImage = new Image();
-            imagePlane.userData.realImage.src = 'image_e8780b.jpg';
+            // --- 外部圖片載入設定 ---
+            const externalImageUrl = 'https://cdn.esahubble.org/archives/images/screen/heic1702e.jpg'; 
             
-            imagePlane.userData.realImage.onload = () => {
-                updateImagePlaneCanvas();
-            };
+            if (externalImageUrl) {
+                imagePlane.userData.realImage = new Image();
+                imagePlane.userData.realImage.crossOrigin = "Anonymous"; // 嘗試避免跨域讀取問題
+                imagePlane.userData.realImage.src = externalImageUrl;
+                
+                imagePlane.userData.realImage.onload = () => {
+                    imagePlane.userData.hasValidImage = true;
+                    updateImagePlaneCanvas();
+                };
+
+                imagePlane.userData.realImage.onerror = () => {
+                    console.warn('無法載入指定的外部圖片，自動切換為無背景圖片模式。');
+                    imagePlane.userData.hasValidImage = false;
+                    updateImagePlaneCanvas();
+                };
+            } else {
+                imagePlane.userData.hasValidImage = false;
+                setTimeout(updateImagePlaneCanvas, 0); // 確保初始化時繪製一次畫布
+            }
 
             const edges = new THREE.EdgesGeometry(planeGeo);
             const line = new THREE.LineSegments(edges, new THREE.LineBasicMaterial({ color: 0xffffff, opacity: 0.5, transparent: true }));
@@ -425,35 +649,105 @@
             scene.add(imagePlane);
         }
 
-        // --- 3. 物理與幾何更新邏輯 ---
+        // --- 新增：建立坐標軸 HUD ---
+        function createHUD() {
+            sceneHUD = new THREE.Scene();
+            cameraHUD = new THREE.PerspectiveCamera(50, 1, 0.1, 100);
+            
+            // 建立高質感的 X, Y, Z 箭頭
+            const origin = new THREE.Vector3(0, 0, 0);
+            const length = 2;
+            const headLength = 0.6;
+            const headWidth = 0.4;
 
+            const arrowX = new THREE.ArrowHelper(new THREE.Vector3(1, 0, 0), origin, length, 0xff4444, headLength, headWidth);
+            const arrowY = new THREE.ArrowHelper(new THREE.Vector3(0, 1, 0), origin, length, 0x44ff44, headLength, headWidth);
+            const arrowZ = new THREE.ArrowHelper(new THREE.Vector3(0, 0, 1), origin, length, 0x4444ff, headLength, headWidth);
+            sceneHUD.add(arrowX, arrowY, arrowZ);
+
+            // 建立 X, Y, Z 文字標籤
+            function createLabel(text, color, position) {
+                const canvas = document.createElement('canvas');
+                canvas.width = 64;
+                canvas.height = 64;
+                const ctx = canvas.getContext('2d');
+                
+                // 設定字體與樣式
+                ctx.font = 'bold 36px sans-serif';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                
+                // 加上黑色描邊讓文字在太空背景更易讀
+                ctx.lineWidth = 4;
+                ctx.strokeStyle = 'rgba(0, 0, 0, 0.8)';
+                ctx.strokeText(text, 32, 32);
+                
+                ctx.fillStyle = color;
+                ctx.fillText(text, 32, 32);
+                
+                const texture = new THREE.CanvasTexture(canvas);
+                const material = new THREE.SpriteMaterial({ map: texture, depthTest: false });
+                const sprite = new THREE.Sprite(material);
+                sprite.position.copy(position);
+                sprite.scale.set(0.8, 0.8, 0.8);
+                return sprite;
+            }
+
+            sceneHUD.add(createLabel('X', '#ff4444', new THREE.Vector3(2.6, 0, 0)));
+            sceneHUD.add(createLabel('Y', '#44ff44', new THREE.Vector3(0, 2.6, 0)));
+            sceneHUD.add(createLabel('Z', '#4444ff', new THREE.Vector3(0, 0, 2.6)));
+        }
+
+        // --- 3. 物理與幾何更新邏輯 ---
         function getImpactParameter(mass) {
             return 1.2 * Math.sqrt(mass);
         }
 
-        function getPathPoint(t, mass, angleIndex, totalRays) {
+        // 統一定義光線分佈的角度
+        function getRayAngle(index, total) {
+            // 根據您的客觀分析，真實影像的大亮點 (外側模糊光斑) 角度分布為：
+            // 第一象限 (右上)：約 55°
+            // 第二象限 (左上)：約 145°
+            // 第三象限 (左下)：約 235°
+            // 第四象限 (右下)：約 325°
+            //
+            // 由於 3D 空間的 YZ 軸映射到 2D 畫布時，具有 90 度的相位差
+            // 轉換公式為： 3D繪圖角度 θ = 畫布角度 α - 90°
+            const he0435Angles = [
+                Math.PI * 1.922, // 右上 (55° - 90° = -35° = 325° -> 1.806π)
+                Math.PI * 0.321, // 左上 (145° - 90° = 55° -> 0.306π)
+                Math.PI * 0.906, // 左下 (235° - 90° = 145° -> 0.806π)
+                Math.PI * 1.5  // 右下 (325° - 90° = 235° -> 1.306π)
+            ];
+            
+            // 取消均分邏輯，依照真實投影位置逐一增加或減少
+            return he0435Angles[index % 4]; 
+        }
+
+        function getPathPoint(t, mass, angle) {
             const startX = -15;
             const endX = 15;
             const x = startX + (endX - startX) * t;
             
             const b = getImpactParameter(mass);
-            const softening = 1.5; 
+            // 降低平滑係數(softening)，使光線在遠離透鏡星體後，更接近物理上筆直的漸近線
+            const softening = 0.5; 
             
-            const maxH = b;
-            const currentH = maxH * (15 - Math.sqrt(x * x + softening * softening)) / (15 - softening);
+            // 使用無縫的雙曲線函數，確保在觀測點 (x=15) 半徑能平滑且精確地歸零
+            const rMax = Math.sqrt(15 * 15 + softening * softening);
+            const rx = Math.sqrt(x * x + softening * softening);
+            const currentH = b * (rMax - rx) / (rMax - softening);
             
-            let angle = 0;
-            if (totalRays === 1) angle = Math.PI / 4; 
-            else if (totalRays === 2) angle = angleIndex * Math.PI; 
-            else angle = angleIndex * (Math.PI / 2); 
-
-            const radius = Math.max(0, currentH);
+            const radius = currentH;
             
             return new THREE.Vector3(x, radius * Math.cos(angle), radius * Math.sin(angle));
         }
 
         function updatePhysics() {
-            const scale = 0.5 + currentMass * 0.2;
+            // 將實際質量映射為視覺上的適當比例
+            const effectiveMass = currentMass / 40;
+
+            const scale = 0.5 + effectiveMass * 0.2;
             lensStar.scale.set(scale, scale, scale);
 
             scene.remove(spacetimeGrid);
@@ -468,7 +762,7 @@
                 const x = positions[i];
                 const z = positions[i + 2];
                 const r = Math.sqrt(x*x + z*z);
-                const depth = - (currentMass * 4) / Math.sqrt(r*r + 4); 
+                const depth = - (effectiveMass * 4) / Math.sqrt(r*r + 4); 
                 positions[i + 1] = depth; 
             }
             newGeo.computeVertexNormals();
@@ -482,11 +776,13 @@
             rayLines = [];
             virtualRayLines.forEach(line => scene.remove(line)); 
             virtualRayLines = [];
+            projectedPoints = []; // 清空投影點
             
             for (let i = 0; i < currentRaysCount; i++) {
+                const rayAngle = getRayAngle(i); // 直接取用固定陣列角度
                 const points = [];
                 for (let j = 0; j <= 100; j++) {
-                    points.push(getPathPoint(j / 100, currentMass, i, currentRaysCount));
+                    points.push(getPathPoint(j / 100, effectiveMass, rayAngle));
                 }
                 const lineGeo = new THREE.BufferGeometry().setFromPoints(points);
                 const lineMat = new THREE.LineBasicMaterial({ 
@@ -498,14 +794,25 @@
                 rayLines.push(line);
                 scene.add(line);
 
-                const p1 = points[99];
+                const p1 = points[99]; 
                 const p2 = points[100]; 
                 
                 const dir = new THREE.Vector3().subVectors(p2, p1).normalize();
-                const k = (p2.x + 25) / dir.x;
-                const hitPoint = new THREE.Vector3().copy(p2).sub(dir.clone().multiplyScalar(k));
+                
+                const distanceToPlane = (p2.x + 25) / dir.x;
+                
+                const hitPoint = new THREE.Vector3().copy(p2).sub(dir.clone().multiplyScalar(distanceToPlane));
                 
                 currentVirtualRadius = Math.sqrt(hitPoint.y**2 + hitPoint.z**2); 
+                
+                // 計算精確的 2D 投影座標 (確保與 3D 虛光線 100% 貼合)
+                // 3D Plane 寬高為 24，Canvas 為 512。
+                // Plane 旋轉了 90 度，Canvas 的 X 軸對應全域的 -Z 軸，Y 軸對應全域的 -Y 軸
+                const canvasScale = 512 / 24; 
+                const cx = 256 - hitPoint.z * canvasScale;
+                const cy = 256 - hitPoint.y * canvasScale;
+                
+                projectedPoints.push({ cx, cy });
                 
                 const virtualPoints = [p2, hitPoint];
                 const virtualGeo = new THREE.BufferGeometry().setFromPoints(virtualPoints);
@@ -551,12 +858,12 @@
             const centerX = canvas.width / 2;
             const centerY = canvas.height / 2;
 
-            if (imagePlane.userData.realImage && imagePlane.userData.realImage.complete) {
+            if (imagePlane.userData.hasValidImage && imagePlane.userData.realImage && imagePlane.userData.realImage.complete) {
                 ctx.drawImage(imagePlane.userData.realImage, 0, 0, canvas.width, canvas.height);
-                ctx.fillStyle = 'rgba(0, 0, 0, 0.3)'; // 稍微減弱黑色遮罩，保留照片細節
+                ctx.fillStyle = 'rgba(0, 0, 0, 0.15)'; // 降低黑色遮罩不透明度，使背景星系更清晰
                 ctx.fillRect(0, 0, canvas.width, canvas.height);
             } else {
-                ctx.fillStyle = 'rgba(17, 17, 17, 0.5)'; // 如果圖片尚未載入，也使用半透明底色
+                ctx.fillStyle = 'rgba(17, 17, 17, 0.5)'; 
                 ctx.fillRect(0, 0, canvas.width, canvas.height);
             }
 
@@ -567,53 +874,46 @@
             ctx.lineWidth = 2;
             ctx.lineCap = 'round';
             
-            if (currentRaysCount === 4) {
+            // 無論幾道光線，都繪製愛因斯坦半徑的虛線圓，方便對齊參考
+            ctx.setLineDash([5, 8]);
+            ctx.beginPath();
+            ctx.arc(centerX, centerY, ringRadius, 0, Math.PI * 2);
+            ctx.stroke();
+            ctx.setLineDash([]);
+            
+            const arcLength = 0.6; 
+            projectedPoints.forEach(p => {
+                // 畫出圓弧
+                const canvasAngle = Math.atan2(p.cy - centerY, p.cx - centerX);
                 ctx.beginPath();
-                ctx.arc(centerX, centerY, ringRadius, 0, Math.PI * 2);
+                ctx.arc(centerX, centerY, ringRadius, canvasAngle - arcLength/2, canvasAngle + arcLength/2);
+                ctx.strokeStyle = 'rgba(255, 200, 255, 0.9)'; 
+                ctx.lineWidth = 5;
                 ctx.stroke();
+
+                // 在弧線中央加上光點，讓虛像位置更清晰
+                ctx.beginPath();
+                ctx.arc(p.cx, p.cy, 5, 0, Math.PI * 2);
+                ctx.fillStyle = '#ffffff';
+                ctx.shadowColor = '#66ccff'; // 符合類星體的藍色光暈
+                ctx.shadowBlur = 15;
+                ctx.fill();
                 
-                for (let i = 0; i < 4; i++) {
-                    let angle = i * (Math.PI / 2);
-                    let px = centerX + ringRadius * Math.cos(angle);
-                    let py = centerY + ringRadius * Math.sin(angle);
-                    
-                    ctx.beginPath();
-                    ctx.arc(px, py, 5, 0, Math.PI * 2);
-                    ctx.fillStyle = '#ffffff';
-                    ctx.shadowColor = '#ffbbff';
-                    ctx.shadowBlur = 15;
-                    ctx.fill();
-                    
-                    ctx.beginPath();
-                    ctx.arc(px, py, 2, 0, Math.PI * 2);
-                    ctx.shadowBlur = 0; 
-                    ctx.fill();
-                }
-            } else {
-                const arcLength = 0.6; 
-                for (let i = 0; i < currentRaysCount; i++) {
-                    let angle = 0;
-                    if (currentRaysCount === 1) angle = Math.PI / 4;
-                    else if (currentRaysCount === 2) angle = i * Math.PI;
-                    else angle = i * (Math.PI / 2);
-                    
-                    ctx.beginPath();
-                    ctx.arc(centerX, centerY, ringRadius, angle - arcLength/2, angle + arcLength/2);
-                    ctx.strokeStyle = 'rgba(255, 200, 255, 0.9)'; 
-                    ctx.lineWidth = 5;
-                    ctx.stroke();
-                }
-            }
+                ctx.beginPath();
+                ctx.arc(p.cx, p.cy, 2, 0, Math.PI * 2);
+                ctx.shadowBlur = 0; 
+                ctx.fill();
+            });
             
             ctx.fillStyle = 'rgba(255, 255, 255, 0.9)';
             ctx.font = 'bold 16px sans-serif';
             ctx.shadowColor = "black";
             ctx.shadowBlur = 4;
-            ctx.fillText("Hubble Space Telescope (2021)", 20, 30);
+            ctx.fillText("HE 0435−1223 Simulation", 20, 30);
             
             ctx.font = '14px sans-serif';
             ctx.fillStyle = 'rgba(255, 200, 100, 0.9)';
-            ctx.fillText("Virtual Images Projected on Background Sky", 20, 55);
+            ctx.fillText("Quadruply Lensed Quasar", 20, 55);
 
             ctx.shadowBlur = 0;
 
@@ -621,7 +921,6 @@
         }
 
         // --- 4. 動畫迴圈 ---
-
         function animate() {
             requestAnimationFrame(animate);
 
@@ -632,11 +931,14 @@
             lensStar.rotation.y += 0.005;
             sourceGalaxy.rotation.y += 0.01;
 
+            const effectiveMass = currentMass / 40; // 同步轉換成視覺質量比例
+
             const speed = 0.2; 
             photonParticles.forEach(photon => {
                 let t = ((time * speed) + photon.userData.offset) % 1.0;
                 
-                const pos = getPathPoint(t, currentMass, photon.userData.rayIndex, currentRaysCount);
+                const rayAngle = getRayAngle(photon.userData.rayIndex); // 套用固定的照片方位角
+                const pos = getPathPoint(t, effectiveMass, rayAngle);
                 photon.position.copy(pos);
                 
                 let scale = 1.0;
@@ -645,7 +947,30 @@
                 photon.scale.set(scale, scale, scale);
             });
 
+            // --- 渲染主場景 ---
+            renderer.clear();
+            renderer.setViewport(0, 0, window.innerWidth, window.innerHeight);
             renderer.render(scene, camera);
+
+            // --- 渲染 HUD (右上角) ---
+            const hudSize = 120;
+            const margin = 20;
+            
+            // 讓 HUD 相機跟隨主相機的相對方位旋轉
+            cameraHUD.position.copy(camera.position).normalize().multiplyScalar(7);
+            cameraHUD.lookAt(0, 0, 0);
+            
+            // WebGL Viewport 的原點 (0,0) 位於左下角
+            const hudX = window.innerWidth - hudSize - margin;
+            const hudY = window.innerHeight - hudSize - margin; 
+            
+            // 只在右上角的特定方塊區域中疊加渲染 XYZ 座標
+            renderer.clearDepth();
+            renderer.setScissorTest(true);
+            renderer.setScissor(hudX, hudY, hudSize, hudSize);
+            renderer.setViewport(hudX, hudY, hudSize, hudSize);
+            renderer.render(sceneHUD, cameraHUD);
+            renderer.setScissorTest(false);
         }
 
         function onWindowResize() {

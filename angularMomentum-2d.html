@@ -1,0 +1,503 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>角動量互動模擬 (HTML5)</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* 隱藏預設的 range 樣式，稍微美化一下 */
+        input[type=range] {
+            -webkit-appearance: none;
+            width: 100%;
+            background: transparent;
+        }
+        input[type=range]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            height: 16px;
+            width: 16px;
+            border-radius: 50%;
+            background: #4f46e5;
+            cursor: pointer;
+            margin-top: -6px;
+        }
+        input[type=range]::-webkit-slider-runnable-track {
+            width: 100%;
+            height: 4px;
+            cursor: pointer;
+            background: #e2e8f0;
+            border-radius: 2px;
+        }
+        input[type=range]:focus {
+            outline: none;
+        }
+        canvas {
+            touch-action: none; /* 防止在 canvas 上拖曳時觸發頁面捲動 */
+        }
+    </style>
+</head>
+<body class="bg-slate-50 text-slate-800 font-sans h-screen flex flex-col p-4 md:p-8 box-border">
+
+    <header class="mb-6 flex-shrink-0">
+        <h1 class="text-3xl font-bold text-indigo-900">角動量定義模擬</h1>
+        <p class="text-slate-600 mt-1">互動式展示 $\vec{L} = \vec{r} \times \vec{p}$ 向量關係</p>
+    </header>
+
+    <div class="flex flex-col lg:flex-row gap-6 flex-1 min-h-0">
+        
+        <!-- 左側控制與數據面板 -->
+        <div class="w-full lg:w-80 flex flex-col gap-6 overflow-y-auto">
+            
+            <!-- 控制面板 -->
+            <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
+                <h2 class="text-lg font-bold mb-4 text-indigo-900 border-b pb-2">參數控制</h2>
+                
+                <div class="space-y-6">
+                    <div>
+                        <div class="flex justify-between mb-1">
+                            <label class="text-sm font-bold text-blue-600">位置大小 $|\vec{r}|$</label>
+                            <span id="val-r" class="text-sm font-mono font-bold text-blue-600">100</span>
+                        </div>
+                        <input type="range" id="slider-r" min="20" max="150" value="100">
+                    </div>
+
+                    <div>
+                        <div class="flex justify-between mb-1">
+                            <label class="text-sm font-bold text-red-600">動量大小 $|\vec{p}|$</label>
+                            <span id="val-p" class="text-sm font-mono font-bold text-red-600">80</span>
+                        </div>
+                        <input type="range" id="slider-p" min="20" max="150" value="80">
+                    </div>
+
+                    <div>
+                        <div class="flex justify-between mb-1">
+                            <label class="text-sm font-bold text-slate-700">夾角 $\theta$</label>
+                            <span id="val-theta" class="text-sm font-mono font-bold text-slate-700">90°</span>
+                        </div>
+                        <input type="range" id="slider-theta" min="0" max="360" value="90">
+                    </div>
+                </div>
+                <p class="text-xs text-slate-500 mt-4 leading-relaxed">
+                    提示：您也可以直接在右側畫布上拖曳藍色或紅色箭頭的頂點。
+                </p>
+            </div>
+
+            <!-- 數據顯示面板 -->
+            <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 flex-1">
+                <h2 class="text-lg font-bold mb-4 text-indigo-900 border-b pb-2">即時運算結果</h2>
+                
+                <div class="space-y-4 text-sm">
+                    <div class="bg-slate-50 p-3 rounded-lg border border-slate-100">
+                        <div class="font-mono text-center font-bold mb-2 pb-2 border-b border-slate-200">
+                            $|\vec{L}| = |\vec{r}| \cdot |\vec{p}| \cdot \sin(\theta)$
+                        </div>
+                        <div class="flex justify-between items-center text-slate-600">
+                            <span>$100 \times 80 \times \sin(90^\circ)$</span>
+                            <span id="calc-result" class="font-mono font-bold text-indigo-700 text-lg">8000</span>
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-4">
+                        <div class="bg-indigo-50 p-3 rounded-lg border border-indigo-100 flex flex-col justify-center items-center">
+                            <span class="text-xs font-bold text-indigo-500 mb-1">角動量方向</span>
+                            <div id="dir-indicator" class="flex items-center text-indigo-700 font-bold text-lg">
+                                <!-- JS 會更新這裡 -->
+                                射出 (⊙)
+                            </div>
+                        </div>
+                        <div class="bg-emerald-50 p-3 rounded-lg border border-emerald-100 flex flex-col justify-center items-center">
+                            <span class="text-xs font-bold text-emerald-600 mb-1">$\sin(\theta)$ 值</span>
+                            <span id="val-sin" class="font-mono font-bold text-emerald-700 text-lg">1.00</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+
+        <!-- 右側畫布區域 -->
+        <div class="flex-1 bg-white rounded-2xl shadow-xl border border-slate-200 overflow-hidden relative min-h-[400px]">
+            <!-- <canvas> 會被 JS 設定大小以填滿這個容器 -->
+            <canvas id="sim-canvas" class="w-full h-full cursor-crosshair"></canvas>
+            
+            <div class="absolute top-4 left-4 bg-white/80 backdrop-blur px-3 py-1 rounded shadow-sm text-sm font-mono border border-slate-100 pointer-events-none">
+                俯視圖 (xy-平面)
+            </div>
+            
+            <div class="absolute bottom-4 right-4 pointer-events-none">
+                 <svg id="z-axis-indicator" width="80" height="80" viewBox="0 0 100 100">
+                    <circle cx="50" cy="50" r="40" fill="none" stroke="#e2e8f0" stroke-width="2" />
+                    <!-- JS 會更新這個群組的內容來顯示射出/進入 -->
+                    <g id="z-axis-symbol" stroke="#6366f1" stroke-width="3" fill="none">
+                        <circle cx="50" cy="50" r="15" />
+                        <circle cx="50" cy="50" r="2" fill="#6366f1" />
+                    </g>
+                    <text x="50" y="20" font-size="12" fill="#6366f1" text-anchor="middle" font-weight="bold">Z 軸 ($\vec{L}$)</text>
+                 </svg>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- MathJax 用於渲染數學公式 -->
+    <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+    <script>
+        // 設定 MathJax 配置，讓它支援行內公式
+        window.MathJax = {
+            tex: {
+                inlineMath: [['$', '$'], ['\\(', '\\)']]
+            }
+        };
+    </script>
+
+    <script>
+        // --- 模擬邏輯 ---
+        
+        const canvas = document.getElementById('sim-canvas');
+        const ctx = canvas.getContext('2d');
+
+        // UI 元素
+        const sliderR = document.getElementById('slider-r');
+        const sliderP = document.getElementById('slider-p');
+        const sliderTheta = document.getElementById('slider-theta');
+        const valR = document.getElementById('val-r');
+        const valP = document.getElementById('val-p');
+        const valTheta = document.getElementById('val-theta');
+        const valSin = document.getElementById('val-sin');
+        const calcResult = document.getElementById('calc-result');
+        const dirIndicator = document.getElementById('dir-indicator');
+        const zAxisSymbol = document.getElementById('z-axis-symbol');
+
+        // 狀態變數
+        let state = {
+            magR: parseFloat(sliderR.value),
+            magP: parseFloat(sliderP.value),
+            thetaDeg: parseFloat(sliderTheta.value), // p 向量相對於 r 向量的角度
+            rAngleDeg: 0 // r 向量相對於 x 軸的角度 (用於拖曳控制)
+        };
+
+        // 拖曳狀態
+        let isDraggingR = false;
+        let isDraggingP = false;
+        const dragRadius = 15; // 滑鼠靠近端點多近可以拖曳
+
+        // 畫布中心
+        let cx = 0;
+        let cy = 0;
+
+        // 處理畫布大小改變
+        function resizeCanvas() {
+            // 設定內部解析度為實際顯示大小，避免模糊
+            canvas.width = canvas.clientWidth;
+            canvas.height = canvas.clientHeight;
+            cx = canvas.width / 2;
+            cy = canvas.height / 2;
+            draw();
+        }
+        window.addEventListener('resize', resizeCanvas);
+
+        // 輔助函數：畫帶箭頭的線
+        function drawArrow(ctx, fromx, fromy, tox, toy, color, label) {
+            const headlen = 12; // length of head in pixels
+            const dx = tox - fromx;
+            const dy = toy - fromy;
+            const angle = Math.atan2(dy, dx);
+            
+            ctx.beginPath();
+            ctx.moveTo(fromx, fromy);
+            ctx.lineTo(tox, toy);
+            ctx.strokeStyle = color;
+            ctx.lineWidth = 4;
+            ctx.lineCap = 'round';
+            ctx.stroke();
+
+            // 畫箭頭
+            ctx.beginPath();
+            ctx.moveTo(tox, toy);
+            ctx.lineTo(tox - headlen * Math.cos(angle - Math.PI / 6), toy - headlen * Math.sin(angle - Math.PI / 6));
+            ctx.lineTo(tox - headlen * Math.cos(angle + Math.PI / 6), toy - headlen * Math.sin(angle + Math.PI / 6));
+            ctx.lineTo(tox, toy);
+            ctx.fillStyle = color;
+            ctx.fill();
+
+            // 畫標籤
+            if(label) {
+                ctx.font = "bold 16px monospace";
+                ctx.fillStyle = color;
+                // 標籤稍微往外推
+                const labelDist = 20;
+                ctx.fillText(label, tox + labelDist * Math.cos(angle), toy + labelDist * Math.sin(angle));
+            }
+        }
+
+        // 輔助函數：畫角度弧線
+        function drawAngleArc(ctx, x, y, startAngle, endAngle, radius) {
+            ctx.beginPath();
+            // 在 Canvas 中，角度增加是順時針，所以要特別處理
+            ctx.arc(x, y, radius, startAngle, endAngle, false);
+            ctx.strokeStyle = "rgba(100, 116, 139, 0.5)"; // slate-500 透明
+            ctx.lineWidth = 2;
+            ctx.stroke();
+        }
+
+        // 主要繪製函數
+        function draw() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            // 1. 畫背景網格
+            ctx.beginPath();
+            ctx.strokeStyle = "#f1f5f9"; // slate-100
+            ctx.lineWidth = 1;
+            for (let x = cx % 40; x < canvas.width; x += 40) { ctx.moveTo(x, 0); ctx.lineTo(x, canvas.height); }
+            for (let y = cy % 40; y < canvas.height; y += 40) { ctx.moveTo(0, y); ctx.lineTo(canvas.width, y); }
+            ctx.stroke();
+
+            // 2. 畫 X, Y 軸
+            ctx.beginPath();
+            ctx.strokeStyle = "#cbd5e1"; // slate-300
+            ctx.lineWidth = 2;
+            ctx.setLineDash([5, 5]);
+            ctx.moveTo(0, cy); ctx.lineTo(canvas.width, cy);
+            ctx.moveTo(cx, 0); ctx.lineTo(cx, canvas.height);
+            ctx.stroke();
+            ctx.setLineDash([]); // 恢復實線
+
+            // 計算向量端點位置
+            const rRad = state.rAngleDeg * Math.PI / 180;
+            const rx = cx + state.magR * Math.cos(rRad);
+            const ry = cy + state.magR * Math.sin(rRad);
+
+            const pRad = rRad + (state.thetaDeg * Math.PI / 180);
+            const px = rx + state.magP * Math.cos(pRad);
+            const py = ry + state.magP * Math.sin(pRad);
+
+            // 3. 畫軌跡虛線圓
+            ctx.beginPath();
+            ctx.arc(cx, cy, state.magR, 0, 2 * Math.PI);
+            ctx.strokeStyle = "rgba(59, 130, 246, 0.2)"; // blue-500 transparent
+            ctx.setLineDash([4, 4]);
+            ctx.stroke();
+            ctx.setLineDash([]);
+
+            // 4. 畫夾角弧線 (在 r 的頂點)
+            let startArc = rRad;
+            let endArc = pRad;
+            if(state.thetaDeg > 180) { // 保持弧線在較小的一側
+                startArc = pRad;
+                endArc = rRad + 2*Math.PI;
+            }
+            drawAngleArc(ctx, rx, ry, startArc, endArc, 25);
+            // 標示角度文字
+            const midArc = (startArc + endArc) / 2;
+            ctx.font = "12px sans-serif";
+            ctx.fillStyle = "#64748b";
+            let displayTheta = state.thetaDeg > 180 ? 360 - state.thetaDeg : state.thetaDeg;
+            ctx.fillText(Math.round(displayTheta) + "°", rx + 35 * Math.cos(midArc) - 10, ry + 35 * Math.sin(midArc) + 5);
+
+            // 5. 畫位置向量 r
+            drawArrow(ctx, cx, cy, rx, ry, "#3b82f6", "r"); // blue-500
+            // 畫 r 端點的控制點
+            ctx.beginPath();
+            ctx.arc(rx, ry, dragRadius, 0, 2 * Math.PI);
+            ctx.fillStyle = isDraggingR ? "rgba(59, 130, 246, 0.5)" : "transparent";
+            ctx.fill();
+
+            // 6. 畫動量向量 p (起點在 r 的終點)
+            drawArrow(ctx, rx, ry, px, py, "#ef4444", "p"); // red-500
+            // 畫 p 端點的控制點
+            ctx.beginPath();
+            ctx.arc(px, py, dragRadius, 0, 2 * Math.PI);
+            ctx.fillStyle = isDraggingP ? "rgba(239, 68, 68, 0.5)" : "transparent";
+            ctx.fill();
+
+            // 畫質點 (在 r 的終點)
+            ctx.beginPath();
+            ctx.arc(rx, ry, 6, 0, 2 * Math.PI);
+            ctx.fillStyle = "#1e293b"; // slate-800
+            ctx.fill();
+            
+            updateUI();
+        }
+
+        // 更新數據與 UI 顯示
+        function updateUI() {
+            // 使用原始夾角（考慮正負）來計算外積 Z 分量
+            // L_z = r_x * p_y - r_y * p_x
+            const rRad = state.rAngleDeg * Math.PI / 180;
+            const pRad = rRad + (state.thetaDeg * Math.PI / 180);
+            
+            const r_vec = { x: state.magR * Math.cos(rRad), y: state.magR * Math.sin(rRad) };
+            const p_vec = { x: state.magP * Math.cos(pRad), y: state.magP * Math.sin(pRad) };
+            
+            // 注意 Canvas Y 軸向下，所以外積符號相反
+            // 標準數學: L_z = r_x * p_y - r_y * p_x
+            // Canvas: 如果 theta 在 0~180 (p 在 r 順時針方向)，外積為正 (指向螢幕內)
+            const crossZ = r_vec.x * p_vec.y - r_vec.y * p_vec.x; 
+            
+            // 理論計算大小 |r||p|sin(theta)
+            // sin 的角度我們取相對夾角
+            const thetaRad = state.thetaDeg * Math.PI / 180;
+            const sinVal = Math.sin(thetaRad);
+            const magL = state.magR * state.magP * Math.abs(sinVal);
+
+            // 更新數值顯示
+            valR.innerText = Math.round(state.magR);
+            valP.innerText = Math.round(state.magP);
+            let displayTheta = state.thetaDeg > 180 ? 360 - state.thetaDeg : state.thetaDeg;
+            valTheta.innerText = Math.round(displayTheta) + "°";
+            
+            // 更新滑桿 (避免 dragging 時反覆設定)
+            if(!isDraggingR) sliderR.value = state.magR;
+            if(!isDraggingP) {
+                sliderP.value = state.magP;
+                sliderTheta.value = state.thetaDeg;
+            }
+
+            // 更新公式面板
+            document.querySelector('#calc-result').previousElementSibling.innerHTML = 
+                `${Math.round(state.magR)} &times; ${Math.round(state.magP)} &times; <span class="${Math.abs(sinVal)<0.1 ? 'text-rose-500' : ''}">sin(${Math.round(displayTheta)}&deg;)</span>`;
+            calcResult.innerText = Math.round(magL);
+            valSin.innerText = Math.abs(sinVal).toFixed(2);
+            
+            // 當 sin 趨近於 0 時給予提示顏色
+            if(Math.abs(sinVal) < 0.05) {
+                valSin.classList.add('text-rose-500');
+                valSin.classList.remove('text-emerald-700');
+            } else {
+                valSin.classList.remove('text-rose-500');
+                valSin.classList.add('text-emerald-700');
+            }
+
+            // 更新方向指示
+            // 在標準右手座標系，XY平面上逆時針為正Z方向 (射出)
+            // Canvas 中，Y軸向下，所以 r 到 p 順時針 (theta 0~180) 代表 Z軸向內 (進入紙面)
+            // 為了符合一般物理直覺，我們把 theta=0~180 當作逆時針旋轉 (射出)
+            // 在這裡我們用 crossZ 來判斷，由於 Canvas Y向下，crossZ > 0 代表順時針，即指向紙內
+            
+            if (magL < 1) {
+                dirIndicator.innerHTML = "零向量 (無角動量)";
+                dirIndicator.className = "flex items-center text-slate-500 font-bold text-base";
+                zAxisSymbol.innerHTML = `<circle cx="50" cy="50" r="15" stroke="#94a3b8"/><line x1="40" y1="40" x2="60" y2="60" stroke="#94a3b8"/><line x1="60" y1="40" x2="40" y2="60" stroke="#94a3b8"/>`;
+            } else if (crossZ < 0) {
+                // 逆時針 (Canvas座標系)，物理上的射出
+                dirIndicator.innerHTML = "射出紙面 (<span class='font-sans'>⊙</span>)";
+                dirIndicator.className = "flex items-center text-indigo-600 font-bold text-lg";
+                zAxisSymbol.innerHTML = `<circle cx="50" cy="50" r="15" stroke="#4f46e5"/><circle cx="50" cy="50" r="3" fill="#4f46e5" stroke="none" />`;
+            } else {
+                // 順時針 (Canvas座標系)，物理上的進入
+                dirIndicator.innerHTML = "進入紙面 (<span class='font-sans'>⊗</span>)";
+                dirIndicator.className = "flex items-center text-rose-600 font-bold text-lg";
+                zAxisSymbol.innerHTML = `<circle cx="50" cy="50" r="15" stroke="#e11d48"/><line x1="40" y1="40" x2="60" y2="60" stroke="#e11d48"/><line x1="60" y1="40" x2="40" y2="60" stroke="#e11d48"/>`;
+            }
+        }
+
+        // --- 事件監聽器 ---
+
+        // 滑桿變更事件
+        sliderR.addEventListener('input', (e) => { state.magR = parseFloat(e.target.value); draw(); });
+        sliderP.addEventListener('input', (e) => { state.magP = parseFloat(e.target.value); draw(); });
+        sliderTheta.addEventListener('input', (e) => { state.thetaDeg = parseFloat(e.target.value); draw(); });
+
+        // Canvas 滑鼠/觸控事件處理
+        function getMousePos(evt) {
+            const rect = canvas.getBoundingClientRect();
+            // 處理觸控或滑鼠事件
+            let clientX = evt.clientX;
+            let clientY = evt.clientY;
+            if (evt.touches && evt.touches.length > 0) {
+                clientX = evt.touches[0].clientX;
+                clientY = evt.touches[0].clientY;
+            }
+            return {
+                x: clientX - rect.left,
+                y: clientY - rect.top
+            };
+        }
+
+        function handleStart(e) {
+            e.preventDefault();
+            const pos = getMousePos(e);
+            
+            // 計算目前向量端點位置
+            const rRad = state.rAngleDeg * Math.PI / 180;
+            const rx = cx + state.magR * Math.cos(rRad);
+            const ry = cy + state.magR * Math.sin(rRad);
+
+            const pRad = rRad + (state.thetaDeg * Math.PI / 180);
+            const px = rx + state.magP * Math.cos(pRad);
+            const py = ry + state.magP * Math.sin(pRad);
+
+            // 檢查是否點擊到 P 控制點 (優先，因為可能重疊)
+            const distP = Math.hypot(pos.x - px, pos.y - py);
+            if (distP <= dragRadius * 1.5) {
+                isDraggingP = true;
+                return;
+            }
+
+            // 檢查是否點擊到 R 控制點
+            const distR = Math.hypot(pos.x - rx, pos.y - ry);
+            if (distR <= dragRadius * 1.5) {
+                isDraggingR = true;
+            }
+        }
+
+        function handleMove(e) {
+            if (!isDraggingR && !isDraggingP) return;
+            e.preventDefault();
+            const pos = getMousePos(e);
+
+            if (isDraggingR) {
+                // 更新 r 的大小和方向
+                const dx = pos.x - cx;
+                const dy = pos.y - cy;
+                state.magR = Math.max(20, Math.min(150, Math.hypot(dx, dy)));
+                state.rAngleDeg = Math.atan2(dy, dx) * 180 / Math.PI;
+            } 
+            else if (isDraggingP) {
+                // p 的起點是 r 的終點
+                const rRad = state.rAngleDeg * Math.PI / 180;
+                const rx = cx + state.magR * Math.cos(rRad);
+                const ry = cy + state.magR * Math.sin(rRad);
+                
+                const dx = pos.x - rx;
+                const dy = pos.y - ry;
+                
+                state.magP = Math.max(20, Math.min(150, Math.hypot(dx, dy)));
+                
+                // 計算相對於 r 的夾角
+                let absolutePAngleDeg = Math.atan2(dy, dx) * 180 / Math.PI;
+                let relAngle = absolutePAngleDeg - state.rAngleDeg;
+                
+                // 轉為正角度 0~360
+                relAngle = (relAngle % 360 + 360) % 360;
+                state.thetaDeg = relAngle;
+            }
+            draw();
+        }
+
+        function handleEnd(e) {
+            isDraggingR = false;
+            isDraggingP = false;
+            draw(); // 移除 Highlight
+        }
+
+        canvas.addEventListener('mousedown', handleStart);
+        canvas.addEventListener('mousemove', handleMove);
+        window.addEventListener('mouseup', handleEnd);
+
+        canvas.addEventListener('touchstart', handleStart, {passive: false});
+        canvas.addEventListener('touchmove', handleMove, {passive: false});
+        window.addEventListener('touchend', handleEnd);
+
+        // 初始化
+        setTimeout(() => {
+            resizeCanvas();
+            // MathJax 如果載入完成，觸發排版
+            if(window.MathJax && window.MathJax.typeset) {
+                window.MathJax.typeset();
+            }
+        }, 100);
+
+    </script>
+</body>
+</html>

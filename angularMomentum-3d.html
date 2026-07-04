@@ -1,0 +1,354 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>角動量 3D 互動模擬 (Three.js)</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- 引入 Three.js 與 OrbitControls -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+    <style>
+        input[type=range] {
+            -webkit-appearance: none;
+            width: 100%;
+            background: transparent;
+        }
+        input[type=range]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            height: 16px;
+            width: 16px;
+            border-radius: 50%;
+            background: #4f46e5;
+            cursor: pointer;
+            margin-top: -6px;
+        }
+        input[type=range]::-webkit-slider-runnable-track {
+            width: 100%;
+            height: 4px;
+            cursor: pointer;
+            background: #e2e8f0;
+            border-radius: 2px;
+        }
+        input[type=range]:focus {
+            outline: none;
+        }
+        #canvas-container {
+            touch-action: none; 
+        }
+    </style>
+</head>
+<body class="bg-slate-50 text-slate-800 font-sans h-screen flex flex-col p-4 md:p-8 box-border">
+
+    <header class="mb-6 flex-shrink-0">
+        <h1 class="text-3xl font-bold text-indigo-900">角動量定義 3D 模擬</h1>
+        <p class="text-slate-600 mt-1">互動式立體展示 $\vec{L} = \vec{r} \times \vec{p}$ 向量關係</p>
+    </header>
+
+    <div class="flex flex-col lg:flex-row gap-6 flex-1 min-h-0">
+        
+        <!-- 左側控制與數據面板 -->
+        <div class="w-full lg:w-80 flex flex-col gap-6 overflow-y-auto">
+            
+            <!-- 控制面板 -->
+            <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
+                <h2 class="text-lg font-bold mb-4 text-indigo-900 border-b pb-2">參數控制</h2>
+                
+                <div class="space-y-6">
+                    <div>
+                        <div class="flex justify-between mb-1">
+                            <label class="text-sm font-bold text-blue-600">位置大小 $|\vec{r}|$</label>
+                            <span id="val-r" class="text-sm font-mono font-bold text-blue-600">100</span>
+                        </div>
+                        <input type="range" id="slider-r" min="20" max="150" value="100">
+                    </div>
+
+                    <div>
+                        <div class="flex justify-between mb-1">
+                            <label class="text-sm font-bold text-red-600">動量大小 $|\vec{p}|$</label>
+                            <span id="val-p" class="text-sm font-mono font-bold text-red-600">80</span>
+                        </div>
+                        <input type="range" id="slider-p" min="20" max="150" value="80">
+                    </div>
+
+                    <div>
+                        <div class="flex justify-between mb-1">
+                            <label class="text-sm font-bold text-slate-700">夾角 $\theta$</label>
+                            <span id="val-theta" class="text-sm font-mono font-bold text-slate-700">90°</span>
+                        </div>
+                        <input type="range" id="slider-theta" min="0" max="360" value="90">
+                    </div>
+                </div>
+            </div>
+
+            <!-- 數據顯示面板 -->
+            <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 flex-1">
+                <h2 class="text-lg font-bold mb-4 text-indigo-900 border-b pb-2">即時運算結果</h2>
+                
+                <div class="space-y-4 text-sm">
+                    <div class="bg-slate-50 p-3 rounded-lg border border-slate-100">
+                        <div class="font-mono text-center font-bold mb-2 pb-2 border-b border-slate-200">
+                            $|\vec{L}| = |\vec{r}| \cdot |\vec{p}| \cdot \sin(\theta)$
+                        </div>
+                        <div class="flex justify-between items-center text-slate-600 mt-2">
+                            <span id="formula-text">$100 \times 80 \times \sin(90^\circ)$</span>
+                            <span id="calc-result" class="font-mono font-bold text-emerald-600 text-lg">8000</span>
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-4">
+                        <div class="bg-indigo-50 p-3 rounded-lg border border-indigo-100 flex flex-col justify-center items-center">
+                            <span class="text-xs font-bold text-indigo-500 mb-1">角動量方向 (Z軸)</span>
+                            <div id="dir-indicator" class="flex items-center text-indigo-700 font-bold text-base">
+                                +Z (向上)
+                            </div>
+                        </div>
+                        <div class="bg-slate-50 p-3 rounded-lg border border-slate-200 flex flex-col justify-center items-center">
+                            <span class="text-xs font-bold text-slate-500 mb-1">$\sin(\theta)$ 值</span>
+                            <span id="val-sin" class="font-mono font-bold text-slate-700 text-lg">1.00</span>
+                        </div>
+                    </div>
+                    
+                    <p class="text-[11px] text-slate-400 mt-2 text-center">
+                        (註：為了讓 3D 畫面清晰，$\vec{L}$ 的箭頭長度在視覺上已作等比例縮小)
+                    </p>
+                </div>
+            </div>
+
+        </div>
+
+        <!-- 右側 3D 畫布區域 -->
+        <div class="flex-1 bg-white rounded-2xl shadow-xl border border-slate-200 overflow-hidden relative min-h-[400px]">
+            <div id="canvas-container" class="w-full h-full cursor-grab active:cursor-grabbing"></div>
+            
+            <div class="absolute top-4 left-4 bg-white/90 backdrop-blur px-4 py-2 rounded-lg shadow-sm text-sm border border-slate-200 pointer-events-none">
+                <div class="font-bold text-slate-800 mb-1">3D 視角控制</div>
+                <div class="text-slate-600 text-xs">滑鼠左鍵：旋轉視角</div>
+                <div class="text-slate-600 text-xs">滾輪：縮放大小</div>
+                <div class="text-slate-600 text-xs">滑鼠右鍵：平移畫面</div>
+            </div>
+
+            <!-- 圖例 -->
+            <div class="absolute bottom-4 right-4 bg-white/90 backdrop-blur p-3 rounded-lg shadow-sm border border-slate-200 pointer-events-none">
+                <div class="flex items-center gap-2 mb-1">
+                    <div class="w-3 h-3 rounded-full bg-blue-500"></div>
+                    <span class="text-xs font-bold text-slate-700">位置 $\vec{r}$</span>
+                </div>
+                <div class="flex items-center gap-2 mb-1">
+                    <div class="w-3 h-3 rounded-full bg-red-500"></div>
+                    <span class="text-xs font-bold text-slate-700">動量 $\vec{p}$</span>
+                </div>
+                <div class="flex items-center gap-2">
+                    <div class="w-3 h-3 rounded-full bg-emerald-500"></div>
+                    <span class="text-xs font-bold text-slate-700">角動量 $\vec{L}$</span>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- MathJax 用於渲染數學公式 -->
+    <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+    <script>
+        window.MathJax = {
+            tex: { inlineMath: [['$', '$'], ['\\(', '\\)']] }
+        };
+    </script>
+
+    <script>
+        // === 3D 模擬邏輯 (Three.js) ===
+        
+        const container = document.getElementById('canvas-container');
+        
+        // 1. 初始化場景、相機與渲染器
+        const scene = new THREE.Scene();
+        scene.background = new THREE.Color(0xf8fafc); // slate-50
+
+        const camera = new THREE.PerspectiveCamera(45, container.clientWidth / container.clientHeight, 0.1, 1000);
+        camera.position.set(20, 20, 15);
+        camera.up.set(0, 0, 1); // 設定 Z 軸為上方 (物理常用設定)
+
+        const renderer = new THREE.WebGLRenderer({ antialias: true });
+        renderer.setSize(container.clientWidth, container.clientHeight);
+        renderer.setPixelRatio(window.devicePixelRatio);
+        container.appendChild(renderer.domElement);
+
+        // 2. 加入 OrbitControls 讓滑鼠可以旋轉視角
+        const controls = new THREE.OrbitControls(camera, renderer.domElement);
+        controls.enableDamping = true;
+        controls.dampingFactor = 0.05;
+
+        // 3. 建立場景輔助物件 (網格、座標軸)
+        // XY 平面網格
+        const gridHelper = new THREE.GridHelper(60, 30, 0xcbd5e1, 0xe2e8f0);
+        gridHelper.rotation.x = Math.PI / 2; // 將網格旋轉到 XY 平面上
+        scene.add(gridHelper);
+
+        // 自定義簡約坐標軸 (灰線)
+        const axisMaterial = new THREE.LineBasicMaterial({ color: 0x94a3b8 });
+        const xAxisGeom = new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(-30, 0, 0), new THREE.Vector3(30, 0, 0)]);
+        const yAxisGeom = new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(0, -30, 0), new THREE.Vector3(0, 30, 0)]);
+        const zAxisGeom = new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(0, 0, -30), new THREE.Vector3(0, 0, 30)]);
+        scene.add(new THREE.Line(xAxisGeom, axisMaterial));
+        scene.add(new THREE.Line(yAxisGeom, axisMaterial));
+        scene.add(new THREE.Line(zAxisGeom, axisMaterial));
+
+        // 4. 準備向量箭頭 (ArrowHelpers)
+        const origin = new THREE.Vector3(0, 0, 0);
+        
+        // r 向量 (藍色)
+        const colorR = 0x3b82f6; 
+        const arrowR = new THREE.ArrowHelper(new THREE.Vector3(1,0,0), origin, 10, colorR, 1.5, 1);
+        scene.add(arrowR);
+
+        // p 向量 (紅色)
+        const colorP = 0xef4444;
+        const arrowP = new THREE.ArrowHelper(new THREE.Vector3(0,1,0), new THREE.Vector3(10,0,0), 8, colorP, 1.5, 1);
+        scene.add(arrowP);
+
+        // L 向量 (綠色)
+        const colorL = 0x10b981;
+        const arrowL = new THREE.ArrowHelper(new THREE.Vector3(0,0,1), origin, 5, colorL, 2, 1.5);
+        scene.add(arrowL);
+
+        // 粒子圓球 (在 r 的尖端)
+        const particleGeo = new THREE.SphereGeometry(0.6, 16, 16);
+        const particleMat = new THREE.MeshBasicMaterial({ color: 0x1e293b });
+        const particle = new THREE.Mesh(particleGeo, particleMat);
+        scene.add(particle);
+
+        // 軌跡圓圈 (表示 r 向量的旋轉半徑)
+        const circleGeo = new THREE.BufferGeometry();
+        const circleMat = new THREE.LineDashedMaterial({ color: 0x3b82f6, dashSize: 0.5, gapSize: 0.5, opacity: 0.5, transparent: true });
+        const circleLine = new THREE.Line(circleGeo, circleMat);
+        // 移除這行，因為初始化時 circleGeo 尚未有頂點 (points)，呼叫 computeLineDistances() 會引發 undefined 錯誤
+        // circleLine.computeLineDistances(); 
+        scene.add(circleLine);
+
+
+        // === UI 與數值更新邏輯 ===
+        
+        const sliderR = document.getElementById('slider-r');
+        const sliderP = document.getElementById('slider-p');
+        const sliderTheta = document.getElementById('slider-theta');
+        
+        // 視覺縮放比例 (UI上的數值 100 在 3D 空間中為 10)
+        const visualScale = 0.1;
+        // 角動量長度視覺縮放 (避免太大衝出螢幕)
+        // 將縮放係數調小，以解決數值過大時箭頭失真的問題
+        const LScaleFactor = 0.0015; 
+
+        function updateVisuals() {
+            const magR_val = parseFloat(sliderR.value);
+            const magP_val = parseFloat(sliderP.value);
+            const thetaDeg = parseFloat(sliderTheta.value);
+            
+            // 將 UI 數值轉換為 3D 空間長度
+            const lengthR = magR_val * visualScale;
+            const lengthP = magP_val * visualScale;
+            const thetaRad = thetaDeg * Math.PI / 180;
+
+            // 為了方便觀察，將 r 固定在 XY 平面的 X 軸正方向，並稍微偏移 20 度讓視角更好看
+            const baseAngle = 20 * Math.PI / 180;
+            const dirR = new THREE.Vector3(Math.cos(baseAngle), Math.sin(baseAngle), 0);
+            
+            // 更新 r 箭頭
+            arrowR.setDirection(dirR);
+            arrowR.setLength(lengthR, lengthR * 0.2, lengthR * 0.15);
+            
+            // 計算粒子位置 (即 r 的尖端)
+            const particlePos = new THREE.Vector3(lengthR * dirR.x, lengthR * dirR.y, 0);
+            particle.position.copy(particlePos);
+
+            // 計算 p 向量方向 (在 XY 平面上，相對於 r 旋轉 theta 角度)
+            const dirP = new THREE.Vector3(Math.cos(baseAngle + thetaRad), Math.sin(baseAngle + thetaRad), 0);
+            
+            // 更新 p 箭頭
+            arrowP.position.copy(particlePos); // 從 r 的尖端出發
+            arrowP.setDirection(dirP);
+            arrowP.setLength(lengthP, lengthP * 0.2, lengthP * 0.15);
+
+            // 更新軌跡虛線圓
+            const points = [];
+            for(let i = 0; i <= 64; i++) {
+                const a = (i / 64) * Math.PI * 2;
+                points.push(new THREE.Vector3(lengthR * Math.cos(a), lengthR * Math.sin(a), 0));
+            }
+            circleLine.geometry.setFromPoints(points);
+            circleLine.computeLineDistances(); // 確保有點(points)之後再計算虛線距離
+
+            // 計算 L = r x p (大小)
+            const sinVal = Math.sin(thetaRad);
+            const magL_val = magR_val * magP_val * sinVal; // 實際物理量值
+            const magL_abs = Math.abs(magL_val);
+            
+            // 在 Z 軸上顯示 L
+            if (magL_abs < 0.1) {
+                arrowL.visible = false; // 角動量為 0
+            } else {
+                arrowL.visible = true;
+                const dirL = new THREE.Vector3(0, 0, Math.sign(magL_val)); // 向上或向下
+                const visualLengthL = magL_abs * LScaleFactor;
+                arrowL.setDirection(dirL);
+                // 確保箭頭頭部不要比箭身還長，並適當縮小箭頭頭部
+                const headLen = Math.min(2, visualLengthL * 0.2); 
+                arrowL.setLength(visualLengthL, headLen, headLen * 0.7);
+            }
+
+            // 更新 UI 文字面板
+            document.getElementById('val-r').innerText = magR_val;
+            document.getElementById('val-p').innerText = magP_val;
+            document.getElementById('val-theta').innerText = thetaDeg + "°";
+            
+            const displaySin = Math.abs(sinVal).toFixed(2);
+            document.getElementById('val-sin').innerText = displaySin;
+            
+            document.getElementById('formula-text').innerHTML = 
+                `${magR_val} &times; ${magP_val} &times; <span class="${Math.abs(sinVal)<0.05 ? 'text-rose-500' : ''}">sin(${thetaDeg}&deg;)</span>`;
+            document.getElementById('calc-result').innerText = Math.round(magL_abs);
+
+            // 更新方向提示
+            const dirIndicator = document.getElementById('dir-indicator');
+            if (magL_abs < 0.1) {
+                dirIndicator.innerHTML = "零向量 (無角動量)";
+                dirIndicator.className = "flex items-center text-slate-500 font-bold text-base mt-1";
+            } else if (magL_val > 0) {
+                dirIndicator.innerHTML = "+Z 軸 (向上)";
+                dirIndicator.className = "flex items-center text-emerald-600 font-bold text-lg mt-1";
+            } else {
+                dirIndicator.innerHTML = "-Z 軸 (向下)";
+                dirIndicator.className = "flex items-center text-rose-600 font-bold text-lg mt-1";
+            }
+        }
+
+        // 綁定 UI 事件
+        sliderR.addEventListener('input', updateVisuals);
+        sliderP.addEventListener('input', updateVisuals);
+        sliderTheta.addEventListener('input', updateVisuals);
+
+        // 處理視窗縮放
+        window.addEventListener('resize', () => {
+            camera.aspect = container.clientWidth / container.clientHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(container.clientWidth, container.clientHeight);
+        });
+
+        // 首次初始化畫面
+        updateVisuals();
+
+        // 渲染循環 (Animation Loop)
+        function animate() {
+            requestAnimationFrame(animate);
+            controls.update(); // 更新 OrbitControls 阻尼效果
+            renderer.render(scene, camera);
+        }
+        animate();
+
+        // MathJax 重新排版
+        setTimeout(() => {
+            if(window.MathJax && window.MathJax.typeset) window.MathJax.typeset();
+        }, 100);
+
+    </script>
+</body>
+</html>
