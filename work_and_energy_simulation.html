@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Work and Energy Simulation</title>
+    <title>計算變力作功模擬</title>
     <script src="https://cdn.tailwindcss.com"></script>
     
     <!-- 引入 KaTeX 樣式與腳本以渲染數學公式 -->
@@ -32,7 +32,7 @@
             margin: 0 auto;
             box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
             background-color: white;
-            border-radius: 0.5rem;
+            border-radius: 0.75rem;
             overflow: hidden;
         }
 
@@ -43,84 +43,106 @@
         }
     </style>
 </head>
-<body class="min-h-screen flex items-center justify-center p-4">
+<body class="p-4 md:p-8 flex justify-center w-full">
 
-    <div class="max-w-6xl w-full flex flex-col md:flex-row gap-6 items-start">
+    <!-- 主容器：移除 min-h-screen，並將 md:flex-row 改為 lg:flex-row 提升 iframe 適應性 -->
+    <div class="max-w-6xl w-full flex flex-col lg:flex-row gap-6 items-start">
         
-        <!-- Left Parameter Panel -->
-        <div class="w-full md:w-80 shrink-0 bg-white p-6 rounded-xl shadow-sm border border-slate-200 flex flex-col space-y-6">
-            <h2 class="text-xl font-bold text-slate-800 border-b pb-2">參數調整</h2>
+        <!-- 左側面板容器：包含參數與原理說明 -->
+        <div class="w-full lg:w-80 shrink-0 flex flex-col gap-4">
             
-            <div class="space-y-3">
-                <label class="flex justify-between text-sm font-semibold text-slate-700">
-                    <span>&Delta;s 切割數 (<span class="math-text">N</span>)</span>
-                    <span id="val-steps" class="text-blue-600">30</span>
-                </label>
-                <input type="range" id="slider-steps" min="5" max="100" value="30" class="w-full accent-blue-600">
-                <p class="text-xs text-slate-500">調整路徑切割數量，數值越大越接近真實作功面積。</p>
+            <!-- 參數調整卡片 -->
+            <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-200 flex flex-col space-y-6">
+                <h2 class="text-xl font-bold text-slate-800 border-b pb-2">參數調整</h2>
+                
+                <div class="space-y-3">
+                    <label class="flex justify-between text-sm font-semibold text-slate-700">
+                        <span>&Delta;s 切割數 (<span class="math-text">N</span>)</span>
+                        <span id="val-steps" class="text-blue-600">30</span>
+                    </label>
+                    <input type="range" id="slider-steps" min="5" max="100" value="30" class="w-full accent-blue-600">
+                    <p class="text-xs text-slate-500">調整路徑切割數量，數值越大越接近真實作功面積。</p>
+                </div>
+
+                <div class="space-y-3">
+                    <label class="flex justify-between text-sm font-semibold text-slate-700">
+                        <span>斜坡高度 (<span class="math-text">h</span>)</span>
+                        <span id="val-height" class="text-blue-600">180 m</span>
+                    </label>
+                    <input type="range" id="slider-height" min="50" max="300" value="180" class="w-full accent-blue-600">
+                </div>
+
+                <div class="space-y-3">
+                    <label class="flex items-center space-x-2 text-sm font-semibold text-slate-700 cursor-pointer">
+                        <input type="checkbox" id="check-friction" class="w-4 h-4 accent-blue-600 rounded">
+                        <span>啟用摩擦力</span>
+                    </label>
+                </div>
+
+                <div class="space-y-3 transition-opacity duration-300 opacity-50 pointer-events-none" id="friction-group">
+                    <label class="flex justify-between text-sm font-semibold text-slate-700">
+                        <span>動摩擦係數 (<span class="math-text">&mu;<sub>k</sub></span>)</span>
+                        <span id="val-friction" class="text-blue-600">0.20</span>
+                    </label>
+                    <input type="range" id="slider-friction" min="0.05" max="0.5" step="0.05" value="0.20" class="w-full accent-blue-600">
+                </div>
             </div>
 
-            <div class="space-y-3">
-                <label class="flex justify-between text-sm font-semibold text-slate-700">
-                    <span>斜坡高度 (<span class="math-text">h</span>)</span>
-                    <span id="val-height" class="text-blue-600">180 m</span>
-                </label>
-                <input type="range" id="slider-height" min="50" max="300" value="180" class="w-full accent-blue-600">
+            <!-- 變力作功原理說明卡片 -->
+            <div class="bg-indigo-50/50 p-6 rounded-xl shadow-sm border border-indigo-100 flex flex-col space-y-4">
+                <h3 class="text-lg font-bold text-indigo-900 flex items-center gap-2">
+                    💡 變力作功原理
+                </h3>
+                <div class="text-sm text-slate-700 space-y-3 leading-relaxed">
+                    <p>物體在曲面滑動時，沿著路徑的有效受力（下滑力與動摩擦力）會隨斜面角度不斷變化。</p>
+                    <p>此時無法直接代入常數公式 <span class="math-text font-semibold">W = F &times; s</span>，我們必須將路徑切分為無數個微小的 <span class="math-text font-semibold">&Delta;s</span>，計算每一段的微小作功後再行加總（即右圖的黎曼和）。</p>
+                    <p>當切割數量 <span class="math-text font-semibold">N &rarr; &infin;</span> 時，面積加總即為精確的作功值，以微積分表示：</p>
+                </div>
+                <div class="bg-white py-3 px-4 rounded-lg shadow-inner text-center border border-indigo-50 mt-2">
+                    <span class="math-text text-indigo-800 text-lg">W = &int; F<sub>net</sub> &middot; ds</span>
+                </div>
             </div>
 
-            <div class="space-y-3">
-                <label class="flex items-center space-x-2 text-sm font-semibold text-slate-700 cursor-pointer">
-                    <input type="checkbox" id="check-friction" class="w-4 h-4 accent-blue-600 rounded">
-                    <span>啟用摩擦力</span>
-                </label>
-            </div>
-
-            <div class="space-y-3 transition-opacity duration-300 opacity-50 pointer-events-none" id="friction-group">
-                <label class="flex justify-between text-sm font-semibold text-slate-700">
-                    <span>動摩擦係數 (<span class="math-text">\mu_k</span>)</span>
-                    <span id="val-friction" class="text-blue-600">0.20</span>
-                </label>
-                <input type="range" id="slider-friction" min="0.05" max="0.5" step="0.05" value="0.20" class="w-full accent-blue-600">
-            </div>
         </div>
 
-        <!-- Right Canvas Area -->
-        <div class="flex-1 w-full flex flex-col items-center space-y-6">
+        <!-- 右側畫布區域 -->
+        <div class="flex-1 min-w-0 w-full flex flex-col items-center space-y-4">
             
-            <div class="text-center space-y-2">
-                <h1 class="text-3xl font-bold text-slate-800">Calculating Work Done</h1>
-                <p class="text-slate-600">Simulation of a box sliding down a curve, visualizing <span class="math-text">W = &int; F &middot; ds</span></p>
+            <div class="text-center space-y-1">
+                <h1 class="text-3xl font-bold text-slate-800">計算變力作功</h1>
+                <p class="text-slate-600">模擬物體沿曲面下滑，視覺化呈現 <span class="math-text">W = &int; F &middot; ds</span></p>
             </div>
 
             <div id="canvas-container" class="w-full">
                 <canvas id="simCanvas" width="800" height="600"></canvas>
-                <div id="formula-overlay" class="absolute top-4 right-4 bg-white/80 backdrop-blur-sm px-4 py-3 rounded-lg shadow border border-slate-200 transition-opacity duration-300 pointer-events-none">
+                <div id="formula-overlay" class="absolute top-4 right-4 bg-white/90 backdrop-blur-sm px-4 py-3 rounded-lg shadow border border-slate-200 transition-opacity duration-300 pointer-events-none">
                     <span id="formula-content" class="math-text text-xl text-slate-800"></span>
                 </div>
             </div>
 
+            <!-- 唯一的一組播放控制列 -->
             <div class="flex space-x-4 bg-white p-4 rounded-xl shadow-sm border border-slate-200">
-                <button id="btn-prev" class="flex items-center justify-center w-12 h-12 rounded-full bg-slate-200 text-slate-700 hover:bg-slate-300 transition-colors focus:outline-none focus:ring-2 focus:ring-slate-500 focus:ring-offset-2" title="Previous Step">
+                <button id="btn-prev" class="flex items-center justify-center w-12 h-12 rounded-full bg-slate-100 text-slate-700 hover:bg-slate-200 transition-colors focus:outline-none focus:ring-2 focus:ring-slate-400" title="上一步">
                     <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-6 h-6">
                         <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" />
                     </svg>
                 </button>
-                <button id="btn-play" class="flex items-center justify-center w-12 h-12 rounded-full bg-blue-600 text-white hover:bg-blue-700 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2" title="Play">
+                <button id="btn-play" class="flex items-center justify-center w-12 h-12 rounded-full bg-blue-600 text-white hover:bg-blue-700 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500" title="播放">
                     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="w-6 h-6 ml-1">
                         <path fill-rule="evenodd" d="M4.5 5.653c0-1.426 1.529-2.33 2.779-1.643l11.54 6.348c1.295.712 1.295 2.573 0 3.285L7.28 19.991c-1.25.687-2.779-.217-2.779-1.643V5.653z" clip-rule="evenodd" />
                     </svg>
                 </button>
-                <button id="btn-pause" class="flex items-center justify-center w-12 h-12 rounded-full bg-blue-600 text-white hover:bg-blue-700 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 hidden" title="Pause">
+                <button id="btn-pause" class="flex items-center justify-center w-12 h-12 rounded-full bg-blue-600 text-white hover:bg-blue-700 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 hidden" title="暫停">
                      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="w-6 h-6">
                         <path fill-rule="evenodd" d="M6.75 5.25a.75.75 0 01.75-.75H9a.75.75 0 01.75.75v13.5a.75.75 0 01-.75.75H7.5a.75.75 0 01-.75-.75V5.25zm7.5 0A.75.75 0 0115 4.5h1.5a.75.75 0 01.75.75v13.5a.75.75 0 01-.75.75H15a.75.75 0 01-.75-.75V5.25z" clip-rule="evenodd" />
                     </svg>
                 </button>
-                <button id="btn-next" class="flex items-center justify-center w-12 h-12 rounded-full bg-slate-200 text-slate-700 hover:bg-slate-300 transition-colors focus:outline-none focus:ring-2 focus:ring-slate-500 focus:ring-offset-2" title="Next Step">
+                <button id="btn-next" class="flex items-center justify-center w-12 h-12 rounded-full bg-slate-100 text-slate-700 hover:bg-slate-200 transition-colors focus:outline-none focus:ring-2 focus:ring-slate-400" title="下一步">
                     <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-6 h-6">
                         <path stroke-linecap="round" stroke-linejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
                     </svg>
                 </button>
-                <button id="btn-reset" class="flex items-center justify-center w-12 h-12 rounded-full bg-slate-200 text-slate-700 hover:bg-slate-300 transition-colors focus:outline-none focus:ring-2 focus:ring-slate-500 focus:ring-offset-2" title="Reset">
+                <button id="btn-reset" class="flex items-center justify-center w-12 h-12 rounded-full bg-slate-100 text-slate-700 hover:bg-slate-200 transition-colors focus:outline-none focus:ring-2 focus:ring-slate-400" title="重置">
                     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="w-6 h-6">
                         <path fill-rule="evenodd" d="M4.755 10.059a7.5 7.5 0 0112.548-3.364l1.903 1.903h-3.183a.75.75 0 100 1.5h4.992a.75.75 0 00.75-.75V4.356a.75.75 0 00-1.5 0v3.18l-1.9-1.9A9 9 0 003.306 9.67a.75.75 0 101.45.388zm15.408 3.352a.75.75 0 00-.919.53 7.5 7.5 0 01-12.548 3.364l-1.902-1.903h3.183a.75.75 0 000-1.5H2.984a.75.75 0 00-.75.75v4.992a.75.75 0 001.5 0v-3.18l1.9 1.9a9 9 0 0015.059-4.035.75.75 0 00-.53-.918z" clip-rule="evenodd" />
                     </svg>
@@ -129,157 +151,164 @@
         </div>
     </div>
 
+    <!-- 架構重構與邏輯層 -->
     <script>
-        const canvas = document.getElementById('simCanvas');
-        const ctx = canvas.getContext('2d');
-        const formulaContent = document.getElementById('formula-content');
+        // --- 1. DOM Elements ---
+        const DOM = {
+            canvas: document.getElementById('simCanvas'),
+            ctx: document.getElementById('simCanvas').getContext('2d'),
+            formulaOverlay: document.getElementById('formula-overlay'),
+            formulaContent: document.getElementById('formula-content'),
+            btnPrev: document.getElementById('btn-prev'),
+            btnPlay: document.getElementById('btn-play'),
+            btnPause: document.getElementById('btn-pause'),
+            btnNext: document.getElementById('btn-next'),
+            btnReset: document.getElementById('btn-reset'),
+            sliderSteps: document.getElementById('slider-steps'),
+            sliderHeight: document.getElementById('slider-height'),
+            sliderFriction: document.getElementById('slider-friction'),
+            checkFriction: document.getElementById('check-friction'),
+            valSteps: document.getElementById('val-steps'),
+            valHeight: document.getElementById('val-height'),
+            valFriction: document.getElementById('val-friction'),
+            frictionGroup: document.getElementById('friction-group')
+        };
 
-        // Logic & State
-        let animationFrameId;
-        let isPlaying = false;
-        let progress = 0; // 0 to 1 representing position along the path
-        const animationDuration = 6000; // ms
-        let startTime = null;
+        // --- 2. Configuration & State ---
+        const Config = {
+            pathStartX: 150,
+            pathEndX: 750,
+            animationDuration: 6000,
+            hillStart: 150,
+            hillEnd: 650,
+            groundY: 80
+        };
 
-        // Path definitions
-        const pathStartX = 150; 
-        const pathEndX = 750;
-        
-        // Data arrays for drawing and graphing
-        const fullPhysicsData = []; // 新增：儲存完整路徑的受力，用於畫背景曲線
-        const physicsData = [];     // 儲存實際走得到的路徑
-        let maxS = 0;
-        let maxForce = 0;
-        let minForce = 0;
+        const State = {
+            numSteps: parseInt(DOM.sliderSteps.value),
+            hillDrop: parseInt(DOM.sliderHeight.value),
+            hasFriction: DOM.checkFriction.checked,
+            frictionMu: parseFloat(DOM.sliderFriction.value),
+            
+            progress: 0,
+            isPlaying: false,
+            startTime: null,
+            animationFrameId: null,
+            
+            fullPhysicsData: [],
+            physicsData: [],
+            stepStates: [],
+            segmentBoundaries: [],
+            maxS: 0,
+            maxForce: 0,
+            minForce: 0
+        };
 
-        // Configurable Parameters
-        let NUM_STEPS = 30; 
-        let hillDrop = 180;
-        let hasFriction = false;
-        let frictionMu = 0.2;
-        const stepStates = []; 
-        const segmentBoundaries = []; 
-
-        // Configuration for the specific hill shape
-        const hillStart = 150; // 恢復為原始設定：不強制更改動畫起始情境
-        const hillEnd = 650;
-        const groundY = 80; 
-
-        // 物理真實的平滑軌道
+        // --- 3. Physics Engine ---
         function getHillData(x) {
-            if (x <= hillStart) {
-                return { y: groundY, slope: 0 };
-            } else if (x >= hillEnd) {
-                return { y: groundY + hillDrop, slope: 0 };
+            if (x <= Config.hillStart) {
+                return { y: Config.groundY, slope: 0 };
+            } else if (x >= Config.hillEnd) {
+                return { y: Config.groundY + State.hillDrop, slope: 0 };
             } else {
-                const t = (x - hillStart) / (hillEnd - hillStart);
-                const y = groundY + hillDrop * 0.5 * (1 - Math.cos(Math.PI * t));
-                const slope = hillDrop * 0.5 * Math.PI * Math.sin(Math.PI * t) / (hillEnd - hillStart);
+                const t = (x - Config.hillStart) / (Config.hillEnd - Config.hillStart);
+                const y = Config.groundY + State.hillDrop * 0.5 * (1 - Math.cos(Math.PI * t));
+                const slope = State.hillDrop * 0.5 * Math.PI * Math.sin(Math.PI * t) / (Config.hillEnd - Config.hillStart);
                 return { y, slope };
             }
         }
 
-        // Pre-calculate path data for rendering and graphing (Integral calculation)
         function precalculatePhysics() {
-            fullPhysicsData.length = 0;
-            physicsData.length = 0; 
-            stepStates.length = 0; 
-            segmentBoundaries.length = 0; 
+            State.fullPhysicsData.length = 0;
+            State.physicsData.length = 0; 
+            State.stepStates.length = 0; 
+            State.segmentBoundaries.length = 0; 
             
             let currentS = 0;
             const dx = 1; 
-            maxForce = -Infinity;
-            minForce = Infinity;
+            State.maxForce = -Infinity;
+            State.minForce = Infinity;
 
-            // 1. 計算完整路徑的所有受力狀態 (無論是否走得到)
-            for (let x = pathStartX; x <= pathEndX; x += dx) {
+            // 1. 計算完整路徑受力
+            for (let x = Config.pathStartX; x <= Config.pathEndX; x += dx) {
                 const { y, slope } = getHillData(x);
                 const dS = Math.sqrt(dx * dx + (slope * dx) * (slope * dx)); 
                 currentS += dS;
                 const angle = Math.atan(slope);
                 
                 let tangentialForce = Math.sin(angle); 
-                if (hasFriction) {
-                    tangentialForce -= frictionMu * Math.cos(angle);
+                if (State.hasFriction) {
+                    tangentialForce -= State.frictionMu * Math.cos(angle);
                 }
                 const cmX = x + 26 * Math.sin(angle);
 
-                fullPhysicsData.push({ x, y, s: currentS, angle, force: tangentialForce, cmX, dS });
+                State.fullPhysicsData.push({ x, y, s: currentS, angle, force: tangentialForce, cmX, dS });
 
-                if (tangentialForce > maxForce) maxForce = tangentialForce;
-                if (tangentialForce < minForce) minForce = tangentialForce;
+                if (tangentialForce > State.maxForce) State.maxForce = tangentialForce;
+                if (tangentialForce < State.minForce) State.minForce = tangentialForce;
             }
             
-            if (minForce > 0) minForce = 0; // 確保圖表 Y 軸下限至少為 0
+            if (State.minForce > 0) State.minForce = 0;
 
-            // 2. 嚴格物理過濾：
-            // 如果整段軌道的最大下滑力都無法大於摩擦力，則「根本不會下滑」
-            let canSlide = maxForce > 0;
+            // 2. 嚴格物理過濾
+            let canSlide = State.maxForce > 0;
             
             if (!canSlide) {
-                // 摩擦力過大，物體保持靜止
-                physicsData.push(fullPhysicsData[0]);
-                maxS = 0;
+                State.physicsData.push(State.fullPhysicsData[0]);
+                State.maxS = 0;
             } else {
                 let hasStarted = false;
-                let kineticEnergy = 0; // 不再給予強制初始動能
+                let kineticEnergy = 0; 
                 
-                for (let i = 0; i < fullPhysicsData.length; i++) {
-                    const p = fullPhysicsData[i];
+                for (let i = 0; i < State.fullPhysicsData.length; i++) {
+                    const p = State.fullPhysicsData[i];
                     
                     if (!hasStarted) {
-                        // 推車起步：假設人在平坦處施力推動直到斜坡夠陡 (重力 > 摩擦力)
-                        physicsData.push(p);
-                        if (p.force > 0) {
-                            hasStarted = true; // 進入重力接手的自由加速段
-                        }
+                        State.physicsData.push(p);
+                        if (p.force > 0) hasStarted = true; 
                     } else {
-                        // 自由下滑：W = F_net * dS，合力作負功會消耗動能
                         kineticEnergy += p.force * p.dS; 
-                        physicsData.push(p);
-
-                        // 若動能被底部平緩處的摩擦力耗盡，則物體精準停在此處
-                        if (kineticEnergy <= 0) {
-                            break;
-                        }
+                        State.physicsData.push(p);
+                        if (kineticEnergy <= 0) break;
                     }
                 }
-                maxS = physicsData[physicsData.length - 1].s;
+                State.maxS = State.physicsData[State.physicsData.length - 1].s;
             }
 
-            const rectW = (pathEndX - pathStartX) / NUM_STEPS;
+            const rectW = (Config.pathEndX - Config.pathStartX) / State.numSteps;
             
-            // 找出完美對齊「長條圖中央位置」的物理狀態 (僅針對完整路徑)
-            for (let i = 0; i < NUM_STEPS; i++) {
-                const midX = pathStartX + (i + 0.5) * rectW;
-                let closest = fullPhysicsData[0];
+            // 找出完美對齊長條圖中央位置
+            for (let i = 0; i < State.numSteps; i++) {
+                const midX = Config.pathStartX + (i + 0.5) * rectW;
+                let closest = State.fullPhysicsData[0];
                 let minDiff = Infinity;
-                for (let p of fullPhysicsData) {
+                for (let p of State.fullPhysicsData) {
                     const diff = Math.abs(p.cmX - midX);
                     if (diff < minDiff) {
                         minDiff = diff;
                         closest = p;
                     }
                 }
-                stepStates.push(closest);
+                State.stepStates.push(closest);
             }
 
-            // 找出完美對齊「長條圖邊界」的物理狀態
-            for (let i = 0; i <= NUM_STEPS; i++) {
-                const targetX = pathStartX + i * rectW;
-                let closest = fullPhysicsData[0];
+            // 找出對齊長條圖邊界
+            for (let i = 0; i <= State.numSteps; i++) {
+                const targetX = Config.pathStartX + i * rectW;
+                let closest = State.fullPhysicsData[0];
                 let minDiff = Infinity;
-                for (let p of fullPhysicsData) {
+                for (let p of State.fullPhysicsData) {
                     const diff = Math.abs(p.cmX - targetX);
                     if (diff < minDiff) {
                         minDiff = diff;
                         closest = p;
                     }
                 }
-                segmentBoundaries.push(closest);
+                State.segmentBoundaries.push(closest);
             }
         }
 
+        // --- 4. Rendering Helpers ---
         function drawArrow(ctx, fromX, fromY, length, angle, color, label, customHeadLen = 10) {
             const headlen = customHeadLen; 
             const toX = fromX + length * Math.cos(angle);
@@ -296,7 +325,6 @@
             ctx.lineWidth = 2.5;
             ctx.stroke();
 
-            // Label
             if (label) {
                 ctx.fillStyle = color;
                 ctx.font = "italic 16px 'Times New Roman', serif";
@@ -308,27 +336,27 @@
         }
 
         function drawBox(ctx, groundX, groundY, angle, alpha = 1) {
-            const width = 40;
-            const height = 40;
-            const wheelRadius = 6;
+            const width = 40, height = 40, wheelRadius = 6;
             const cmOffset = height/2 + wheelRadius;
             
             ctx.save();
             ctx.globalAlpha = alpha;
             ctx.translate(groundX, groundY);
             ctx.rotate(angle);
-            
             ctx.translate(0, -cmOffset);
             
+            // Box shadow
             ctx.fillStyle = 'rgba(0,0,0,0.2)';
             ctx.fillRect(-width/2 + 2, -height/2 + 2 + cmOffset, width, height/2);
 
+            // Box body
             ctx.fillStyle = '#e2e8f0';
             ctx.strokeStyle = '#64748b';
             ctx.lineWidth = 2;
             ctx.fillRect(-width/2, -height/2, width, height);
             ctx.strokeRect(-width/2, -height/2, width, height);
 
+            // Cross
             ctx.beginPath();
             ctx.moveTo(-width/2 + 5, -height/2 + 5);
             ctx.lineTo(width/2 - 5, height/2 - 5);
@@ -338,11 +366,13 @@
             ctx.lineWidth = 1;
             ctx.stroke();
 
+            // Center dot
             ctx.fillStyle = 'black';
             ctx.beginPath();
             ctx.arc(0, 0, 3, 0, Math.PI*2);
             ctx.fill();
 
+            // Wheels
             ctx.fillStyle = '#334155';
             ctx.beginPath();
             ctx.arc(-width/2 + 10, height/2, wheelRadius, 0, Math.PI*2);
@@ -379,72 +409,57 @@
             ctx.stroke();
         }
 
+        // --- 5. Main Render Routine ---
         function render() {
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            const ctx = DOM.ctx;
+            ctx.clearRect(0, 0, DOM.canvas.width, DOM.canvas.height);
 
-            const sceneH = 380; 
-            const graphY = 410; 
-            const graphH = 150; 
-            const graphW = pathEndX - pathStartX; 
-            const graphX = pathStartX; 
-            const rectW = graphW / NUM_STEPS;
+            const graphY = 410, graphH = 150; 
+            const graphW = Config.pathEndX - Config.pathStartX; 
+            const graphX = Config.pathStartX; 
+            const rectW = graphW / State.numSteps;
 
-            // --- 1. DRAW SCENE ---
-            
-            // Draw Ground Path (畫出完整地形)
+            // --- Draw Scene (Upper part) ---
             ctx.beginPath();
-            ctx.moveTo(pathStartX - 50, getHillData(pathStartX - 50).y); 
-            for(let i=0; i<fullPhysicsData.length; i++) {
-                ctx.lineTo(fullPhysicsData[i].x, fullPhysicsData[i].y); 
+            ctx.moveTo(Config.pathStartX - 50, getHillData(Config.pathStartX - 50).y); 
+            for(let i=0; i<State.fullPhysicsData.length; i++) {
+                ctx.lineTo(State.fullPhysicsData[i].x, State.fullPhysicsData[i].y); 
             }
-            ctx.lineTo(pathEndX + 50, getHillData(pathEndX + 50).y);
+            ctx.lineTo(Config.pathEndX + 50, getHillData(Config.pathEndX + 50).y);
             ctx.strokeStyle = '#94a3b8';
             ctx.lineWidth = 4;
             ctx.stroke();
 
-            // Determine current state based on progress 
-            const targetS = progress * maxS;
-            let currentData = physicsData[0];
-            for(let i=0; i<physicsData.length; i++) {
-                if (physicsData[i].s >= targetS) {
-                    currentData = physicsData[i];
+            // Determine current state
+            const targetS = State.progress * State.maxS;
+            let currentData = State.physicsData[0];
+            for(let i=0; i<State.physicsData.length; i++) {
+                if (State.physicsData[i].s >= targetS) {
+                    currentData = State.physicsData[i];
                     break;
                 }
             }
 
-            const groundX = currentData.x;
-            const groundY = currentData.y;
-            const angle = currentData.angle;
-            const currentCmX = currentData.cmX;
-            const floatStep = (currentCmX - pathStartX) / rectW;
-            const activeBarIndex = Math.min(NUM_STEPS - 1, Math.floor(floatStep));
+            const { x: groundX, y: groundY, angle, cmX: currentCmX } = currentData;
+            const floatStep = (currentCmX - Config.pathStartX) / rectW;
+            const activeBarIndex = Math.min(State.numSteps - 1, Math.floor(floatStep));
 
-            // Draw Man
-            drawMan(ctx, pathStartX - 25, getHillData(pathStartX).y);
+            drawMan(ctx, Config.pathStartX - 25, getHillData(Config.pathStartX).y);
 
-            // Draw Ghost Boxes (精準對齊長條圖的中央位置)
+            // Draw Ghost Boxes & past ds vectors
             for (let i = 0; i <= activeBarIndex; i++) {
-                if (i < NUM_STEPS && progress > 0) {
-                    const p = stepStates[i];
-                    drawBox(ctx, p.x, p.y, p.angle, 0.08); // 調降殘影不透明度避免畫面過於雜亂
+                if (i < State.numSteps && State.progress > 0) {
+                    const p = State.stepStates[i];
+                    drawBox(ctx, p.x, p.y, p.angle, 0.08); 
                     
-                    // Draw faint force vectors for past steps exactly at center
-                    const gcmX = p.cmX;
-                    const gcmY = p.y - 26 * Math.cos(p.angle);
+                    const gcmX = p.cmX, gcmY = p.y - 26 * Math.cos(p.angle);
                     ctx.globalAlpha = 0.15; 
-                    drawArrow(ctx, gcmX, gcmY, 40 * Math.cos(p.angle), p.angle - Math.PI/2, '#e11d48', '', 5); // normal
-                    drawArrow(ctx, gcmX, gcmY, 40, Math.PI/2, '#0f172a', '', 5); // gravity
+                    drawArrow(ctx, gcmX, gcmY, 40 * Math.cos(p.angle), p.angle - Math.PI/2, '#e11d48', '', 5);
+                    drawArrow(ctx, gcmX, gcmY, 40, Math.PI/2, '#0f172a', '', 5);
                     ctx.globalAlpha = 1.0;
-                }
-            }
 
-            // Draw ds vectors exactly along the path boundaries
-            for (let i = 0; i <= activeBarIndex; i++) {
-                if (i < NUM_STEPS && progress > 0) {
-                    const p1 = segmentBoundaries[i];
-                    const p2 = segmentBoundaries[i+1];
-                    
-                    // 確保我們已經走過這個邊界才畫出 ds 箭頭
+                    const p1 = State.segmentBoundaries[i];
+                    const p2 = State.segmentBoundaries[i+1];
                     if (p2 && currentCmX >= p1.cmX) {
                         const dist = Math.hypot(p2.x - p1.x, p2.y - p1.y);
                         const dirAngle = Math.atan2(p2.y - p1.y, p2.x - p1.x);
@@ -453,39 +468,27 @@
                 }
             }
 
-            // Draw active Box
             drawBox(ctx, groundX, groundY, angle, 1);
 
-            // Calculate Box Center of Mass (CM) for active vectors
-            const cmX = currentCmX;
-            const cmY = groundY - 26 * Math.cos(angle);
-
             // Draw active Vectors
+            const cmX = currentCmX, cmY = groundY - 26 * Math.cos(angle);
             const vectorScale = 80;
             
-            const nMag = vectorScale * Math.cos(angle);
-            drawArrow(ctx, cmX, cmY, nMag, angle - Math.PI/2, '#e11d48', 'n');
-            
+            drawArrow(ctx, cmX, cmY, vectorScale * Math.cos(angle), angle - Math.PI/2, '#e11d48', 'n');
             drawArrow(ctx, cmX, cmY, vectorScale, Math.PI/2, '#0f172a', 'mg');
             
             const fsMag = vectorScale * Math.sin(angle);
-            if (fsMag > 0.5) {
-                drawArrow(ctx, cmX, cmY, fsMag, angle, '#2563eb', hasFriction ? 'mg sin\u03B8' : 'mg sin\u03B8');
+            if (fsMag > 0.5) drawArrow(ctx, cmX, cmY, fsMag, angle, '#2563eb', 'mg sin\u03B8');
+
+            if (State.hasFriction) {
+                const fkMag = vectorScale * State.frictionMu * Math.cos(angle);
+                if (fkMag > 0.5) drawArrow(ctx, cmX, cmY, fkMag, angle + Math.PI, '#d97706', 'f\u2096'); // f_k using unicode sub
             }
 
-            if (hasFriction) {
-                const fkMag = vectorScale * frictionMu * Math.cos(angle);
-                if (fkMag > 0.5) {
-                    drawArrow(ctx, cmX, cmY, fkMag, angle + Math.PI, '#d97706', 'f_k');
-                }
-            }
-
-            // --- 2. DRAW GRAPH ---
-            
-            const graphMinF = Math.min(0, minForce * 1.1);
-            const graphMaxF = Math.max(0.1, maxForce * 1.1);
-            const forceRange = graphMaxF - graphMinF;
-            const mapF = (f) => graphY + graphH - ((f - graphMinF) / forceRange) * graphH;
+            // --- Draw Graph (Lower part) ---
+            const graphMinF = Math.min(0, State.minForce * 1.1);
+            const graphMaxF = Math.max(0.1, State.maxForce * 1.1);
+            const mapF = (f) => graphY + graphH - ((f - graphMinF) / (graphMaxF - graphMinF)) * graphH;
             const yZero = mapF(0);
 
             // Axes
@@ -501,34 +504,28 @@
             ctx.lineWidth = 2;
             ctx.stroke();
 
-            // Labels
             ctx.fillStyle = 'black';
             ctx.font = "italic 16px 'Times New Roman', serif";
             ctx.textAlign = "right";
-            ctx.fillText(hasFriction ? "F_net" : "F_s", graphX - 15, graphY + 20);
+            ctx.fillText(State.hasFriction ? "F\u209A\u2091\u209C" : "F\u209B", graphX - 15, graphY + 20); // F_net or F_s
             ctx.textAlign = "center";
             ctx.fillText("x", graphX + graphW / 2, yZero + 25);
 
-            // Draw full curve line background (未抵達的潛在受力背景，淺色虛線)
+            // Graph lines
             ctx.beginPath();
-            ctx.moveTo(fullPhysicsData[0].cmX, mapF(fullPhysicsData[0].force));
-            for(let i=1; i<fullPhysicsData.length; i++) {
-                ctx.lineTo(fullPhysicsData[i].cmX, mapF(fullPhysicsData[i].force));
-            }
+            ctx.moveTo(State.fullPhysicsData[0].cmX, mapF(State.fullPhysicsData[0].force));
+            for(let i=1; i<State.fullPhysicsData.length; i++) ctx.lineTo(State.fullPhysicsData[i].cmX, mapF(State.fullPhysicsData[i].force));
             ctx.setLineDash([2, 4]);
-            ctx.strokeStyle = '#cbd5e1'; // 淺灰色
+            ctx.strokeStyle = '#cbd5e1'; 
             ctx.lineWidth = 1.5;
             ctx.stroke();
             ctx.setLineDash([]);
 
-            // Draw actual traveled curve line (實際走到的實線 - 修正為跟隨綠點漸進繪製)
             ctx.beginPath();
-            ctx.moveTo(physicsData[0].cmX, mapF(physicsData[0].force));
-            for(let i=1; i<physicsData.length; i++) {
-                if (physicsData[i].cmX <= currentCmX) {
-                    ctx.lineTo(physicsData[i].cmX, mapF(physicsData[i].force));
-                } else {
-                    // 插值連接到當前綠點位置，確保線條平滑中斷
+            ctx.moveTo(State.physicsData[0].cmX, mapF(State.physicsData[0].force));
+            for(let i=1; i<State.physicsData.length; i++) {
+                if (State.physicsData[i].cmX <= currentCmX) ctx.lineTo(State.physicsData[i].cmX, mapF(State.physicsData[i].force));
+                else {
                     ctx.lineTo(currentCmX, mapF(currentData.force));
                     break;
                 }
@@ -537,34 +534,28 @@
             ctx.lineWidth = 2;
             ctx.stroke();
 
-            // 取得物體能走到的極限 x 座標
-            const maxReachableX = physicsData[physicsData.length - 1].cmX;
-
-            // Draw discrete Riemann sum bars (修正為跟隨綠點依序出現)
-            for (let i = 0; i < NUM_STEPS; i++) {
+            // Riemann bars
+            const maxReachableX = State.physicsData[State.physicsData.length - 1].cmX;
+            for (let i = 0; i < State.numSteps; i++) {
                 const rectX = graphX + i * rectW;
-                const midForce = stepStates[i].force;
+                const midForce = State.stepStates[i].force;
                 const yF = mapF(midForce);
                 const actualRectH = Math.abs(yF - yZero);
                 const rectY = midForce >= 0 ? yF : yZero;
 
-                // 只有當推車(綠點)抵達該長條圖的左邊界時，才開始畫出這個長條圖(包含框線與填色)
                 if (rectX < maxReachableX && currentCmX > rectX) {
-                    // Draw bar outline (畫出深藍色虛線框)
                     ctx.setLineDash([4, 4]);
                     ctx.strokeStyle = '#1e3a8a'; 
                     ctx.lineWidth = 1.5;
                     ctx.strokeRect(rectX, rectY, rectW, actualRectH);
                     ctx.setLineDash([]); 
 
-                    // Smooth continuous fill (平滑連續填色)
                     ctx.fillStyle = 'rgba(59, 130, 246, 0.3)'; 
-                    const fillWidth = Math.min(rectW, currentCmX - rectX);
-                    ctx.fillRect(rectX, rectY, fillWidth, actualRectH);
+                    ctx.fillRect(rectX, rectY, Math.min(rectW, currentCmX - rectX), actualRectH);
                 }
             }
 
-            // 對齊輔助虛線
+            // Current state guides
             ctx.beginPath();
             ctx.moveTo(cmX, cmY); 
             ctx.lineTo(cmX, mapF(currentData.force));
@@ -574,7 +565,6 @@
             ctx.stroke();
             ctx.setLineDash([]);
 
-            // Draw current point dot
             ctx.beginPath();
             ctx.arc(cmX, mapF(currentData.force), 6, 0, Math.PI*2);
             ctx.fillStyle = '#22c55e'; 
@@ -583,172 +573,160 @@
             ctx.strokeStyle = '#166534'; 
             ctx.stroke();
 
-            // --- 3. UPDATE FORMULAS ---
+            updateMathFormula();
+        }
+
+        function updateMathFormula() {
             let mathHTML = "";
-            let fStr = hasFriction ? "(mg \\sin\\theta - f_k)" : "mg \\sin\\theta";
+            let fStr = State.hasFriction ? "(mg \\sin\\theta - f_k)" : "mg \\sin\\theta";
             
-            if (progress === 0) {
-                mathHTML = "";
-            } else if (progress < 1) {
-                mathHTML = `\\Delta W = ${fStr} \\Delta s`;
-            } else {
-                mathHTML = `W \\approx \\sum ${fStr} \\Delta s = \\int F_{net} \\cdot ds`;
-            }
+            if (State.progress === 0) mathHTML = "";
+            else if (State.progress < 1) mathHTML = `\\Delta W = ${fStr} \\Delta s`;
+            else mathHTML = `W \\approx \\sum ${fStr} \\Delta s = \\int F_{net} \\cdot ds`;
             
-            if (formulaContent.dataset.currentMath !== mathHTML) {
-                formulaContent.dataset.currentMath = mathHTML;
-                
+            if (DOM.formulaContent.dataset.currentMath !== mathHTML) {
+                DOM.formulaContent.dataset.currentMath = mathHTML;
                 if (mathHTML !== "") {
-                    katex.render(mathHTML, formulaContent, {
-                        throwOnError: false,
-                        displayMode: false
-                    });
-                    document.getElementById('formula-overlay').style.opacity = "1";
+                    // 確保 KaTeX 已經載入
+                    if (window.katex) {
+                        katex.render(mathHTML, DOM.formulaContent, { throwOnError: false, displayMode: false });
+                    }
+                    DOM.formulaOverlay.style.opacity = "1";
                 } else {
-                    formulaContent.innerHTML = "";
-                    document.getElementById('formula-overlay').style.opacity = "0";
+                    DOM.formulaContent.innerHTML = "";
+                    DOM.formulaOverlay.style.opacity = "0";
                 }
             }
         }
 
+        // --- 6. Animation & Controls ---
         function animate(timestamp) {
-            if (!startTime) startTime = timestamp;
+            // Google Sites iframe time offset fix
+            if (!State.startTime) State.startTime = timestamp - (State.progress * Config.animationDuration);
             
-            if (isPlaying) {
-                const elapsed = timestamp - startTime;
-                progress = Math.min(elapsed / animationDuration, 1);
+            if (State.isPlaying) {
+                const elapsed = timestamp - State.startTime;
+                State.progress = Math.min(elapsed / Config.animationDuration, 1);
                 
                 render();
 
-                if (progress < 1) {
-                    animationFrameId = requestAnimationFrame(animate);
+                if (State.progress < 1) {
+                    State.animationFrameId = requestAnimationFrame(animate);
                 } else {
-                    isPlaying = false;
+                    State.isPlaying = false;
                     updateButtons();
                 }
             }
         }
 
-        const btnPrev = document.getElementById('btn-prev');
-        const btnPlay = document.getElementById('btn-play');
-        const btnPause = document.getElementById('btn-pause');
-        const btnNext = document.getElementById('btn-next');
-        const btnReset = document.getElementById('btn-reset');
-
         function updateButtons() {
-            if (isPlaying) {
-                btnPlay.classList.add('hidden');
-                btnPause.classList.remove('hidden');
+            if (State.isPlaying) {
+                DOM.btnPlay.classList.add('hidden');
+                DOM.btnPause.classList.remove('hidden');
             } else {
-                btnPlay.classList.remove('hidden');
-                btnPause.classList.add('hidden');
+                DOM.btnPlay.classList.remove('hidden');
+                DOM.btnPause.classList.add('hidden');
             }
             
-            if (progress >= 1 && !isPlaying) {
-                 btnPlay.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-6 h-6"><path stroke-linecap="round" stroke-linejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182m0-4.991v4.99" /></svg>`;
+            if (State.progress >= 1 && !State.isPlaying) {
+                 DOM.btnPlay.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-6 h-6"><path stroke-linecap="round" stroke-linejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182m0-4.991v4.99" /></svg>`;
             } else {
-                 btnPlay.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="w-6 h-6 ml-1"><path fill-rule="evenodd" d="M4.5 5.653c0-1.426 1.529-2.33 2.779-1.643l11.54 6.348c1.295.712 1.295 2.573 0 3.285L7.28 19.991c-1.25.687-2.779-.217-2.779-1.643V5.653z" clip-rule="evenodd" /></svg>`;
+                 DOM.btnPlay.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="w-6 h-6 ml-1"><path fill-rule="evenodd" d="M4.5 5.653c0-1.426 1.529-2.33 2.779-1.643l11.54 6.348c1.295.712 1.295 2.573 0 3.285L7.28 19.991c-1.25.687-2.779-.217-2.779-1.643V5.653z" clip-rule="evenodd" /></svg>`;
             }
         }
-
-        btnPlay.addEventListener('click', () => {
-            if (progress >= 1) {
-                progress = 0; // Auto-reset if playing from end
-            }
-            isPlaying = true;
-            // Adjust start time so it resumes from current progress
-            startTime = performance.now() - (progress * animationDuration);
-            updateButtons();
-            animationFrameId = requestAnimationFrame(animate);
-        });
-
-        btnPrev.addEventListener('click', () => {
-            isPlaying = false;
-            cancelAnimationFrame(animationFrameId);
-            if (maxS === 0) return; // 避免未滑動時除以零
-            // Snap to previous segment boundary precisely
-            let targetIdx = 0;
-            for (let i = NUM_STEPS; i >= 0; i--) {
-                if (segmentBoundaries[i].s <= progress * maxS - 0.5) { // 0.5 tolerance
-                    targetIdx = i;
-                    break;
-                }
-            }
-            progress = segmentBoundaries[targetIdx].s / maxS;
-            updateButtons();
-            render();
-        });
-
-        btnNext.addEventListener('click', () => {
-            isPlaying = false;
-            cancelAnimationFrame(animationFrameId);
-            if (maxS === 0) return; // 避免未滑動時除以零
-            // Snap to next segment boundary precisely
-            let targetIdx = NUM_STEPS;
-            for (let i = 0; i <= NUM_STEPS; i++) {
-                if (segmentBoundaries[i].s >= progress * maxS + 0.5) { // 0.5 tolerance
-                    targetIdx = i;
-                    break;
-                }
-            }
-            progress = segmentBoundaries[targetIdx].s / maxS;
-            updateButtons();
-            render();
-        });
-
-        btnPause.addEventListener('click', () => {
-            isPlaying = false;
-            cancelAnimationFrame(animationFrameId);
-            updateButtons();
-        });
-
-        btnReset.addEventListener('click', () => {
-            isPlaying = false;
-            cancelAnimationFrame(animationFrameId);
-            progress = 0;
-            updateButtons();
-            render(); 
-        });
-
-        document.getElementById('slider-steps').addEventListener('input', (e) => {
-            NUM_STEPS = parseInt(e.target.value);
-            document.getElementById('val-steps').innerText = NUM_STEPS;
-            resetFromControls();
-        });
-
-        document.getElementById('slider-height').addEventListener('input', (e) => {
-            hillDrop = parseInt(e.target.value);
-            document.getElementById('val-height').innerText = hillDrop + ' m';
-            resetFromControls();
-        });
-
-        document.getElementById('check-friction').addEventListener('change', (e) => {
-            hasFriction = e.target.checked;
-            const fg = document.getElementById('friction-group');
-            if (hasFriction) fg.classList.remove('opacity-50', 'pointer-events-none');
-            else fg.classList.add('opacity-50', 'pointer-events-none');
-            resetFromControls();
-        });
-
-        document.getElementById('slider-friction').addEventListener('input', (e) => {
-            frictionMu = parseFloat(e.target.value);
-            document.getElementById('val-friction').innerText = frictionMu.toFixed(2);
-            if(hasFriction) resetFromControls(); 
-        });
 
         function resetFromControls() {
-            isPlaying = false;
-            cancelAnimationFrame(animationFrameId);
-            progress = 0;
+            State.isPlaying = false;
+            cancelAnimationFrame(State.animationFrameId);
+            State.progress = 0;
             updateButtons();
             precalculatePhysics();
             render();
         }
 
+        // Event Listeners
+        DOM.btnPlay.addEventListener('click', () => {
+            if (State.progress >= 1) State.progress = 0;
+            State.isPlaying = true;
+            State.startTime = null; // Important fix for iframes
+            updateButtons();
+            State.animationFrameId = requestAnimationFrame(animate);
+        });
+
+        DOM.btnPrev.addEventListener('click', () => {
+            State.isPlaying = false;
+            cancelAnimationFrame(State.animationFrameId);
+            if (State.maxS === 0) return; 
+            
+            let targetIdx = 0;
+            for (let i = State.numSteps; i >= 0; i--) {
+                if (State.segmentBoundaries[i].s <= State.progress * State.maxS - 0.5) {
+                    targetIdx = i;
+                    break;
+                }
+            }
+            State.progress = State.segmentBoundaries[targetIdx].s / State.maxS;
+            updateButtons();
+            render();
+        });
+
+        DOM.btnNext.addEventListener('click', () => {
+            State.isPlaying = false;
+            cancelAnimationFrame(State.animationFrameId);
+            if (State.maxS === 0) return; 
+            
+            let targetIdx = State.numSteps;
+            for (let i = 0; i <= State.numSteps; i++) {
+                if (State.segmentBoundaries[i].s >= State.progress * State.maxS + 0.5) {
+                    targetIdx = i;
+                    break;
+                }
+            }
+            State.progress = State.segmentBoundaries[targetIdx].s / State.maxS;
+            updateButtons();
+            render();
+        });
+
+        DOM.btnPause.addEventListener('click', () => {
+            State.isPlaying = false;
+            cancelAnimationFrame(State.animationFrameId);
+            updateButtons();
+        });
+
+        DOM.btnReset.addEventListener('click', resetFromControls);
+
+        DOM.sliderSteps.addEventListener('input', (e) => {
+            State.numSteps = parseInt(e.target.value);
+            DOM.valSteps.innerText = State.numSteps;
+            resetFromControls();
+        });
+
+        DOM.sliderHeight.addEventListener('input', (e) => {
+            State.hillDrop = parseInt(e.target.value);
+            DOM.valHeight.innerText = State.hillDrop + ' m';
+            resetFromControls();
+        });
+
+        DOM.checkFriction.addEventListener('change', (e) => {
+            State.hasFriction = e.target.checked;
+            if (State.hasFriction) DOM.frictionGroup.classList.remove('opacity-50', 'pointer-events-none');
+            else DOM.frictionGroup.classList.add('opacity-50', 'pointer-events-none');
+            resetFromControls();
+        });
+
+        DOM.sliderFriction.addEventListener('input', (e) => {
+            State.frictionMu = parseFloat(e.target.value);
+            DOM.valFriction.innerText = State.frictionMu.toFixed(2);
+            if(State.hasFriction) resetFromControls(); 
+        });
+
+        // Initialize
         window.onload = () => {
+            // KaTeX script has 'defer', double check it's loaded before initial render if needed, 
+            // but usually onload is late enough.
+            DOM.formulaOverlay.style.opacity = "0";
             precalculatePhysics();
             render();
-            document.getElementById('formula-overlay').style.opacity = "0";
         };
 
     </script>
