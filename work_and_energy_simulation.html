@@ -153,6 +153,7 @@
 
     <!-- 架構重構與邏輯層 -->
     <script>
+        const SimulationApp = (function() {
         // --- 1. DOM Elements ---
         const DOM = {
             canvas: document.getElementById('simCanvas'),
@@ -201,7 +202,10 @@
             segmentBoundaries: [],
             maxS: 0,
             maxForce: 0,
-            minForce: 0
+            minForce: 0,
+            pathCache: null,
+            graphBaseCache: null,
+            graphZeroCache: null
         };
 
         // --- 3. Physics Engine ---
@@ -305,6 +309,30 @@
                     }
                 }
                 State.segmentBoundaries.push(closest);
+            }
+
+            // Build Path2D caches for performance
+            State.pathCache = new Path2D();
+            State.pathCache.moveTo(Config.pathStartX - 50, getHillData(Config.pathStartX - 50).y); 
+            for(let i=0; i<State.fullPhysicsData.length; i++) {
+                State.pathCache.lineTo(State.fullPhysicsData[i].x, State.fullPhysicsData[i].y); 
+            }
+            State.pathCache.lineTo(Config.pathEndX + 50, getHillData(Config.pathEndX + 50).y);
+            
+            const graphY = 410, graphH = 150; 
+            const graphMinF = Math.min(0, State.minForce * 1.1);
+            const graphMaxF = Math.max(0.1, State.maxForce * 1.1);
+            const mapF = (f) => graphY + graphH - ((f - graphMinF) / (graphMaxF - graphMinF)) * graphH;
+            const yZero = mapF(0);
+            
+            State.graphZeroCache = new Path2D();
+            State.graphZeroCache.moveTo(Config.pathStartX, yZero);
+            State.graphZeroCache.lineTo(Config.pathEndX, yZero);
+            
+            State.graphBaseCache = new Path2D();
+            State.graphBaseCache.moveTo(State.fullPhysicsData[0].cmX, mapF(State.fullPhysicsData[0].force));
+            for(let i=1; i<State.fullPhysicsData.length; i++) {
+                State.graphBaseCache.lineTo(State.fullPhysicsData[i].cmX, mapF(State.fullPhysicsData[i].force));
             }
         }
 
@@ -410,42 +438,43 @@
         }
 
         // --- 5. Main Render Routine ---
-        function render() {
-            const ctx = DOM.ctx;
-            ctx.clearRect(0, 0, DOM.canvas.width, DOM.canvas.height);
-
-            const graphY = 410, graphH = 150; 
-            const graphW = Config.pathEndX - Config.pathStartX; 
-            const graphX = Config.pathStartX; 
-            const rectW = graphW / State.numSteps;
-
-            // --- Draw Scene (Upper part) ---
+        function drawSceneBackground(ctx) {
             ctx.beginPath();
-            ctx.moveTo(Config.pathStartX - 50, getHillData(Config.pathStartX - 50).y); 
-            for(let i=0; i<State.fullPhysicsData.length; i++) {
-                ctx.lineTo(State.fullPhysicsData[i].x, State.fullPhysicsData[i].y); 
-            }
-            ctx.lineTo(Config.pathEndX + 50, getHillData(Config.pathEndX + 50).y);
             ctx.strokeStyle = '#94a3b8';
             ctx.lineWidth = 4;
+            ctx.stroke(State.pathCache);
+            drawMan(ctx, Config.pathStartX - 25, getHillData(Config.pathStartX).y);
+        }
+
+        function drawGraphBackground(ctx, graphX, graphY, graphW, graphH, yZero) {
+            // Axes
+            ctx.beginPath();
+            ctx.moveTo(graphX, graphY);
+            ctx.lineTo(graphX, graphY + graphH); 
             ctx.stroke();
 
-            // Determine current state
-            const targetS = State.progress * State.maxS;
-            let currentData = State.physicsData[0];
-            for(let i=0; i<State.physicsData.length; i++) {
-                if (State.physicsData[i].s >= targetS) {
-                    currentData = State.physicsData[i];
-                    break;
-                }
-            }
+            ctx.beginPath();
+            ctx.strokeStyle = 'black';
+            ctx.lineWidth = 2;
+            ctx.stroke(State.graphZeroCache);
 
-            const { x: groundX, y: groundY, angle, cmX: currentCmX } = currentData;
-            const floatStep = (currentCmX - Config.pathStartX) / rectW;
-            const activeBarIndex = Math.min(State.numSteps - 1, Math.floor(floatStep));
+            ctx.fillStyle = 'black';
+            ctx.font = "italic 16px 'Times New Roman', serif";
+            ctx.textAlign = "right";
+            ctx.fillText(State.hasFriction ? "F\u209A\u2091\u209C" : "F\u209B", graphX - 15, graphY + 20);
+            ctx.textAlign = "center";
+            ctx.fillText("x", graphX + graphW / 2, yZero + 25);
 
-            drawMan(ctx, Config.pathStartX - 25, getHillData(Config.pathStartX).y);
+            // Graph lines background
+            ctx.beginPath();
+            ctx.setLineDash([2, 4]);
+            ctx.strokeStyle = '#cbd5e1'; 
+            ctx.lineWidth = 1.5;
+            ctx.stroke(State.graphBaseCache);
+            ctx.setLineDash([]);
+        }
 
+        function drawDynamicScene(ctx, currentData, activeBarIndex, currentCmX) {
             // Draw Ghost Boxes & past ds vectors
             for (let i = 0; i <= activeBarIndex; i++) {
                 if (i < State.numSteps && State.progress > 0) {
@@ -468,59 +497,26 @@
                 }
             }
 
+            const { x: groundX, y: groundY, angle } = currentData;
             drawBox(ctx, groundX, groundY, angle, 1);
 
             // Draw active Vectors
-            const cmX = currentCmX, cmY = groundY - 26 * Math.cos(angle);
+            const cmY = groundY - 26 * Math.cos(angle);
             const vectorScale = 80;
             
-            drawArrow(ctx, cmX, cmY, vectorScale * Math.cos(angle), angle - Math.PI/2, '#e11d48', 'n');
-            drawArrow(ctx, cmX, cmY, vectorScale, Math.PI/2, '#0f172a', 'mg');
+            drawArrow(ctx, currentCmX, cmY, vectorScale * Math.cos(angle), angle - Math.PI/2, '#e11d48', 'n');
+            drawArrow(ctx, currentCmX, cmY, vectorScale, Math.PI/2, '#0f172a', 'mg');
             
             const fsMag = vectorScale * Math.sin(angle);
-            if (fsMag > 0.5) drawArrow(ctx, cmX, cmY, fsMag, angle, '#2563eb', 'mg sin\u03B8');
+            if (fsMag > 0.5) drawArrow(ctx, currentCmX, cmY, fsMag, angle, '#2563eb', 'mg sin\u03B8');
 
             if (State.hasFriction) {
                 const fkMag = vectorScale * State.frictionMu * Math.cos(angle);
-                if (fkMag > 0.5) drawArrow(ctx, cmX, cmY, fkMag, angle + Math.PI, '#d97706', 'f\u2096'); // f_k using unicode sub
+                if (fkMag > 0.5) drawArrow(ctx, currentCmX, cmY, fkMag, angle + Math.PI, '#d97706', 'f\u2096');
             }
+        }
 
-            // --- Draw Graph (Lower part) ---
-            const graphMinF = Math.min(0, State.minForce * 1.1);
-            const graphMaxF = Math.max(0.1, State.maxForce * 1.1);
-            const mapF = (f) => graphY + graphH - ((f - graphMinF) / (graphMaxF - graphMinF)) * graphH;
-            const yZero = mapF(0);
-
-            // Axes
-            ctx.beginPath();
-            ctx.moveTo(graphX, graphY);
-            ctx.lineTo(graphX, graphY + graphH); 
-            ctx.stroke();
-
-            ctx.beginPath();
-            ctx.moveTo(graphX, yZero);
-            ctx.lineTo(graphX + graphW, yZero);
-            ctx.strokeStyle = 'black';
-            ctx.lineWidth = 2;
-            ctx.stroke();
-
-            ctx.fillStyle = 'black';
-            ctx.font = "italic 16px 'Times New Roman', serif";
-            ctx.textAlign = "right";
-            ctx.fillText(State.hasFriction ? "F\u209A\u2091\u209C" : "F\u209B", graphX - 15, graphY + 20); // F_net or F_s
-            ctx.textAlign = "center";
-            ctx.fillText("x", graphX + graphW / 2, yZero + 25);
-
-            // Graph lines
-            ctx.beginPath();
-            ctx.moveTo(State.fullPhysicsData[0].cmX, mapF(State.fullPhysicsData[0].force));
-            for(let i=1; i<State.fullPhysicsData.length; i++) ctx.lineTo(State.fullPhysicsData[i].cmX, mapF(State.fullPhysicsData[i].force));
-            ctx.setLineDash([2, 4]);
-            ctx.strokeStyle = '#cbd5e1'; 
-            ctx.lineWidth = 1.5;
-            ctx.stroke();
-            ctx.setLineDash([]);
-
+        function drawDynamicGraph(ctx, currentData, mapF, yZero, graphX, rectW, currentCmX) {
             ctx.beginPath();
             ctx.moveTo(State.physicsData[0].cmX, mapF(State.physicsData[0].force));
             for(let i=1; i<State.physicsData.length; i++) {
@@ -556,9 +552,12 @@
             }
 
             // Current state guides
+            const { angle, y: groundY } = currentData;
+            const cmY = groundY - 26 * Math.cos(angle);
+
             ctx.beginPath();
-            ctx.moveTo(cmX, cmY); 
-            ctx.lineTo(cmX, mapF(currentData.force));
+            ctx.moveTo(currentCmX, cmY); 
+            ctx.lineTo(currentCmX, mapF(currentData.force));
             ctx.setLineDash([4, 4]);
             ctx.strokeStyle = 'rgba(34, 197, 94, 0.4)'; 
             ctx.lineWidth = 1.5;
@@ -566,12 +565,47 @@
             ctx.setLineDash([]);
 
             ctx.beginPath();
-            ctx.arc(cmX, mapF(currentData.force), 6, 0, Math.PI*2);
+            ctx.arc(currentCmX, mapF(currentData.force), 6, 0, Math.PI*2);
             ctx.fillStyle = '#22c55e'; 
             ctx.fill();
             ctx.lineWidth = 2;
             ctx.strokeStyle = '#166534'; 
             ctx.stroke();
+        }
+
+        // --- 5. Main Render Routine ---
+        function render() {
+            const ctx = DOM.ctx;
+            ctx.clearRect(0, 0, DOM.canvas.width, DOM.canvas.height);
+
+            const graphY = 410, graphH = 150; 
+            const graphW = Config.pathEndX - Config.pathStartX; 
+            const graphX = Config.pathStartX; 
+            const rectW = graphW / State.numSteps;
+
+            // Determine current state
+            const targetS = State.progress * State.maxS;
+            let currentData = State.physicsData[0];
+            for(let i=0; i<State.physicsData.length; i++) {
+                if (State.physicsData[i].s >= targetS) {
+                    currentData = State.physicsData[i];
+                    break;
+                }
+            }
+
+            const currentCmX = currentData.cmX;
+            const floatStep = (currentCmX - Config.pathStartX) / rectW;
+            const activeBarIndex = Math.min(State.numSteps - 1, Math.floor(floatStep));
+
+            const graphMinF = Math.min(0, State.minForce * 1.1);
+            const graphMaxF = Math.max(0.1, State.maxForce * 1.1);
+            const mapF = (f) => graphY + graphH - ((f - graphMinF) / (graphMaxF - graphMinF)) * graphH;
+            const yZero = mapF(0);
+
+            drawSceneBackground(ctx);
+            drawDynamicScene(ctx, currentData, activeBarIndex, currentCmX);
+            drawGraphBackground(ctx, graphX, graphY, graphW, graphH, yZero);
+            drawDynamicGraph(ctx, currentData, mapF, yZero, graphX, rectW, currentCmX);
 
             updateMathFormula();
         }
@@ -720,14 +754,19 @@
             if(State.hasFriction) resetFromControls(); 
         });
 
-        // Initialize
-        window.onload = () => {
+        function init() {
             // KaTeX script has 'defer', double check it's loaded before initial render if needed, 
             // but usually onload is late enough.
             DOM.formulaOverlay.style.opacity = "0";
             precalculatePhysics();
             render();
-        };
+        }
+
+        return { init };
+        })();
+
+        // Initialize
+        window.onload = SimulationApp.init;
 
     </script>
 </body>
