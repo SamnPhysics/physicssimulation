@@ -1,0 +1,954 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>點電荷電位模擬</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+            background-color: #1a1a2e; /* Darker background for better contrast */
+            color: #e0e0e0;
+            font-family: 'Inter', sans-serif;
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+        }
+
+        #simulation-container {
+            position: relative;
+            flex-grow: 1;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            overflow: hidden;
+        }
+
+        #canvas-layer {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            cursor: crosshair;
+        }
+
+        body.light-mode {
+            background-color: #f8fafc;
+            color: #0f172a;
+        }
+
+        body.light-mode #ui-panel {
+            background: rgba(255, 255, 255, 0.9);
+            border-color: rgba(203, 213, 225, 0.8);
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1);
+        }
+
+        body.light-mode #toggle-theme-btn {
+            background-color: #f1f5f9;
+            color: #1e293b;
+            border-color: #cbd5e1;
+        }
+        body.light-mode #toggle-theme-btn:hover {
+            background-color: #e2e8f0;
+        }
+
+        body.light-mode #clear-btn {
+            background-color: #64748b;
+            color: #ffffff;
+        }
+        body.light-mode #clear-btn:hover {
+            background-color: #475569;
+        }
+
+        body.light-mode .light-mode-divider {
+            background-color: #cbd5e1;
+        }
+
+        body.light-mode #info-panel {
+            background: rgba(255, 255, 255, 0.88);
+            border-color: rgba(0, 0, 0, 0.12);
+            color: #1e293b;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+        }
+
+        body.light-mode #info-panel h1 {
+            color: #0f172a;
+        }
+
+        body.light-mode #info-panel p {
+            color: #334155;
+        }
+
+        body.light-mode #info-toggle-btn {
+            background-color: #e2e8f0;
+            color: #1e293b;
+            border-color: #cbd5e1;
+        }
+        body.light-mode #info-toggle-btn:hover {
+            background-color: #cbd5e1;
+        }
+
+        body.light-mode #charge-popover {
+            background-color: rgba(255, 255, 255, 0.95);
+            color: #0f172a;
+            border-color: #cbd5e1;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15);
+        }
+
+        body.light-mode #popover-title {
+            color: #334155;
+        }
+
+        body.light-mode #close-popover-btn {
+            color: #64748b;
+        }
+        body.light-mode #close-popover-btn:hover {
+            color: #0f172a;
+        }
+
+        body.light-mode #potential-tooltip {
+            background-color: #1e293b;
+            color: #fef08a;
+            border-color: #0284c7;
+        }
+
+        #potential-tooltip {
+            position: absolute;
+            background-color: #fef08a; /* Yellow */
+            color: #854d0e;
+            padding: 6px 12px;
+            border-radius: 4px;
+            font-family: monospace;
+            font-size: 14px;
+            font-weight: bold;
+            pointer-events: none;
+            display: none;
+            z-index: 20;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.3);
+            border: 1px solid #ca8a04;
+            transform: translate(15px, 15px); /* Offset from cursor */
+        }
+
+        #info-panel {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            background: rgba(30, 30, 46, 0.85);
+            padding: 15px;
+            border-radius: 12px;
+            max-width: 350px;
+            pointer-events: auto;
+            z-index: 10;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            transition: all 0.3s ease;
+        }
+
+        #info-panel.collapsed {
+            padding: 10px 14px;
+        }
+        
+        #info-panel h1 {
+            font-size: 1.1rem;
+            margin: 0;
+            color: #fff;
+        }
+        #info-panel p {
+            font-size: 0.85rem;
+            color: #cbd5e1;
+            margin-top: 10px;
+            margin-bottom: 0;
+            line-height: 1.4;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="simulation-container">
+        <!-- Canvas for drawing the potential field, contours, and charges -->
+        <canvas id="canvas-layer"></canvas>
+        
+        <!-- Tooltip for displaying exact potential value -->
+        <div id="potential-tooltip">U = 0.00 V</div>
+
+        <!-- Popover for charge context actions (e.g., delete charge) -->
+        <div id="charge-popover" class="hidden absolute bg-slate-800/90 text-white p-3 rounded-xl shadow-2xl border border-slate-600 backdrop-blur-md z-30 flex flex-col gap-2 min-w-[140px] transform -translate-x-1/2 -translate-y-full transition-opacity duration-150">
+            <div class="flex justify-between items-center text-xs font-bold text-slate-300 gap-3">
+                <span id="popover-title">+q 正電荷</span>
+                <button id="close-popover-btn" class="text-slate-400 hover:text-white p-0.5 rounded focus:outline-none">&times;</button>
+            </div>
+            <button id="delete-charge-btn" class="w-full bg-red-600 hover:bg-red-700 text-white text-xs py-1.5 px-3 rounded-lg flex items-center justify-center gap-1.5 transition-colors font-medium shadow-md">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
+                刪除此電荷
+            </button>
+        </div>
+    </div>
+
+    <!-- UI Panel for controls -->
+    <div id="ui-panel" class="absolute bottom-5 left-1/2 -translate-x-1/2 z-20 flex items-center justify-center gap-2 sm:gap-3 px-4 py-3 rounded-2xl bg-slate-900/90 border border-slate-700/60 shadow-2xl backdrop-blur-md transition-colors duration-300 max-w-[95vw] overflow-x-auto">
+        <button id="add-pos-btn" class="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-red-500 hover:bg-red-600 active:scale-95 text-white text-xs sm:text-sm font-bold whitespace-nowrap shadow-lg shadow-red-500/25 transition-all cursor-pointer shrink-0">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+            <span>新增 +q</span>
+        </button>
+        <button id="add-neg-btn" class="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-blue-500 hover:bg-blue-600 active:scale-95 text-white text-xs sm:text-sm font-bold whitespace-nowrap shadow-lg shadow-blue-500/25 transition-all cursor-pointer shrink-0">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+            <span>新增 -q</span>
+        </button>
+        <button id="toggle-fieldlines-btn" class="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-teal-600 hover:bg-teal-700 active:scale-95 text-white text-xs sm:text-sm font-bold whitespace-nowrap shadow-lg shadow-teal-600/25 transition-all cursor-pointer shrink-0">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 5l7 7-7 7"/></svg>
+            <span id="fieldline-btn-text">電力線：顯示</span>
+        </button>
+        <button id="toggle-theme-btn" class="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-slate-700 hover:bg-slate-600 active:scale-95 text-white text-xs sm:text-sm font-bold whitespace-nowrap shadow-lg transition-all cursor-pointer shrink-0 border border-slate-600/50">
+            <svg id="theme-icon-sun" class="hidden" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"></circle><line x1="12" y1="1" x2="12" y2="3"></line><line x1="12" y1="21" x2="12" y2="23"></line><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line><line x1="1" y1="12" x2="3" y2="12"></line><line x1="21" y1="12" x2="23" y2="12"></line><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line></svg>
+            <svg id="theme-icon-moon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path></svg>
+            <span id="theme-btn-text">深色</span>
+        </button>
+        <div class="w-px h-5 bg-slate-700 light-mode-divider mx-0.5 shrink-0"></div>
+        <button id="clear-btn" class="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-slate-600 hover:bg-slate-500 active:scale-95 text-white text-xs sm:text-sm font-bold whitespace-nowrap shadow-lg transition-all cursor-pointer shrink-0">
+            清除全部
+        </button>
+    </div>
+
+    <!-- Information overlay -->
+    <div id="info-panel">
+        <div class="flex items-center justify-between gap-3">
+            <h1>點電荷電位模擬</h1>
+            <button id="info-toggle-btn" class="w-7 h-7 rounded-full bg-slate-700/80 hover:bg-slate-600 text-white flex items-center justify-center shrink-0 border border-slate-500/30 transition-all focus:outline-none cursor-pointer" title="收合/展開說明">
+                <svg id="info-toggle-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="18 15 12 9 6 15"></polyline></svg>
+            </button>
+        </div>
+        <div id="info-panel-content">
+            <p>紅色區域表示<strong>正電位</strong>，藍色區域表示<strong>負電位</strong>。<br>
+               白色曲線為<strong>等勢線</strong>（電位相等的等勢面）。<br>
+               青色虛線為<strong>零電位線 (U = 0 V)</strong>。<br>
+               黃色帶箭頭線條為<strong>電力線</strong>（指向低電位方向）。<br>
+               <strong>拖曳電荷</strong>可移動位置；<strong>點擊電荷</strong>可彈出選單予以刪除。<br>
+               按住並拖曳<strong>空白區域</strong>可測量該點的電位值 U。</p>
+        </div>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('canvas-layer');
+        const ctx = canvas.getContext('2d', { alpha: false }); // Optimize for no transparency on base layer
+        const tooltip = document.getElementById('potential-tooltip');
+        const chargePopover = document.getElementById('charge-popover');
+        const popoverTitle = document.getElementById('popover-title');
+        const deleteChargeBtn = document.getElementById('delete-charge-btn');
+        const closePopoverBtn = document.getElementById('close-popover-btn');
+
+        // Physics constants and configuration
+        const k = 8.99e9; // Coulomb's constant (scaled for visualization)
+        const qScale = 1e-9; // Charge scaling factor (nanoCoulombs)
+        const baseChargeVal = 1; // Base charge magnitude
+        const chargeRadius = 12; // Visual radius of a charge
+
+        // Rendering configuration
+        let width, height;
+        const resolution = 8; // Size of grid cells for potential calculation (lower = higher quality, slower)
+        let cols, rows;
+        const maxPotentialColor = 2000; // Potential value at which color saturates (red/blue)
+        const contourInterval = 300; // Potential difference between equipotential lines
+        
+        // State
+        let charges = [];
+        let isDraggingCharge = false;
+        let draggedChargeIndex = -1;
+        let selectedChargeForPopover = null;
+        let pointerDownX = 0, pointerDownY = 0;
+        let isClickCandidate = false;
+        let isMeasuring = false;
+        let showFieldLines = true;
+        let isDarkMode = true;
+        let mouseX = 0, mouseY = 0;
+        let needsRedraw = true; // Flag to optimize rendering
+
+        class Charge {
+            constructor(x, y, q) {
+                this.x = x;
+                this.y = y;
+                this.q = q; // Charge value in base units (+1 or -1)
+            }
+
+            draw(ctx) {
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, chargeRadius, 0, Math.PI * 2);
+                
+                // Style based on charge sign
+                if (this.q > 0) {
+                    ctx.fillStyle = '#ef4444'; // Red
+                    ctx.strokeStyle = '#991b1b';
+                } else {
+                    ctx.fillStyle = '#3b82f6'; // Blue
+                    ctx.strokeStyle = '#1e40af';
+                }
+                
+                ctx.fill();
+                ctx.lineWidth = 2;
+                ctx.stroke();
+
+                // Draw + or - sign
+                ctx.fillStyle = 'white';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.font = 'bold 16px Arial';
+                ctx.fillText(this.q > 0 ? '+' : '-', this.x, this.y + 1);
+            }
+        }
+
+        function resizeCanvas() {
+            width = canvas.clientWidth;
+            height = canvas.clientHeight;
+            // Handle high DPI displays for crisp rendering
+            const dpr = window.devicePixelRatio || 1;
+            canvas.width = width * dpr;
+            canvas.height = height * dpr;
+            ctx.scale(dpr, dpr);
+            
+            cols = Math.ceil(width / resolution);
+            rows = Math.ceil(height / resolution);
+            
+            needsRedraw = true;
+            render();
+        }
+
+        window.addEventListener('resize', resizeCanvas);
+
+        // Calculate potential at a specific (x, y) point
+        function calculatePotential(x, y) {
+            let potential = 0;
+            // Prevent singularity at the exact center of a charge to avoid Infinity
+            const epsilon = 1.0; 
+
+            for (let i = 0; i < charges.length; i++) {
+                const c = charges[i];
+                const dx = x - c.x;
+                const dy = y - c.y;
+                let r = Math.sqrt(dx * dx + dy * dy);
+                
+                if (r < epsilon) r = epsilon;
+
+                // V = k * q / r
+                // We use simplified scaled values for visualization
+                // Distance 'r' is in pixels. In a real sim, map pixels to meters.
+                const qActual = c.q * qScale * 1e4; // Scaled up to make visible numbers
+                potential += (k * qActual) / r;
+            }
+            return potential;
+        }
+
+        function drawPotentialField() {
+            ctx.clearRect(0, 0, width, height);
+            
+            if (charges.length === 0) {
+                ctx.fillStyle = isDarkMode ? '#000000' : '#ffffff';
+                ctx.fillRect(0, 0, width, height);
+                return;
+            }
+
+            // Draw grid cells based on potential
+            for (let r = 0; r < rows; r++) {
+                for (let c = 0; c < cols; c++) {
+                    const x = c * resolution + resolution/2;
+                    const y = r * resolution + resolution/2;
+                    
+                    const v = calculatePotential(x, y);
+                    
+                    let normalizedV = v / maxPotentialColor;
+                    normalizedV = Math.max(-1, Math.min(1, normalizedV));
+                    
+                    let rColor = 0, gColor = 0, bColor = 0;
+                    
+                    if (isDarkMode) {
+                        if (normalizedV > 0) {
+                            const intensity = Math.pow(normalizedV, 0.6);
+                            rColor = Math.floor(intensity * 255);
+                        } else if (normalizedV < 0) {
+                            const intensity = Math.pow(-normalizedV, 0.6);
+                            bColor = Math.floor(intensity * 255);
+                        }
+                        ctx.fillStyle = `rgb(${rColor}, ${gColor}, ${bColor})`;
+                    } else {
+                        // Light Mode: White background base with pastel/soft field colors
+                        if (normalizedV > 0) {
+                            const intensity = Math.pow(normalizedV, 0.6);
+                            rColor = 255;
+                            gColor = Math.floor(255 - intensity * 190);
+                            bColor = Math.floor(255 - intensity * 190);
+                        } else if (normalizedV < 0) {
+                            const intensity = Math.pow(-normalizedV, 0.6);
+                            rColor = Math.floor(255 - intensity * 190);
+                            gColor = Math.floor(255 - intensity * 190);
+                            bColor = 255;
+                        } else {
+                            rColor = 255; gColor = 255; bColor = 255;
+                        }
+                        ctx.fillStyle = `rgb(${rColor}, ${gColor}, ${bColor})`;
+                    }
+
+                    ctx.fillRect(c * resolution, r * resolution, resolution, resolution);
+                }
+            }
+        }
+
+        function drawEquipotentialLines() {
+            if (charges.length === 0) return;
+            
+            ctx.strokeStyle = isDarkMode ? 'rgba(255, 255, 255, 0.4)' : 'rgba(30, 41, 59, 0.5)';
+            ctx.lineWidth = 1.5;
+            
+            // Precalculate potential at grid corners to reuse
+            const gridV = new Float32Array((cols + 1) * (rows + 1));
+            for (let r = 0; r <= rows; r++) {
+                for (let c = 0; c <= cols; c++) {
+                    gridV[r * (cols + 1) + c] = calculatePotential(c * resolution, r * resolution);
+                }
+            }
+
+            // Marching squares simplified approach
+            const intervals = [];
+            // Generate a set of contour levels to check
+            for(let i = -10; i <= 10; i++) {
+                if(i !== 0) intervals.push(i * contourInterval);
+            }
+
+            ctx.beginPath();
+            
+            for (let r = 0; r < rows; r++) {
+                for (let c = 0; c < cols; c++) {
+                    const vTopLeft = gridV[r * (cols + 1) + c];
+                    const vTopRight = gridV[r * (cols + 1) + c + 1];
+                    const vBottomLeft = gridV[(r + 1) * (cols + 1) + c];
+                    const vBottomRight = gridV[(r + 1) * (cols + 1) + c + 1];
+
+                    const minV = Math.min(vTopLeft, vTopRight, vBottomLeft, vBottomRight);
+                    const maxV = Math.max(vTopLeft, vTopRight, vBottomLeft, vBottomRight);
+
+                    // Check if any contour level passes through this cell
+                    for (const targetV of intervals) {
+                        if (minV <= targetV && maxV >= targetV) {
+                            // Find intersections on edges via linear interpolation
+                            let points = [];
+                            
+                            // Top edge
+                            if ((vTopLeft <= targetV && vTopRight >= targetV) || (vTopLeft >= targetV && vTopRight <= targetV)) {
+                                const t = (targetV - vTopLeft) / (vTopRight - vTopLeft || 1e-6);
+                                points.push({x: (c + t) * resolution, y: r * resolution});
+                            }
+                            // Bottom edge
+                            if ((vBottomLeft <= targetV && vBottomRight >= targetV) || (vBottomLeft >= targetV && vBottomRight <= targetV)) {
+                                const t = (targetV - vBottomLeft) / (vBottomRight - vBottomLeft || 1e-6);
+                                points.push({x: (c + t) * resolution, y: (r + 1) * resolution});
+                            }
+                            // Left edge
+                            if ((vTopLeft <= targetV && vBottomLeft >= targetV) || (vTopLeft >= targetV && vBottomLeft <= targetV)) {
+                                const t = (targetV - vTopLeft) / (vBottomLeft - vTopLeft || 1e-6);
+                                points.push({x: c * resolution, y: (r + t) * resolution});
+                            }
+                            // Right edge
+                            if ((vTopRight <= targetV && vBottomRight >= targetV) || (vTopRight >= targetV && vBottomRight <= targetV)) {
+                                const t = (targetV - vTopRight) / (vBottomRight - vTopRight || 1e-6);
+                                points.push({x: (c + 1) * resolution, y: (r + t) * resolution});
+                            }
+
+                            // If we have 2 points, draw a line segment
+                            if (points.length >= 2) {
+                                ctx.moveTo(points[0].x, points[0].y);
+                                ctx.lineTo(points[1].x, points[1].y);
+                            }
+                        }
+                    }
+                }
+            }
+            ctx.stroke();
+
+            // Check if both positive and negative charges exist to draw U = 0 V zero potential equipotential line
+            const hasPos = charges.some(c => c.q > 0);
+            const hasNeg = charges.some(c => c.q < 0);
+
+            if (hasPos && hasNeg) {
+                ctx.beginPath();
+                ctx.strokeStyle = '#2dd4bf'; // Bright cyan for V = 0 line
+                ctx.lineWidth = 2.5;
+                ctx.setLineDash([6, 4]); // Distinct dashed pattern
+
+                for (let r = 0; r < rows; r++) {
+                    for (let c = 0; c < cols; c++) {
+                        const vTopLeft = gridV[r * (cols + 1) + c];
+                        const vTopRight = gridV[r * (cols + 1) + c + 1];
+                        const vBottomLeft = gridV[(r + 1) * (cols + 1) + c];
+                        const vBottomRight = gridV[(r + 1) * (cols + 1) + c + 1];
+
+                        const minV = Math.min(vTopLeft, vTopRight, vBottomLeft, vBottomRight);
+                        const maxV = Math.max(vTopLeft, vTopRight, vBottomLeft, vBottomRight);
+
+                        const targetV = 0;
+                        if (minV <= targetV && maxV >= targetV) {
+                            let points = [];
+                            
+                            if ((vTopLeft <= targetV && vTopRight >= targetV) || (vTopLeft >= targetV && vTopRight <= targetV)) {
+                                const t = (targetV - vTopLeft) / (vTopRight - vTopLeft || 1e-6);
+                                points.push({x: (c + t) * resolution, y: r * resolution});
+                            }
+                            if ((vBottomLeft <= targetV && vBottomRight >= targetV) || (vBottomLeft >= targetV && vBottomRight <= targetV)) {
+                                const t = (targetV - vBottomLeft) / (vBottomRight - vBottomLeft || 1e-6);
+                                points.push({x: (c + t) * resolution, y: (r + 1) * resolution});
+                            }
+                            if ((vTopLeft <= targetV && vBottomLeft >= targetV) || (vTopLeft >= targetV && vBottomLeft <= targetV)) {
+                                const t = (targetV - vTopLeft) / (vBottomLeft - vTopLeft || 1e-6);
+                                points.push({x: c * resolution, y: (r + t) * resolution});
+                            }
+                            if ((vTopRight <= targetV && vBottomRight >= targetV) || (vTopRight >= targetV && vBottomRight <= targetV)) {
+                                const t = (targetV - vTopRight) / (vBottomRight - vBottomLeft || 1e-6);
+                                points.push({x: (c + 1) * resolution, y: (r + t) * resolution});
+                            }
+
+                            if (points.length >= 2) {
+                                ctx.moveTo(points[0].x, points[0].y);
+                                ctx.lineTo(points[1].x, points[1].y);
+                            }
+                        }
+                    }
+                }
+                ctx.stroke();
+                ctx.setLineDash([]); // Reset dash pattern for other elements
+            }
+        }
+
+        function drawElectricFieldLines() {
+            if (!showFieldLines || charges.length === 0) return;
+
+            ctx.lineWidth = 1.5;
+            ctx.strokeStyle = isDarkMode ? 'rgba(253, 224, 71, 0.75)' : 'rgba(180, 83, 9, 0.85)';
+            ctx.fillStyle = isDarkMode ? 'rgba(253, 224, 71, 0.9)' : 'rgba(180, 83, 9, 0.95)';
+
+            const linesPerCharge = 12;
+            const stepSize = 4;
+            const maxSteps = 400;
+            const startOffset = chargeRadius + 3;
+
+            // Helper to get E field vector (ex, ey)
+            function getEField(x, y) {
+                let ex = 0, ey = 0;
+                for (let i = 0; i < charges.length; i++) {
+                    const c = charges[i];
+                    const dx = x - c.x;
+                    const dy = y - c.y;
+                    const r2 = dx * dx + dy * dy;
+                    const r = Math.sqrt(r2);
+                    if (r < 1) continue;
+                    // E = k * q / r^2
+                    const factor = c.q / (r2 * r);
+                    ex += dx * factor;
+                    ey += dy * factor;
+                }
+                return { ex, ey };
+            }
+
+            // Trace path points
+            function tracePath(startX, startY, reverse = false) {
+                let currX = startX;
+                let currY = startY;
+                const path = [{ x: currX, y: currY }];
+                let hitPosCharge = false;
+
+                for (let step = 0; step < maxSteps; step++) {
+                    const field = getEField(currX, currY);
+                    const mag = Math.sqrt(field.ex * field.ex + field.ey * field.ey);
+                    if (mag === 0) break;
+
+                    let dirX = field.ex / mag;
+                    let dirY = field.ey / mag;
+
+                    if (reverse) {
+                        dirX = -dirX;
+                        dirY = -dirY;
+                    }
+
+                    currX += dirX * stepSize;
+                    currY += dirY * stepSize;
+                    path.push({ x: currX, y: currY });
+
+                    // Stop if leaving canvas boundary
+                    if (currX < 0 || currX > width || currY < 0 || currY > height) break;
+
+                    // Stop if hitting a charge
+                    let hitAny = false;
+                    for (const c of charges) {
+                        const cdx = currX - c.x;
+                        const cdy = currY - c.y;
+                        if (cdx * cdx + cdy * cdy <= startOffset * startOffset) {
+                            if (c.q > 0) hitPosCharge = true;
+                            hitAny = true;
+                            break;
+                        }
+                    }
+                    if (hitAny) break;
+                }
+                return { path, hitPosCharge };
+            }
+
+            // Draw a single field line path with directional arrow
+            function drawPath(path, isReverse = false) {
+                if (path.length < 2) return;
+
+                ctx.beginPath();
+                ctx.moveTo(path[0].x, path[0].y);
+
+                let arrowDrawn = false;
+                const arrowStepThreshold = Math.min(25, Math.floor(path.length / 2));
+
+                for (let i = 1; i < path.length; i++) {
+                    ctx.lineTo(path[i].x, path[i].y);
+
+                    if (i === arrowStepThreshold && !arrowDrawn && path.length > 5) {
+                        arrowDrawn = true;
+                        const pPrev = path[i - 1];
+                        const pCurr = path[i];
+                        let dx = pCurr.x - pPrev.x;
+                        let dy = pCurr.y - pPrev.y;
+
+                        // Reverse trace moves away from -q, so physical E field points in opposite direction
+                        if (isReverse) {
+                            dx = -dx;
+                            dy = -dy;
+                        }
+
+                        const angle = Math.atan2(dy, dx);
+                        const arrowAngle = Math.PI / 6;
+                        const arrowLen = 7;
+
+                        ctx.stroke();
+                        ctx.beginPath();
+                        ctx.moveTo(pCurr.x, pCurr.y);
+                        ctx.lineTo(
+                            pCurr.x - arrowLen * Math.cos(angle - arrowAngle),
+                            pCurr.y - arrowLen * Math.sin(angle - arrowAngle)
+                        );
+                        ctx.lineTo(
+                            pCurr.x - arrowLen * Math.cos(angle + arrowAngle),
+                            pCurr.y - arrowLen * Math.sin(angle + arrowAngle)
+                        );
+                        ctx.closePath();
+                        ctx.fill();
+
+                        ctx.beginPath();
+                        ctx.moveTo(pCurr.x, pCurr.y);
+                    }
+                }
+                ctx.stroke();
+            }
+
+            const posCharges = charges.filter(c => c.q > 0);
+            const negCharges = charges.filter(c => c.q < 0);
+
+            // 1. Trace outwards from positive charges (forward)
+            posCharges.forEach(c => {
+                for (let i = 0; i < linesPerCharge; i++) {
+                    const angle = (i * 2 * Math.PI) / linesPerCharge;
+                    const sx = c.x + Math.cos(angle) * startOffset;
+                    const sy = c.y + Math.sin(angle) * startOffset;
+                    const res = tracePath(sx, sy, false);
+                    drawPath(res.path, false);
+                }
+            });
+
+            // 2. Trace backwards from negative charges (reverse)
+            // Draw only lines that come from infinity (do not hit a positive charge)
+            negCharges.forEach(c => {
+                for (let i = 0; i < linesPerCharge; i++) {
+                    const angle = (i * 2 * Math.PI) / linesPerCharge;
+                    const sx = c.x + Math.cos(angle) * startOffset;
+                    const sy = c.y + Math.sin(angle) * startOffset;
+                    const res = tracePath(sx, sy, true);
+                    if (!res.hitPosCharge) {
+                        drawPath(res.path, true);
+                    }
+                }
+            });
+        }
+
+        function render() {
+            if (!needsRedraw) {
+                requestAnimationFrame(render);
+                return;
+            }
+
+            drawPotentialField();
+            drawEquipotentialLines();
+            drawElectricFieldLines();
+
+            // Draw charges
+            for (const charge of charges) {
+                charge.draw(ctx);
+            }
+            
+            // Draw measurement crosshair if measuring
+            if (isMeasuring && !isDraggingCharge) {
+                drawMeasurementIndicator();
+            }
+
+            needsRedraw = false;
+            requestAnimationFrame(render);
+        }
+
+        function drawMeasurementIndicator() {
+            ctx.beginPath();
+            ctx.strokeStyle = isDarkMode ? '#fef08a' : '#0f172a';
+            ctx.lineWidth = 1;
+            // Crosshair
+            ctx.moveTo(mouseX - 10, mouseY);
+            ctx.lineTo(mouseX + 10, mouseY);
+            ctx.moveTo(mouseX, mouseY - 10);
+            ctx.lineTo(mouseX, mouseY + 10);
+            ctx.stroke();
+            
+            // Small circle
+            ctx.beginPath();
+            ctx.arc(mouseX, mouseY, 3, 0, Math.PI * 2);
+            ctx.fillStyle = isDarkMode ? 'white' : '#0284c7';
+            ctx.fill();
+            ctx.stroke();
+        }
+
+        
+        // Helper to get mouse/touch position
+        function getPos(e) {
+            const rect = canvas.getBoundingClientRect();
+            let clientX, clientY;
+            if (e.touches && e.touches.length > 0) {
+                clientX = e.touches[0].clientX;
+                clientY = e.touches[0].clientY;
+            } else {
+                clientX = e.clientX;
+                clientY = e.clientY;
+            }
+            return {
+                x: clientX - rect.left,
+                y: clientY - rect.top
+            };
+        }
+
+        function handlePointerDown(e) {
+            const pos = getPos(e);
+            mouseX = pos.x;
+            mouseY = pos.y;
+            pointerDownX = pos.x;
+            pointerDownY = pos.y;
+            isClickCandidate = true;
+            
+            // Check if clicking on a charge
+            let foundCharge = false;
+            for (let i = charges.length - 1; i >= 0; i--) {
+                const c = charges[i];
+                const dx = mouseX - c.x;
+                const dy = mouseY - c.y;
+                if (dx * dx + dy * dy <= (chargeRadius + 8) * (chargeRadius + 8)) { // slightly larger hit area
+                    isDraggingCharge = true;
+                    draggedChargeIndex = i;
+                    foundCharge = true;
+                    // Move dragged charge to top of rendering order (end of array)
+                    const draggedCharge = charges.splice(i, 1)[0];
+                    charges.push(draggedCharge);
+                    draggedChargeIndex = charges.length - 1;
+                    break;
+                }
+            }
+
+            if (!foundCharge) {
+                hideChargePopover();
+                isMeasuring = true;
+                updateTooltip(mouseX, mouseY);
+                needsRedraw = true;
+            }
+        }
+
+        function handlePointerMove(e) {
+            const pos = getPos(e);
+            mouseX = pos.x;
+            mouseY = pos.y;
+
+            // Check if moved beyond click threshold
+            const distMoved = Math.hypot(mouseX - pointerDownX, mouseY - pointerDownY);
+            if (distMoved > 5) {
+                isClickCandidate = false;
+            }
+
+            if (isDraggingCharge && draggedChargeIndex > -1) {
+                charges[draggedChargeIndex].x = mouseX;
+                charges[draggedChargeIndex].y = mouseY;
+                if (selectedChargeForPopover === charges[draggedChargeIndex]) {
+                    updatePopoverPosition();
+                }
+                needsRedraw = true;
+            } else if (isMeasuring) {
+                updateTooltip(mouseX, mouseY);
+                needsRedraw = true;
+            }
+            
+            // Cursor style update
+            if (!isDraggingCharge && !isMeasuring) {
+                 let overCharge = false;
+                 for (const c of charges) {
+                    const dx = mouseX - c.x;
+                    const dy = mouseY - c.y;
+                    if (dx * dx + dy * dy <= chargeRadius * chargeRadius) {
+                        overCharge = true;
+                        break;
+                    }
+                 }
+                 canvas.style.cursor = overCharge ? 'pointer' : 'crosshair';
+            } else if (isDraggingCharge) {
+                canvas.style.cursor = 'grabbing';
+            }
+        }
+
+        function handlePointerUp(e) {
+            if (isDraggingCharge && isClickCandidate && draggedChargeIndex > -1) {
+                // User clicked on charge without dragging significantly -> show popover
+                showChargePopover(charges[draggedChargeIndex]);
+            }
+
+            isDraggingCharge = false;
+            draggedChargeIndex = -1;
+            
+            if (isMeasuring) {
+                isMeasuring = false;
+                tooltip.style.display = 'none';
+                needsRedraw = true;
+            }
+            canvas.style.cursor = 'crosshair';
+        }
+
+        function showChargePopover(charge) {
+            selectedChargeForPopover = charge;
+            popoverTitle.textContent = charge.q > 0 ? '+q 正電荷' : '-q 負電荷';
+            updatePopoverPosition();
+            chargePopover.classList.remove('hidden');
+        }
+
+        function updatePopoverPosition() {
+            if (!selectedChargeForPopover) return;
+            chargePopover.style.left = `${selectedChargeForPopover.x}px`;
+            chargePopover.style.top = `${selectedChargeForPopover.y - chargeRadius - 8}px`;
+        }
+
+        function hideChargePopover() {
+            selectedChargeForPopover = null;
+            chargePopover.classList.add('hidden');
+        }
+
+        deleteChargeBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            if (selectedChargeForPopover) {
+                const idx = charges.indexOf(selectedChargeForPopover);
+                if (idx > -1) {
+                    charges.splice(idx, 1);
+                }
+                hideChargePopover();
+                needsRedraw = true;
+            }
+        });
+
+        closePopoverBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            hideChargePopover();
+        });
+
+        // Toggle info panel collapse/expand
+        const infoToggleBtn = document.getElementById('info-toggle-btn');
+        const infoPanelContent = document.getElementById('info-panel-content');
+        const infoToggleIcon = document.getElementById('info-toggle-icon');
+        const infoPanel = document.getElementById('info-panel');
+        let isInfoCollapsed = false;
+
+        infoToggleBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            isInfoCollapsed = !isInfoCollapsed;
+            if (isInfoCollapsed) {
+                infoPanelContent.style.display = 'none';
+                infoPanel.classList.add('collapsed');
+                infoToggleIcon.innerHTML = '<polyline points="6 9 12 15 18 9"></polyline>'; // Chevron down
+            } else {
+                infoPanelContent.style.display = 'block';
+                infoPanel.classList.remove('collapsed');
+                infoToggleIcon.innerHTML = '<polyline points="18 15 12 9 6 15"></polyline>'; // Chevron up
+            }
+        });
+
+        function updateTooltip(x, y) {
+            const v = calculatePotential(x, y);
+            // Format potential string
+            let vStr = v.toFixed(1);
+            if (Math.abs(v) > 10000) {
+                 vStr = v.toExponential(2);
+            }
+            
+            tooltip.innerHTML = `電位 U = ${vStr} V`;
+            tooltip.style.display = 'block';
+            tooltip.style.left = `${x}px`;
+            tooltip.style.top = `${y}px`;
+        }
+
+        // Mouse Events
+        canvas.addEventListener('mousedown', handlePointerDown);
+        window.addEventListener('mousemove', handlePointerMove);
+        window.addEventListener('mouseup', handlePointerUp);
+        const toggleThemeBtn = document.getElementById('toggle-theme-btn');
+        const themeIconSun = document.getElementById('theme-icon-sun');
+        const themeIconMoon = document.getElementById('theme-icon-moon');
+        const themeBtnText = document.getElementById('theme-btn-text');
+
+        toggleThemeBtn.addEventListener('click', () => {
+            isDarkMode = !isDarkMode;
+            document.body.classList.toggle('light-mode', !isDarkMode);
+            
+            if (isDarkMode) {
+                themeIconSun.classList.add('hidden');
+                themeIconMoon.classList.remove('hidden');
+                themeBtnText.textContent = '深色';
+            } else {
+                themeIconSun.classList.remove('hidden');
+                themeIconMoon.classList.add('hidden');
+                themeBtnText.textContent = '淺色';
+            }
+            needsRedraw = true;
+        });
+
+        const toggleFieldlinesBtn = document.getElementById('toggle-fieldlines-btn');
+        const fieldlineBtnText = document.getElementById('fieldline-btn-text');
+
+        toggleFieldlinesBtn.addEventListener('click', () => {
+            showFieldLines = !showFieldLines;
+            fieldlineBtnText.textContent = `電力線：${showFieldLines ? '顯示' : '隱藏'}`;
+            if (showFieldLines) {
+                toggleFieldlinesBtn.classList.remove('inactive');
+            } else {
+                toggleFieldlinesBtn.classList.add('inactive');
+            }
+            needsRedraw = true;
+        });
+
+        document.getElementById('clear-btn').addEventListener('click', () => {
+            charges = [];
+            hideChargePopover();
+            needsRedraw = true;
+        });
+
+        // Initialize
+        resizeCanvas();
+        
+        // Add an initial dipole configuration
+        setTimeout(() => {
+            charges.push(new Charge(width / 2 - 50, height / 2, baseChargeVal));
+            charges.push(new Charge(width / 2 + 50, height / 2, -baseChargeVal));
+            needsRedraw = true;
+        }, 100); // small delay ensures width/height are set
+
+        render();
+
+    </script>
+</body>
+</html>
