@@ -1,0 +1,379 @@
+<!doctype html>
+<html lang="zh-Hant">
+
+<head>
+  <meta charset="utf-8" />
+  <title>自由落體模擬 | 教學實驗室</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <!-- Tailwind CSS v4 CDN -->
+  <script src="https://unpkg.com/@tailwindcss/browser@4"></script>
+  <!-- MathJax -->
+  <script defer src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+  <style type="text/tailwindcss">
+    @theme {
+      --color-brand-primary: #6366f1;
+    }
+    .glass-card {
+      @apply bg-white dark:bg-slate-900 shadow-xl border border-slate-200 dark:border-slate-800 rounded-2xl p-6 transition-colors duration-300;
+    }
+    .input-group {
+      @apply flex flex-col gap-1;
+    }
+    .input-field {
+      @apply bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg px-3 py-2 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 transition-all;
+    }
+    .btn {
+      @apply px-5 py-2.5 rounded-xl font-bold transition-all active:scale-95 disabled:opacity-50;
+    }
+    .btn-primary { @apply bg-indigo-600 hover:bg-indigo-500 text-white shadow-lg shadow-indigo-500/30; }
+    .btn-secondary { @apply bg-slate-200 dark:bg-slate-800 hover:bg-slate-300 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200; }
+    .btn-danger { @apply bg-rose-600 hover:bg-rose-500 text-white; }
+  </style>
+</head>
+
+<body
+  class="bg-slate-50 dark:bg-slate-980 text-slate-800 dark:text-slate-200 min-h-screen font-sans transition-colors duration-300">
+
+  <div class="max-w-7xl mx-auto px-4 py-8">
+    <!-- Header: 簡約導航與操作 -->
+    <header class="mb-8 flex flex-col md:flex-row items-center justify-between gap-6">
+      <div>
+        <h1 class="text-3xl font-black text-indigo-600 dark:text-indigo-400">自由落體模擬器</h1>
+        <p class="text-slate-500 text-sm mt-1">互動式教學工具：空氣阻力與 RK4 數值分析</p>
+      </div>
+      <div class="flex gap-2">
+        <button id="run" class="btn btn-primary">開始實驗</button>
+        <button id="pause" class="btn btn-secondary text-sm">暫停</button>
+        <button id="reset" class="btn btn-danger text-sm">重置</button>
+      </div>
+    </header>
+
+    <div class="grid lg:grid-cols-12 gap-8">
+
+      <!-- 主要區塊：實驗展示 (Top/Main) -->
+      <main class="lg:col-span-8 space-y-8 order-2 lg:order-1">
+
+        <!-- 動畫與圖表並列 -->
+        <div class="grid md:grid-cols-2 gap-8">
+          <!-- 下落現象觀察區 -->
+          <div class="glass-card">
+            <h2 class="text-lg font-bold mb-4 flex items-center gap-2 text-slate-700 dark:text-slate-300">
+              <span class="w-1.5 h-6 bg-indigo-500 rounded-full"></span>
+              下落現象觀察
+            </h2>
+            <div
+              class="relative w-full aspect-[4/5] bg-slate-100 dark:bg-slate-950/50 rounded-xl overflow-hidden border border-slate-200 dark:border-slate-800">
+              <canvas id="anim" width="400" height="500" class="w-full h-full"></canvas>
+              <!-- 數據即時面板 -->
+              <div id="overlay"
+                class="absolute top-4 left-4 font-mono text-xs bg-white/90 dark:bg-slate-900/90 p-3 rounded-lg border border-slate-200 dark:border-slate-700 shadow-md hidden">
+                <div id="ov-h" class="text-indigo-600 dark:text-indigo-400">高度: 0.00 m</div>
+                <div id="ov-v" class="text-emerald-600 dark:text-emerald-400">速度: 0.00 m/s</div>
+                <div id="ov-vt" class="text-amber-600 dark:text-amber-500 font-bold">終端速度: 0.00 m/s</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- 速度圖表觀察區 -->
+          <div class="glass-card">
+            <h2 class="text-lg font-bold mb-4 flex items-center gap-2 text-slate-700 dark:text-slate-300">
+              <span class="w-1.5 h-6 bg-emerald-500 rounded-full"></span>
+              速度-時間圖 (v-t)
+            </h2>
+            <div
+              class="w-full aspect-[4/3.5] bg-slate-100 dark:bg-slate-950/50 rounded-xl border border-slate-200 dark:border-slate-800 p-2">
+              <canvas id="chart" width="400" height="350" class="w-full h-full"></canvas>
+            </div>
+            <div class="mt-4 text-[11px] text-slate-500 text-center uppercase tracking-widest font-medium">
+              藍線：下落速度 (RK4) | 橘線：理論終端速度 $v_T$
+            </div>
+          </div>
+        </div>
+
+        <!-- 理論與方程式 (Bottom) -->
+        <section class="glass-card">
+          <h2
+            class="text-lg font-bold mb-4 text-slate-400 uppercase tracking-widest border-b border-slate-100 dark:border-slate-800 pb-2 flex items-center gap-2">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path
+                d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.168.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.246 18 16.5 18c-1.746 0-3.332.477-4.5 1.253">
+              </path>
+            </svg>
+            原理與推導
+          </h2>
+          <div id="eq" class="prose prose-slate dark:prose-invert max-w-none text-sm md:text-base leading-relaxed">
+            物理模型探討非彈性流體阻力對自由落體之影響：
+            \[ m\frac{dv}{dt} = mg - \frac{1}{2}\rho C_D A v|v| \]
+            由力平衡條件（加速度為零）推得終端速度：
+            \[ v_T = \sqrt{\frac{2 m g}{\rho C_D A}} \]
+          </div>
+        </section>
+      </main>
+
+      <!-- 側邊欄：參數控制 (Secondary) -->
+      <aside class="lg:col-span-4 space-y-6 order-1 lg:order-2">
+        <section class="glass-card sticky top-8">
+          <h2 class="text-xl font-bold mb-6 text-indigo-500 flex items-center gap-2">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path
+                d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4">
+              </path>
+            </svg>
+            實驗參數控盤
+          </h2>
+          <div class="grid grid-cols-2 lg:grid-cols-1 gap-5">
+            <div class="input-group">
+              <label class="text-xs font-bold text-slate-500 uppercase">質量 m (kg)</label>
+              <input id="m" type="number" step="0.1" value="1.0" min="0.1" class="input-field">
+            </div>
+            <div class="input-group">
+              <label class="text-xs font-bold text-slate-500 uppercase">阻力係數 Cd</label>
+              <input id="cd" type="number" step="0.01" value="0.47" min="0" class="input-field">
+            </div>
+            <div class="input-group">
+              <label class="text-xs font-bold text-slate-500 uppercase">截面積 A (m²)</label>
+              <input id="A" type="number" step="0.001" value="0.01" min="0.001" class="input-field">
+            </div>
+            <div class="input-group">
+              <label class="text-xs font-bold text-slate-500 uppercase">空氣密度 ρ (kg/m³)</label>
+              <input id="rho" type="number" step="0.001" value="1.225" min="0" class="input-field">
+            </div>
+            <div class="input-group">
+              <label class="text-xs font-bold text-slate-500 uppercase">起始高度 h0 (m)</label>
+              <input id="h0" type="number" step="1" value="100" min="1" class="input-field">
+            </div>
+            <div class="input-group">
+              <label class="text-xs font-bold text-slate-500 uppercase">重力 g (m/s²)</label>
+              <input id="g" type="number" step="0.01" value="9.81" class="input-field">
+            </div>
+          </div>
+          <div class="mt-8 pt-6 border-t border-slate-100 dark:border-slate-800">
+            <p class="text-xs text-slate-400 leading-relaxed italic">
+              教學建議：觀察當阻力係數或質量改變時，v-t 曲線趨近飽和的速度有何差異？
+            </p>
+          </div>
+        </section>
+      </aside>
+    </div>
+  </div>
+
+  <script>
+    const el = (id) => document.getElementById(id);
+    const [mEl, cdEl, AEl, rhoEl, h0El, gEl] = ['m', 'cd', 'A', 'rho', 'h0', 'g'].map(el);
+    const [anim, chart] = [el('anim'), el('chart')];
+    const [ctxA, ctxC] = [anim.getContext('2d'), chart.getContext('2d')];
+    const [btnRun, btnPause, btnReset] = [el('run'), el('pause'), el('reset')];
+    const [overlay, ovH, ovV, ovVt] = [el('overlay'), el('ov-h'), el('ov-v'), el('ov-vt')];
+
+    // 效能優化：離線畫布 (Off-screen Canvas) 用于緩存靜態背景
+    const cacheA = document.createElement('canvas');
+    const cacheC = document.createElement('canvas');
+    const ctxCacheA = cacheA.getContext('2d');
+    const ctxCacheC = cacheC.getContext('2d');
+
+    let running = false, paused = false, rafId = null;
+    let m, Cd, A, rho, h, v, t, dt = 0.01, g, vT, startH;
+    let series = [];
+    let vMax = 0; // 增量追蹤最大值，避免每次重新遍歷
+    
+    // 效能優化：快取 gradient 物件，避免每幀建立新物件
+    let ballGradCache = null;
+    let prevBallY = null;
+    
+    // 效能優化：離線畫布累積繪製圖表曲線
+    const chartBuffer = document.createElement('canvas');
+    const ctxChartBuffer = chartBuffer.getContext('2d');
+    let chartBufferDirty = true; // 標記是否需要重繪緩衝區
+
+    // 預繪製動畫背景
+    function preRenderAnim() {
+      cacheA.width = anim.width; cacheA.height = anim.height;
+      ctxCacheA.clearRect(0, 0, cacheA.width, cacheA.height);
+      const groundY = anim.height - 40;
+      ctxCacheA.fillStyle = '#94a3b8';
+      ctxCacheA.fillRect(0, groundY, anim.width, 40);
+    }
+
+    // 預繪製圖表背景
+    function preRenderChart() {
+      cacheC.width = chart.width; cacheC.height = chart.height;
+      ctxCacheC.clearRect(0, 0, cacheC.width, cacheC.height);
+      const p = { l: 50, r: 20, t: 30, b: 50 }, w = chart.width - p.l - p.r, hgt = chart.height - p.t - p.b;
+      ctxCacheC.strokeStyle = '#94a3b8'; ctxCacheC.lineWidth = 1;
+      ctxCacheC.beginPath(); ctxCacheC.moveTo(p.l, p.t); ctxCacheC.lineTo(p.l, p.b + hgt); ctxCacheC.lineTo(p.l + w, p.b + hgt); ctxCacheC.stroke();
+      
+      // 效能優化：初始化圖表緩衝區畫布
+      chartBuffer.width = chart.width;
+      chartBuffer.height = chart.height;
+      ctxChartBuffer.clearRect(0, 0, chartBuffer.width, chartBuffer.height);
+      chartBufferDirty = true;
+    }
+
+    // RK4 運算優化：改為手動計算，減少 Array 機制帶來的記憶體負擔 (GC)
+    function rk4_step_optimized(h_val, v_val, dt_val, params) {
+      const { m, g, rho, Cd, A } = params;
+      const factor = 0.5 * rho * Cd * A;
+
+      const f = (valV) => (m * g - factor * valV * Math.abs(valV)) / m;
+
+      // k1
+      const k1h = -v_val;
+      const k1v = f(v_val);
+
+      // k2
+      const k2v = f(v_val + k1v * dt_val * 0.5);
+      const k2h = -(v_val + k1v * dt_val * 0.5);
+
+      // k3
+      const k3v = f(v_val + k2v * dt_val * 0.5);
+      const k3h = -(v_val + k2v * dt_val * 0.5);
+
+      // k4
+      const k4v = f(v_val + k3v * dt_val);
+      const k4h = -(v_val + k3v * dt_val);
+
+      return [
+        h_val + (dt_val / 6) * (k1h + 2 * k2h + 2 * k3h + k4h),
+        v_val + (dt_val / 6) * (k1v + 2 * k2v + 2 * k3v + k4v)
+      ];
+    }
+
+    function drawAnim() {
+      ctxA.clearRect(0, 0, anim.width, anim.height);
+      ctxA.drawImage(cacheA, 0, 0); // 使用緩存背景
+      
+      const groundY = anim.height - 40;
+      const padding = 60;
+      const effectiveH = groundY - padding - 20;
+      const frac = Math.max(0, Math.min(1, h / startH));
+      const ballY = padding + effectiveH * (1 - frac);
+
+      const shadowSize = Math.max(0, 15 * (1 - frac * 0.6));
+      ctxA.beginPath();
+      ctxA.ellipse(anim.width / 2, groundY, shadowSize * 2, shadowSize / 2, 0, 0, Math.PI * 2);
+      ctxA.fillStyle = 'rgba(0,0,0,0.15)';
+      ctxA.fill();
+
+      // 效能優化：快取 gradient，只在球位置改變時重建
+      if (prevBallY !== ballY) {
+        const grad = ctxA.createRadialGradient(anim.width / 2 - 5, ballY - 5, 2, anim.width / 2, ballY, 15);
+        grad.addColorStop(0, '#818cf8'); grad.addColorStop(1, '#4f46e5');
+        prevBallY = ballY;
+        ballGradCache = grad;
+      }
+      ctxA.beginPath();
+      ctxA.arc(anim.width / 2, ballY, 15, 0, Math.PI * 2);
+      ctxA.fillStyle = ballGradCache;
+      ctxA.fill();
+
+      ovH.innerText = `高度: ${Math.max(0, h).toFixed(2)} m`;
+      ovV.innerText = `速度: ${v.toFixed(2)} m/s`;
+      ovVt.innerText = `終端速度: ${vT.toFixed(2)} m/s`;
+    }
+
+    function drawChart() {
+      ctxC.clearRect(0, 0, chart.width, chart.height);
+      ctxC.drawImage(cacheC, 0, 0); // 使用緩存背景
+      
+      const p = { l: 50, r: 20, t: 30, b: 50 }, w = chart.width - p.l - p.r, hgt = chart.height - p.t - p.b;
+      if (series.length < 2) return;
+      
+      const tMax = Math.max(5, series[series.length - 1].t);
+      const tMin = series[0].t;
+      const tRange = Math.max(tMax - tMin, 5);
+      const vLimitMax = Math.max(vT * 1.2, vMax);
+
+      const ty = p.t + hgt * (1 - vT / vLimitMax);
+      ctxC.strokeStyle = '#f59e0b'; ctxC.setLineDash([5, 5]);
+      ctxC.beginPath(); ctxC.moveTo(p.l, ty); ctxC.lineTo(p.l + w, ty); ctxC.stroke();
+      
+      ctxC.strokeStyle = '#6366f1'; ctxC.setLineDash([]); ctxC.lineWidth = 2.5;
+      ctxC.beginPath();
+      for (let i = 0; i < series.length; i++) {
+        const x = p.l + ((series[i].t - tMin) / tRange) * w;
+        const y = p.t + hgt * (1 - series[i].v / vLimitMax);
+        if (i === 0) ctxC.moveTo(x, y); else ctxC.lineTo(x, y);
+      }
+      ctxC.stroke();
+      
+      // 效能優化：同步繪製到離線緩衝區，下次只需複製緩衝區
+      ctxChartBuffer.clearRect(0, 0, chartBuffer.width, chartBuffer.height);
+      ctxChartBuffer.drawImage(cacheC, 0, 0);
+      ctxChartBuffer.strokeStyle = '#6366f1'; ctxChartBuffer.setLineDash([]); ctxChartBuffer.lineWidth = 2.5;
+      ctxChartBuffer.beginPath();
+      for (let i = 0; i < series.length; i++) {
+        const x = p.l + ((series[i].t - tMin) / tRange) * w;
+        const y = p.t + hgt * (1 - series[i].v / vLimitMax);
+        if (i === 0) ctxChartBuffer.moveTo(x, y); else ctxChartBuffer.lineTo(x, y);
+       }
+      ctxChartBuffer.stroke();
+      chartBufferDirty = false;
+     }
+
+    function init() {
+      m = Math.max(0.1, +mEl.value || 1);
+      Cd = Math.max(0, +cdEl.value || 0.47);
+      A = Math.max(0.001, +AEl.value || 0.01);
+      rho = Math.max(0, +rhoEl.value || 1.225);
+      startH = Math.max(1, +h0El.value || 100);
+      g = +gEl.value || 9.81;
+      
+      h = startH; v = 0; t = 0;
+      vT = Math.sqrt((2 * m * g) / (rho * Cd * A));
+      vMax = v;
+      series = [{ t, v }];
+      overlay.classList.remove('hidden');
+      preRenderAnim(); preRenderChart(); // 重新生成背景緩存
+      drawAnim(); drawChart();
+     }
+
+    function loop() {
+      if (!running || paused) return;
+
+       // 效能優化：基於實際時間增量計算步數，確保模擬速度在不同刷新率螢幕上一致
+      const now = performance.now();
+      if (!loop.lastTime) loop.lastTime = now;
+      const deltaMs = now - loop.lastTime;
+      loop.lastTime = now;
+      const deltaS = deltaMs / 1000;
+      const stepsPerFrame = Math.max(1, Math.round(deltaS / dt));
+      
+      for (let i = 0; i < stepsPerFrame; i++) {
+        if (h <= 0) {
+          h = 0; v = 0; running = false;
+          break;
+         }
+        const state = rk4_step_optimized(h, v, dt, { m, g, rho, Cd, A });
+         [h, v] = state; t += dt;
+        
+        if (v > vMax) vMax = v;
+        series.push({ t, v });
+       }
+
+       // 效能優化：使用 shift() 每次只移除一個元素，避免 splice 的 O(n) 移動開銷
+      while (series.length > 3000) {
+        series.shift();
+        }
+
+      drawAnim();
+      drawChart(); // 由於效能充裕，可直接每幀更新圖表確保平滑
+      
+      if (running) {
+        rafId = requestAnimationFrame(loop);
+          }
+         }
+      
+    btnRun.onclick = () => { if (!running) { init(); running = true; paused = false; loop(); } };
+    btnPause.onclick = () => { if (running) { paused = !paused; if (!paused) loop(); } };
+    btnReset.onclick = () => { cancelAnimationFrame(rafId); running = paused = false; init(); };
+
+    window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => { 
+      preRenderAnim(); preRenderChart(); drawAnim(); drawChart(); 
+      });
+    
+    init();
+  </script>
+
+</body>
+
+</html>

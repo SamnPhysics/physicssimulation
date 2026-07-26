@@ -1,0 +1,679 @@
+<!doctype html>
+<html lang="zh-Hant">
+
+<head>
+  <meta charset="utf-8" />
+  <title>自由落體模擬器</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <!-- Tailwind CSS v4 CDN -->
+  <script src="https://unpkg.com/@tailwindcss/browser@4"></script>
+  <!-- MathJax for LaTeX rendering -->
+  <script defer src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+  <style type="text/tailwindcss">
+    @theme {
+      --color-brand-primary: #2563eb;
+    }
+    .glass-card {
+      @apply bg-white dark:bg-slate-900 shadow-xl border border-slate-200 dark:border-slate-800 rounded-2xl p-6 transition-colors duration-300;
+    }
+    .input-group {
+      @apply flex flex-col gap-1;
+    }
+    .input-field {
+      @apply bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg px-3 py-2 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500/50 transition-all;
+    }
+    .btn {
+      @apply px-5 py-2.5 rounded-xl font-bold transition-all active:scale-95 disabled:opacity-50;
+    }
+    .btn-primary { @apply bg-blue-600 hover:bg-blue-500 text-white shadow-lg shadow-blue-500/30; }
+    .btn-secondary { @apply bg-slate-200 dark:bg-slate-800 hover:bg-slate-300 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200; }
+    .btn-danger { @apply bg-rose-600 hover:bg-rose-500 text-white; }
+  </style>
+</head>
+
+<body class="bg-slate-50 dark:bg-slate-980 text-slate-800 dark:text-slate-200 min-h-screen font-sans transition-colors duration-300">
+
+  <div class="max-w-7xl mx-auto px-4 py-8">
+    <!-- Header -->
+    <header class="mb-8 flex flex-col md:flex-row items-center justify-between gap-6">
+      <div>
+        <h1 class="text-3xl font-black text-blue-600 dark:text-blue-400">自由落體模擬器</h1>
+        <p class="text-slate-500 text-sm mt-1">互動式教學工具：可調整高度與重力加速度</p>
+      </div>
+      <div class="flex gap-2">
+        <button id="run" class="btn btn-primary">開始</button>
+        <button id="pause" class="btn btn-secondary">暫停</button>
+        <button id="reset" class="btn btn-danger">重置</button>
+      </div>
+    </header>
+
+    <div class="grid lg:grid-cols-12 gap-8">
+
+      <!-- 左側：動畫區域 -->
+      <main class="lg:col-span-8 space-y-8 order-2 lg:order-1">
+        <div class="glass-card">
+          <h2 class="text-lg font-bold mb-4 flex items-center gap-2 text-slate-700 dark:text-slate-300">
+            <span class="w-1.5 h-6 bg-blue-500 rounded-full"></span>
+            下落現象觀察
+          </h2>
+          <div class="relative w-full aspect-[4/5] bg-slate-100 dark:bg-slate-950/50 rounded-xl overflow-hidden border border-slate-200 dark:border-slate-800">
+            <canvas id="anim" width="400" height="500" class="w-full h-full"></canvas>
+            <!-- 即時數據面板 -->
+            <div id="overlay" class="absolute top-4 left-4 font-mono text-xs bg-white/90 dark:bg-slate-900/90 p-3 rounded-lg border border-slate-200 dark:border-slate-700 shadow-md">
+              <div id="ov-h" class="text-blue-600 dark:text-blue-400">高度: 0.00 m</div>
+              <div id="ov-v" class="text-emerald-600 dark:text-emerald-400">速度: 0.00 m/s</div>
+              <div id="ov-t" class="text-amber-600 dark:text-amber-500">時間: 0.00 s</div>
+              <div id="ov-ke" class="text-purple-600 dark:text-purple-400">動能: 0.00 J</div>
+              <div id="ov-pe" class="text-cyan-600 dark:text-cyan-400">位能: 0.00 J</div>
+            </div>
+            <!-- 標尺 -->
+            <div id="ruler" class="absolute right-4 top-4 bottom-4 w-12 flex flex-col items-center justify-between text-[10px] text-slate-400 font-mono">
+            </div>
+          </div>
+        </div>
+
+        <!-- 速度-時間圖表 -->
+        <div class="glass-card">
+          <h2 class="text-lg font-bold mb-4 flex items-center gap-2 text-slate-700 dark:text-slate-300">
+            <span class="w-1.5 h-6 bg-emerald-500 rounded-full"></span>
+            速度-時間圖 (v-t)
+          </h2>
+          <div class="w-full aspect-[4/3] bg-slate-100 dark:bg-slate-950/50 rounded-xl border border-slate-200 dark:border-slate-800 p-2">
+            <canvas id="chart" width="400" height="300" class="w-full h-full"></canvas>
+          </div>
+        </div>
+      </main>
+
+      <!-- 右側：參數控制 -->
+      <aside class="lg:col-span-4 space-y-8 order-1 lg:order-2">
+        <!-- 參數設定 -->
+        <div class="glass-card">
+          <h2 class="text-lg font-bold mb-4 flex items-center gap-2 text-slate-700 dark:text-slate-300">
+            <span class="w-1.5 h-6 bg-blue-500 rounded-full"></span>
+            參數設定
+          </h2>
+          <div class="space-y-4">
+            <div class="input-group">
+              <label class="text-sm font-medium text-slate-600 dark:text-slate-400">
+                初始高度 \( h_0 \) (m)
+              </label>
+              <input type="number" id="height" class="input-field" value="50" min="1" max="200" step="1">
+              <input type="range" id="heightSlider" min="1" max="200" value="50" class="w-full accent-blue-500">
+            </div>
+            <div class="input-group">
+              <label class="text-sm font-medium text-slate-600 dark:text-slate-400">
+                物體質量 \( m \) (kg)
+              </label>
+              <input type="number" id="mass" class="input-field" value="1" min="0.1" max="50" step="0.1">
+              <input type="range" id="massSlider" min="0.1" max="50" value="1" step="0.1" class="w-full accent-blue-500">
+            </div>
+            <div class="input-group">
+              <label class="text-sm font-medium text-slate-600 dark:text-slate-400">
+                重力加速度 \( g \) (m/s²)
+              </label>
+              <input type="number" id="gravity" class="input-field" value="9.8" min="1" max="25" step="0.1">
+              <input type="range" id="gravitySlider" min="1" max="25" value="9.8" step="0.1" class="w-full accent-blue-500">
+            </div>
+            <div class="input-group">
+              <label class="text-sm font-medium text-slate-600 dark:text-slate-400">
+                模擬速度
+              </label>
+              <input type="range" id="speed" min="0.1" max="3" value="1" step="0.1" class="w-full accent-blue-500">
+            </div>
+          </div>
+        </div>
+
+        <!-- 理論方程式 -->
+        <div class="glass-card">
+          <h2 class="text-lg font-bold mb-4 flex items-center gap-2 text-slate-700 dark:text-slate-300">
+            <span class="w-1.5 h-6 bg-blue-500 rounded-full"></span>
+            理論方程式
+          </h2>
+          <div class="space-y-3 text-sm text-slate-700 dark:text-slate-300">
+            <div class="p-3 bg-slate-50 dark:bg-slate-800/50 rounded-lg">
+              <div class="font-semibold mb-1">高度公式：</div>
+              \[ h(t) = h_0 - \frac{1}{2}gt^2 \]
+            </div>
+            <div class="p-3 bg-slate-50 dark:bg-slate-800/50 rounded-lg">
+              <div class="font-semibold mb-1">速度公式：</div>
+              \[ v(t) = gt \]
+            </div>
+            <div class="p-3 bg-slate-50 dark:bg-slate-800/50 rounded-lg">
+              <div class="font-semibold mb-1">動能：</div>
+              \[ K = \frac{1}{2}mv^2 \]
+            </div>
+            <div class="p-3 bg-slate-50 dark:bg-slate-800/50 rounded-lg">
+              <div class="font-semibold mb-1">位能：</div>
+              \[ U = mgh \]
+            </div>
+            <div class="p-3 bg-slate-50 dark:bg-slate-800/50 rounded-lg">
+              <div class="font-semibold mb-1">落地時間：</div>
+              \[ t_{\text{land}} = \sqrt{\frac{2h_0}{g}} \]
+            </div>
+          </div>
+        </div>
+
+        <!-- 能量圖表 -->
+        <div class="glass-card">
+          <h2 class="text-lg font-bold mb-4 flex items-center gap-2 text-slate-700 dark:text-slate-300">
+            <span class="w-1.5 h-6 bg-purple-500 rounded-full"></span>
+            能量變化圖
+          </h2>
+          <div class="w-full aspect-[4/3] bg-slate-100 dark:bg-slate-950/50 rounded-xl border border-slate-200 dark:border-slate-800 p-2">
+            <canvas id="energyChart" width="400" height="300" class="w-full h-full"></canvas>
+          </div>
+          <div class="mt-3 flex justify-center gap-4 text-xs text-slate-500">
+            <span class="flex items-center gap-1"><span class="w-3 h-3 bg-purple-500 rounded-sm"></span>動能</span>
+            <span class="flex items-center gap-1"><span class="w-3 h-3 bg-cyan-500 rounded-sm"></span>位能</span>
+            <span class="flex items-center gap-1"><span class="w-3 h-3 bg-green-500 rounded-sm"></span>總能量</span>
+          </div>
+        </div>
+      </aside>
+    </div>
+  </div>
+
+  <script>
+    // ===== 參數同步 =====
+    const heightInput = document.getElementById('height');
+    const heightSlider = document.getElementById('heightSlider');
+    const massInput = document.getElementById('mass');
+    const massSlider = document.getElementById('massSlider');
+    const gravityInput = document.getElementById('gravity');
+    const gravitySlider = document.getElementById('gravitySlider');
+
+    heightInput.addEventListener('input', () => { heightSlider.value = heightInput.value; });
+    heightSlider.addEventListener('input', () => { heightInput.value = heightSlider.value; });
+    massInput.addEventListener('input', () => { massSlider.value = massInput.value; });
+    massSlider.addEventListener('input', () => { massInput.value = massSlider.value; });
+    gravityInput.addEventListener('input', () => { gravitySlider.value = gravityInput.value; });
+    gravitySlider.addEventListener('input', () => { gravityInput.value = gravitySlider.value; });
+
+    // ===== Canvas 設定 =====
+    const animCanvas = document.getElementById('anim');
+    const animCtx = animCanvas.getContext('2d');
+    const chartCanvas = document.getElementById('chart');
+    const chartCtx = chartCanvas.getContext('2d');
+    const energyCanvas = document.getElementById('energyChart');
+    const energyCtx = energyCanvas.getContext('2d');
+
+    // ===== 模擬狀態 =====
+    let sim = {
+      running: false,
+      h0: 50,        // 初始高度 (m)
+      m: 1,          // 質量 (kg)
+      g: 9.8,        // 重力加速度 (m/s²)
+      speed: 1,      // 模擬速度倍率
+      t: 0,          // 時間
+      h: 50,         // 當前高度
+      v: 0,          // 當前速度
+      data: [],      // v-t 數據
+      energyData: [], // 能量數據
+      landed: false
+    };
+
+    // ===== 繪圖工具函數 =====
+    function clearCanvas(ctx, canvas) {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+    }
+
+    // 繪製動畫場景
+    function drawAnimation() {
+      const ctx = animCtx;
+      const canvas = animCanvas;
+      clearCanvas(ctx, canvas);
+
+      const W = canvas.width;
+      const H = canvas.height;
+      const padding = 60;
+      const groundY = H - padding;
+      const topY = padding;
+      const totalHeightPx = groundY - topY;
+
+      // 背景漸層
+      const bgGrad = ctx.createLinearGradient(0, 0, 0, H);
+      bgGrad.addColorStop(0, '#1e293b');
+      bgGrad.addColorStop(1, '#0f172a');
+      ctx.fillStyle = bgGrad;
+      ctx.fillRect(0, 0, W, H);
+
+      // 繪製標尺
+      ctx.strokeStyle = 'rgba(148, 163, 184, 0.3)';
+      ctx.lineWidth = 1;
+      const h0 = sim.h0;
+      for (let h = 0; h <= h0; h += Math.ceil(h0 / 10)) {
+        const y = groundY - (h / h0) * totalHeightPx;
+        ctx.beginPath();
+        ctx.moveTo(W - 40, y);
+        ctx.lineTo(W - 20, y);
+        ctx.stroke();
+        ctx.fillStyle = '#94a3b8';
+        ctx.font = '11px monospace';
+        ctx.textAlign = 'left';
+        ctx.fillText(`${h} m`, W - 18, y + 4);
+      }
+
+      // 繪製地面
+      ctx.fillStyle = '#334155';
+      ctx.fillRect(0, groundY, W, padding);
+      ctx.strokeStyle = '#475569';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(0, groundY);
+      ctx.lineTo(W, groundY);
+      ctx.stroke();
+
+      // 計算球位置
+      const ballY = groundY - (sim.h / h0) * totalHeightPx;
+      const ballRadius = 15 + sim.m * 0.5; // 根據質量調整大小
+
+      // 繪製軌跡線
+      if (sim.t > 0 && !sim.landed) {
+        ctx.strokeStyle = 'rgba(59, 130, 246, 0.3)';
+        ctx.lineWidth = 2;
+        ctx.setLineDash([5, 5]);
+        ctx.beginPath();
+        const startY = groundY - (sim.h0 / h0) * totalHeightPx;
+        ctx.moveTo(W / 2, startY);
+        ctx.lineTo(W / 2, ballY);
+        ctx.stroke();
+        ctx.setLineDash([]);
+      }
+
+      // 繪製球體
+      const ballGrad = ctx.createRadialGradient(W / 2 - 5, ballY - 5, 2, W / 2, ballY, ballRadius);
+      ballGrad.addColorStop(0, '#60a5fa');
+      ballGrad.addColorStop(1, '#2563eb');
+      ctx.fillStyle = ballGrad;
+      ctx.beginPath();
+      ctx.arc(W / 2, ballY, ballRadius, 0, Math.PI * 2);
+      ctx.fill();
+
+      // 球體光暈
+      ctx.strokeStyle = 'rgba(96, 165, 250, 0.5)';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.arc(W / 2, ballY, ballRadius + 5, 0, Math.PI * 2);
+      ctx.stroke();
+
+      // 繪製速度向量箭頭
+      if (sim.v > 0 && !sim.landed) {
+        const arrowLen = Math.min(sim.v * 3, 100);
+        ctx.strokeStyle = '#10b981';
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        ctx.moveTo(W / 2 + ballRadius + 20, ballY);
+        ctx.lineTo(W / 2 + ballRadius + 20, ballY + arrowLen);
+        ctx.stroke();
+        // 箭頭
+        ctx.fillStyle = '#10b981';
+        ctx.beginPath();
+        ctx.moveTo(W / 2 + ballRadius + 20, ballY + arrowLen + 8);
+        ctx.lineTo(W / 2 + ballRadius + 14, ballY + arrowLen - 2);
+        ctx.lineTo(W / 2 + ballRadius + 26, ballY + arrowLen - 2);
+        ctx.fill();
+        ctx.fillStyle = '#10b981';
+        ctx.font = 'bold 12px monospace';
+        ctx.textAlign = 'left';
+        ctx.fillText(`v = ${sim.v.toFixed(2)} m/s`, W / 2 + ballRadius + 30, ballY + arrowLen / 2);
+      }
+
+      // 繪製高度標記
+      if (sim.h > 0 && !sim.landed) {
+        ctx.strokeStyle = '#f59e0b';
+        ctx.lineWidth = 2;
+        ctx.setLineDash([3, 3]);
+        ctx.beginPath();
+        ctx.moveTo(30, ballY);
+        ctx.lineTo(30, groundY);
+        ctx.stroke();
+        ctx.setLineDash([]);
+        ctx.fillStyle = '#f59e0b';
+        ctx.font = 'bold 12px monospace';
+        ctx.textAlign = 'right';
+        ctx.fillText(`h = ${sim.h.toFixed(2)} m`, 28, (ballY + groundY) / 2 + 4);
+      }
+
+      // 落地狀態
+      if (sim.landed) {
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.6)';
+        ctx.fillRect(0, 0, W, H);
+        ctx.fillStyle = '#fbbf24';
+        ctx.font = 'bold 28px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText('落地完成', W / 2, H / 2 - 20);
+        ctx.fillStyle = '#94a3b8';
+        ctx.font = '16px monospace';
+        ctx.fillText(`落地時間: ${sim.t.toFixed(3)} s`, W / 2, H / 2 + 20);
+        ctx.fillText(`落地速度: ${(sim.v).toFixed(2)} m/s`, W / 2, H / 2 + 50);
+      }
+    }
+
+    // 繪製 v-t 圖表
+    function drawChart() {
+      const ctx = chartCtx;
+      const canvas = chartCanvas;
+      clearCanvas(ctx, canvas);
+
+      const W = canvas.width;
+      const H = canvas.height;
+      const pad = { top: 40, right: 30, bottom: 50, left: 60 };
+      const chartW = W - pad.left - pad.right;
+      const chartH = H - pad.top - pad.bottom;
+
+      // 背景
+      ctx.fillStyle = '#0f172a';
+      ctx.fillRect(0, 0, W, H);
+
+      // 計算範圍
+      const maxT = Math.sqrt(2 * sim.h0 / sim.g) * 1.1;
+      const maxV = sim.g * maxT;
+
+      // 網格
+      ctx.strokeStyle = 'rgba(148, 163, 184, 0.15)';
+      ctx.lineWidth = 1;
+      for (let i = 0; i <= 5; i++) {
+        const x = pad.left + (i / 5) * chartW;
+        const y = pad.top + (i / 5) * chartH;
+        ctx.beginPath();
+        ctx.moveTo(x, pad.top);
+        ctx.lineTo(x, pad.top + chartH);
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.moveTo(pad.left, y);
+        ctx.lineTo(pad.left + chartW, y);
+        ctx.stroke();
+      }
+
+      // 座標軸
+      ctx.strokeStyle = '#475569';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(pad.left, pad.top);
+      ctx.lineTo(pad.left, pad.top + chartH);
+      ctx.lineTo(pad.left + chartW, pad.top + chartH);
+      ctx.stroke();
+
+      // 軸標籤
+      ctx.fillStyle = '#94a3b8';
+      ctx.font = '12px monospace';
+      ctx.textAlign = 'center';
+      ctx.fillText('時間 t (s)', pad.left + chartW / 2, H - 10);
+      ctx.save();
+      ctx.translate(15, pad.top + chartH / 2);
+      ctx.rotate(-Math.PI / 2);
+      ctx.fillText('速度 v (m/s)', 0, 0);
+      ctx.restore();
+
+      // 刻度標籤
+      ctx.fillStyle = '#64748b';
+      ctx.font = '10px monospace';
+      for (let i = 0; i <= 5; i++) {
+        const t = (i / 5) * maxT;
+        const x = pad.left + (i / 5) * chartW;
+        ctx.textAlign = 'center';
+        ctx.fillText(t.toFixed(1), x, pad.top + chartH + 20);
+      }
+      for (let i = 0; i <= 5; i++) {
+        const v = (i / 5) * maxV;
+        const y = pad.top + chartH - (i / 5) * chartH;
+        ctx.textAlign = 'right';
+        ctx.fillText(v.toFixed(1), pad.left - 8, y + 4);
+      }
+
+      // 繪製數據線
+      if (sim.data.length > 1) {
+        ctx.strokeStyle = '#3b82f6';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        for (let i = 0; i < sim.data.length; i++) {
+          const d = sim.data[i];
+          const x = pad.left + (d.t / maxT) * chartW;
+          const y = pad.top + chartH - (d.v / maxV) * chartH;
+          if (i === 0) ctx.moveTo(x, y);
+          else ctx.lineTo(x, y);
+        }
+        ctx.stroke();
+
+        // 當前點
+        if (!sim.landed) {
+          const last = sim.data[sim.data.length - 1];
+          const x = pad.left + (last.t / maxT) * chartW;
+          const y = pad.top + chartH - (last.v / maxV) * chartH;
+          ctx.fillStyle = '#60a5fa';
+          ctx.beginPath();
+          ctx.arc(x, y, 5, 0, Math.PI * 2);
+          ctx.fill();
+        }
+      }
+    }
+
+    // 繪製能量圖表
+    function drawEnergyChart() {
+      const ctx = energyCtx;
+      const canvas = energyCanvas;
+      clearCanvas(ctx, canvas);
+
+      const W = canvas.width;
+      const H = canvas.height;
+      const pad = { top: 40, right: 30, bottom: 50, left: 60 };
+      const chartW = W - pad.left - pad.right;
+      const chartH = H - pad.top - pad.bottom;
+
+      // 背景
+      ctx.fillStyle = '#0f172a';
+      ctx.fillRect(0, 0, W, H);
+
+      const maxT = Math.sqrt(2 * sim.h0 / sim.g) * 1.1;
+      const totalE = sim.m * sim.g * sim.h0;
+      const maxE = totalE * 1.1;
+
+      // 網格
+      ctx.strokeStyle = 'rgba(148, 163, 184, 0.15)';
+      ctx.lineWidth = 1;
+      for (let i = 0; i <= 5; i++) {
+        const x = pad.left + (i / 5) * chartW;
+        const y = pad.top + (i / 5) * chartH;
+        ctx.beginPath();
+        ctx.moveTo(x, pad.top);
+        ctx.lineTo(x, pad.top + chartH);
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.moveTo(pad.left, y);
+        ctx.lineTo(pad.left + chartW, y);
+        ctx.stroke();
+      }
+
+      // 座標軸
+      ctx.strokeStyle = '#475569';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(pad.left, pad.top);
+      ctx.lineTo(pad.left, pad.top + chartH);
+      ctx.lineTo(pad.left + chartW, pad.top + chartH);
+      ctx.stroke();
+
+      // 軸標籤
+      ctx.fillStyle = '#94a3b8';
+      ctx.font = '12px monospace';
+      ctx.textAlign = 'center';
+      ctx.fillText('時間 t (s)', pad.left + chartW / 2, H - 10);
+      ctx.save();
+      ctx.translate(15, pad.top + chartH / 2);
+      ctx.rotate(-Math.PI / 2);
+      ctx.fillText('能量 E (J)', 0, 0);
+      ctx.restore();
+
+      // 刻度
+      ctx.fillStyle = '#64748b';
+      ctx.font = '10px monospace';
+      for (let i = 0; i <= 5; i++) {
+        const t = (i / 5) * maxT;
+        const x = pad.left + (i / 5) * chartW;
+        ctx.textAlign = 'center';
+        ctx.fillText(t.toFixed(1), x, pad.top + chartH + 20);
+      }
+      for (let i = 0; i <= 5; i++) {
+        const e = (i / 5) * maxE;
+        const y = pad.top + chartH - (i / 5) * chartH;
+        ctx.textAlign = 'right';
+        ctx.fillText(e.toFixed(1), pad.left - 8, y + 4);
+      }
+
+      // 繪製能量線
+      if (sim.energyData.length > 1) {
+        // 動能
+        ctx.strokeStyle = '#a855f7';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        for (let i = 0; i < sim.energyData.length; i++) {
+          const d = sim.energyData[i];
+          const x = pad.left + (d.t / maxT) * chartW;
+          const y = pad.top + chartH - (d.ke / maxE) * chartH;
+          if (i === 0) ctx.moveTo(x, y);
+          else ctx.lineTo(x, y);
+        }
+        ctx.stroke();
+
+        // 位能
+        ctx.strokeStyle = '#06b6d4';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        for (let i = 0; i < sim.energyData.length; i++) {
+          const d = sim.energyData[i];
+          const x = pad.left + (d.t / maxT) * chartW;
+          const y = pad.top + chartH - (d.pe / maxE) * chartH;
+          if (i === 0) ctx.moveTo(x, y);
+          else ctx.lineTo(x, y);
+        }
+        ctx.stroke();
+
+        // 總能量
+        ctx.strokeStyle = '#22c55e';
+        ctx.lineWidth = 2;
+        ctx.setLineDash([5, 5]);
+        ctx.beginPath();
+        for (let i = 0; i < sim.energyData.length; i++) {
+          const d = sim.energyData[i];
+          const x = pad.left + (d.t / maxT) * chartW;
+          const y = pad.top + chartH - (d.total / maxE) * chartH;
+          if (i === 0) ctx.moveTo(x, y);
+          else ctx.lineTo(x, y);
+        }
+        ctx.stroke();
+        ctx.setLineDash([]);
+      }
+    }
+
+    // ===== 模擬邏輯 =====
+    function updateSimulation(dt) {
+      if (sim.landed || !sim.running) return;
+
+      const adjustedDt = dt * sim.speed;
+      sim.t += adjustedDt;
+
+      // 自由落體公式
+      sim.v = sim.g * sim.t;
+      sim.h = sim.h0 - 0.5 * sim.g * sim.t * sim.t;
+
+      // 檢查是否落地
+      if (sim.h <= 0) {
+        sim.h = 0;
+        sim.v = Math.sqrt(2 * sim.g * sim.h0);
+        sim.landed = true;
+        sim.running = false;
+      }
+
+      // 記錄數據
+      const ke = 0.5 * sim.m * sim.v * sim.v;
+      const pe = sim.m * sim.g * sim.h;
+      sim.data.push({ t: sim.t, v: sim.v });
+      sim.energyData.push({ t: sim.t, ke: ke, pe: pe, total: ke + pe });
+    }
+
+    function updateOverlay() {
+      document.getElementById('ov-h').textContent = `高度: ${sim.h.toFixed(2)} m`;
+      document.getElementById('ov-v').textContent = `速度: ${sim.v.toFixed(2)} m/s`;
+      document.getElementById('ov-t').textContent = `時間: ${sim.t.toFixed(2)} s`;
+      const ke = 0.5 * sim.m * sim.v * sim.v;
+      const pe = sim.m * sim.g * sim.h;
+      document.getElementById('ov-ke').textContent = `動能: ${ke.toFixed(2)} J`;
+      document.getElementById('ov-pe').textContent = `位能: ${pe.toFixed(2)} J`;
+    }
+
+    // ===== 主循環 =====
+    let lastTime = 0;
+    function mainLoop(timestamp) {
+      if (!lastTime) lastTime = timestamp;
+      const dt = Math.min((timestamp - lastTime) / 1000, 0.05); // 秒
+      lastTime = timestamp;
+
+      updateSimulation(dt);
+      drawAnimation();
+      drawChart();
+      drawEnergyChart();
+      updateOverlay();
+
+      requestAnimationFrame(mainLoop);
+    }
+
+    // ===== 按鈕控制 =====
+    document.getElementById('run').addEventListener('click', () => {
+      if (!sim.landed) sim.running = true;
+    });
+
+    document.getElementById('pause').addEventListener('click', () => {
+      sim.running = !sim.running;
+    });
+
+    document.getElementById('reset').addEventListener('click', () => {
+      sim.running = false;
+      sim.t = 0;
+      sim.h = sim.h0;
+      sim.v = 0;
+      sim.data = [];
+      sim.energyData = [];
+      sim.landed = false;
+    });
+
+    // 參數變更時重置
+    function onParamChange() {
+      sim.h0 = parseFloat(heightInput.value) || 50;
+      sim.m = parseFloat(massInput.value) || 1;
+      sim.g = parseFloat(gravityInput.value) || 9.8;
+      sim.speed = parseFloat(document.getElementById('speed').value) || 1;
+      // 重置模擬
+      sim.t = 0;
+      sim.h = sim.h0;
+      sim.v = 0;
+      sim.data = [];
+      sim.energyData = [];
+      sim.landed = false;
+      sim.running = false;
+    }
+
+    heightInput.addEventListener('change', onParamChange);
+    massInput.addEventListener('change', onParamChange);
+    gravityInput.addEventListener('change', onParamChange);
+    document.getElementById('speed').addEventListener('input', onParamChange);
+
+    // ===== 初始化 =====
+    function init() {
+      sim.h0 = parseFloat(heightInput.value);
+      sim.h = sim.h0;
+      drawAnimation();
+      drawChart();
+      drawEnergyChart();
+      updateOverlay();
+      requestAnimationFrame(mainLoop);
+    }
+
+    // 等待 MathJax 載入後重繪
+    if (window.MathJax) {
+      MathJax.typesetPromise().then(init);
+    } else {
+      window.addEventListener('load', init);
+    }
+  </script>
+</body>
+
+</html>

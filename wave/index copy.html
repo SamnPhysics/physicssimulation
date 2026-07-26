@@ -45,9 +45,8 @@
             input[type=range]::-moz-range-track {
                 width: 100%;
                 height: 8px;
-            width: 100%;
-            background: transparent;
-        }
+                background: transparent;
+            }
         input[type=range]::-webkit-slider-thumb {
             -webkit-appearance: none;
             height: 16px;
@@ -391,6 +390,11 @@
             }
         });
 
+        // 計算波形 Y 值
+        function getWaveY(p, x, t) {
+            return p.amp * Math.sin(p.k * x - p.w * t);
+        }
+
         // 繪製單個波形
         function drawWave(p, color, centerY) {
             ctx.beginPath();
@@ -398,9 +402,7 @@
             ctx.lineWidth = 3;
             
             for (let x = 0; x < canvas.width; x++) {
-                // 公式：y = A * sin(k*x - ω*time)
-                const y = p.amp * Math.sin(p.k * x - p.w * time);
-                
+                const y = getWaveY(p, x, time);
                 if (x === 0) {
                     ctx.moveTo(x, centerY + y); 
                 } else {
@@ -421,26 +423,19 @@
             ctx.stroke();
         }
 
-        // 用來顯示標籤的函數
+        // 用來顯示標籤的函數 (優化：移除每幀 katex.render)
         function updateLabel(element, text, x, y, alignLeft) {
-            // 渲染 LaTeX
-            try {
-                katex.render(text, element, { throwOnError: false });
-            } catch (e) {
-                element.textContent = text;
-            }
+            // 直接更新文字，避免使用重量級的 KaTeX 渲染引擎
+            element.textContent = text;
             
             element.classList.remove('hidden');
             
-            // 設定位置
-            // 如果靠左顯示（滑鼠在右側邊緣），x 座標要減去偏移
             const offsetX = alignLeft ? -10 : 15; 
-            
             element.style.top = `${y}px`;
             
             if (alignLeft) {
                 element.style.left = 'auto';
-                element.style.right = `${canvas.width - x + 15}px`; // 使用 right 定位避免閃爍
+                element.style.right = `${canvas.width - x + 15}px`;
             } else {
                 element.style.right = 'auto';
                 element.style.left = `${x + 15}px`;
@@ -509,9 +504,7 @@
             ctx.strokeStyle = '#9333EA'; 
             ctx.lineWidth = 3;
             for (let x = 0; x < width; x++) {
-                const y1 = params.wave1.amp * Math.sin(params.wave1.k * x - params.wave1.w * time);
-                const y2 = params.wave2.amp * Math.sin(params.wave2.k * x - params.wave2.w * time);
-                const y = y1 + y2;
+                const y = getWaveY(params.wave1, x, time) + getWaveY(params.wave2, x, time);
                 if (x === 0) ctx.moveTo(x, centerY3 + y);
                 else ctx.lineTo(x, centerY3 + y);
             }
@@ -528,25 +521,19 @@
                 ctx.stroke();
                 ctx.setLineDash([]); 
 
-                const valY1 = params.wave1.amp * Math.sin(params.wave1.k * mouseX - params.wave1.w * time);
-                const valY2 = params.wave2.amp * Math.sin(params.wave2.k * mouseX - params.wave2.w * time);
+                const valY1 = getWaveY(params.wave1, mouseX, time);
+                const valY2 = getWaveY(params.wave2, mouseX, time);
                 const valYSum = valY1 + valY2;
 
                 drawPoint(mouseX, centerY1 + valY1, '#4F46E5');
                 drawPoint(mouseX, centerY2 + valY2, '#EF4444');
                 drawPoint(mouseX, centerY3 + valYSum, '#9333EA');
 
-                // 更新 KaTeX 標籤
-                // 判斷是否靠右側邊緣
+                // 更新標籤內容與位置 (使用簡單文字以維持效能)
                 const alignLeft = (mouseX > width - 150);
-
-                // 更新標籤內容與位置
-                // 數值取反 (-val) 是為了符合視覺直覺 (向上為正)，如果需要原始物理值可移除負號
-                updateLabel(labels.y1, `y_1 = ${(-valY1).toFixed(1)}`, mouseX, centerY1 + valY1, alignLeft);
-                updateLabel(labels.y2, `y_2 = ${(-valY2).toFixed(1)}`, mouseX, centerY2 + valY2, alignLeft);
-                
-                // 總和標籤
-                updateLabel(labels.sum, `y_{total} = y_1 + y_2 = ${(-valYSum).toFixed(1)}`, mouseX, centerY3 + valYSum, alignLeft);
+                updateLabel(labels.y1, `y₁ = ${(-valY1).toFixed(1)}`, mouseX, centerY1 + valY1, alignLeft);
+                updateLabel(labels.y2, `y₂ = ${(-valY2).toFixed(1)}`, mouseX, centerY2 + valY2, alignLeft);
+                updateLabel(labels.sum, `yₜₒₜₐₗ = y₁ + y₂ = ${(-valYSum).toFixed(1)}`, mouseX, centerY3 + valYSum, alignLeft);
 
             } else {
                 // 如果滑鼠不在範圍內，確保標籤隱藏
