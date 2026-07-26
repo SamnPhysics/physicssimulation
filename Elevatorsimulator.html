@@ -57,52 +57,51 @@
                 <button id="reset" class="btn btn-danger">重置</button>
             </div>
         </header>
-         <!-- 主要內容：左側情境圖 + 中間圖表 + 右側參數 -->
+         <!-- 主要內容：左側(動畫+圖表) + 右側參數 -->
           <div class="grid lg:grid-cols-12 gap-6 mb-6 items-stretch">
-              <!-- 左側：電梯情境動畫 (佔 1/2 = 6/12) -->
-              <div class="lg:col-span-6">
-                  <div class="card flex flex-col lg:h-[700px]">
-                      <h2 class="text-lg font-bold mb-3 flex items-center gap-2 text-slate-700">
-                          <span class="w-1.5 h-6 bg-purple-500 rounded-full"></span>
-                        電梯運動模擬
-                      </h2>
-                      <div class="relative w-full h-[460px] lg:h-[500px] bg-slate-50 rounded-xl overflow-hidden border border-slate-200  flex items-center justify-center">
-                          <canvas id="anim" width="360" height="480" class="w-full h-full  flex items-center justify-center"></canvas>
+              <!-- 左側合併卡片：電梯情境動畫 + 運動圖表 (佔 9/12) -->
+              <div class="lg:col-span-9">
+                  <div class="card flex flex-col lg:flex-row gap-6 lg:h-[700px]">
+                      <!-- 左半部：電梯情境動畫 -->
+                      <div class="flex-1 flex flex-col">
+                          <h2 class="text-lg font-bold mb-3 flex items-center gap-2 text-slate-700">
+                              <span class="w-1.5 h-6 bg-purple-500 rounded-full"></span>
+                            電梯運動模擬
+                          </h2>
+                          <div class="relative w-full h-[460px] lg:h-[500px] bg-slate-50 rounded-xl overflow-hidden border border-slate-200 flex items-center justify-center">
+                              <canvas id="anim" width="360" height="480" class="w-full h-full flex items-center justify-center"></canvas>
+                          </div>
+                          <!-- 即時數據面板 -->
+                          <div id="overlay" class="mt-3 font-mono text-sm bg-white p-3 rounded-lg border border-slate-200 shadow-sm grid grid-cols-2 gap-x-4 gap-y-1">
+                              <div id="ov-floor" class="text-purple-600 font-bold">樓層: 1</div>
+                              <div id="ov-time" class="text-cyan-600 text-right">時間: 0.00 s</div>
+                              <div id="ov-pos" class="text-blue-600">位置: 0.00 m</div>
+                              <div id="ov-acc" class="text-amber-600 text-right">加速度: 0.00 m/s²</div>
+                              <div id="ov-vel" class="text-emerald-600 col-span-2">速度: 0.00 m/s</div>
+                          </div>
                       </div>
-                      <!-- 即時數據面板：移出情境圖，避免重疊 -->
-                      <div id="overlay" class="mt-3 font-mono text-sm bg-white p-3 rounded-lg border border-slate-200 shadow-sm grid grid-cols-2 gap-x-4 gap-y-1">
-                          <div id="ov-floor" class="text-purple-600 font-bold">樓層: 1</div>
-                          <div id="ov-time" class="text-cyan-600 text-right">時間: 0.00 s</div>
-                          <div id="ov-pos" class="text-blue-600">位置: 0.00 m</div>
-                          <div id="ov-acc" class="text-amber-600 text-right">加速度: 0.00 m/s²</div>
-                          <div id="ov-vel" class="text-emerald-600 col-span-2">速度: 0.00 m/s</div>
-                      </div>
-                  </div>
-              </div>
 
-              <!-- 中間：合併圖表卡片 (佔 1/4 = 3/12) -->
-              <div class="lg:col-span-3">
-                  <div class="card lg:h-[700px] overflow-hidden">
-                      <h2 class="text-lg font-bold mb-3 flex items-center gap-2 text-slate-700">
-                          <span class="w-1.5 h-6 bg-purple-500 rounded-full"></span>
-                          運動圖表
-                      </h2>
-                      <div class="space-y-3">
+                      <!-- 右半部：運動圖表 -->
+                      <div class="w-full lg:w-80 flex flex-col gap-3 overflow-y-auto pr-2">
+                          <h2 class="text-lg font-bold mb-1 flex items-center gap-2 text-slate-700">
+                              <span class="w-1.5 h-6 bg-purple-500 rounded-full"></span>
+                              運動圖表
+                          </h2>
                           <div>
-                              <h3 class="text-base font-bold mb-2 text-slate-700">位置-時間圖 (\(x-t\))</h3>
-                              <div class="w-full h-40 bg-slate-50 rounded-xl border border-slate-200 p-2">
+                              <h3 class="text-sm font-bold mb-1 text-slate-700">位置-時間圖 (\(x-t\))</h3>
+                              <div class="w-full h-42 bg-slate-50 rounded-xl border border-slate-200 p-1">
                                   <canvas id="chartX" width="500" height="400" class="w-full h-full"></canvas>
                               </div>
                           </div>
                           <div>
-                              <h3 class="text-base font-bold mb-2 text-slate-700">速度-時間圖 (\(v-t\))</h3>
-                              <div class="w-full h-40 bg-slate-50 rounded-xl border border-slate-200 p-2">
+                              <h3 class="text-sm font-bold mb-1 text-slate-700">速度-時間圖 (\(v-t\))</h3>
+                              <div class="w-full h-42 bg-slate-50 rounded-xl border border-slate-200 p-1">
                                   <canvas id="chartV" width="500" height="400" class="w-full h-full"></canvas>
                               </div>
                           </div>
                           <div>
-                              <h3 class="text-base font-bold mb-2 text-slate-700">加速度-時間圖 (\(a-t\))</h3>
-                              <div class="w-full h-40 bg-slate-50 rounded-xl border border-slate-200 p-2">
+                              <h3 class="text-sm font-bold mb-1 text-slate-700">加速度-時間圖 (\(a-t\))</h3>
+                              <div class="w-full h-42 bg-slate-50 rounded-xl border border-slate-200 p-1">
                                   <canvas id="chartA" width="500" height="400" class="w-full h-full"></canvas>
                               </div>
                           </div>
@@ -110,7 +109,7 @@
                   </div>
               </div>
 
-              <!-- 右側：參數設定 + 動畫說明 (佔 1/4 = 3/12) -->
+              <!-- 右側：參數設定 + 動畫說明 (佔 3/12) -->
               <div class="lg:col-span-3 flex flex-col gap-4">
                   <div class="card">
                       <h2 class="text-lg font-bold mb-4 flex items-center gap-2 text-slate-700">
@@ -181,272 +180,339 @@
         let chartVCanvas, chartVCtx;
         let chartACanvas, chartACtx;
 
-        // ===== 模擬常數 =====
-        const FLOORS = 25;
-        const FLOOR_HEIGHT = 3.5; // 每層樓高 3.5 米
-        const TOTAL_HEIGHT = (FLOORS - 1) * FLOOR_HEIGHT; // 84 米
+        const bgCanvases = { x: null, v: null, a: null }; // 快取圖表背景
 
-        // ===== 模擬狀態 =====
-        let sim = {
-            running: false,
-            a: 1.5,             // 加速度 (m/s²)
-            vMax: 3,            // 最大速度 (m/s)
-            speed: 1,           // 模擬速度倍率
-            t: 0,               // 時間
-            x: 0,               // 位置 (從1樓算起)
-            v: 0,               // 速度
-            a_curr: 0,          // 當前加速度
-            phase: 0,           // 0: 等待, 1: 加速, 2: 等速, 3: 減速, 4: 到達
-            data: [],           // {t, x, v, a}
-            landed: false
-        };
-
-        // ===== 計算運動階段 =====
-        function calcPhases() {
-            const a = sim.a;
-            const vMax = sim.vMax;
-            const H = TOTAL_HEIGHT;
-
-            // 加速階段
-            const t1 = vMax / a;
-            const x1 = 0.5 * a * t1 * t1;
-
-            // 減速階段（對稱）
-            const t3 = t1;
-            const x3 = x1;
-
-            // 等速階段
-            const x2 = H - 2 * x1;
-            const t2 = x2 / vMax;
-
-            return { t1, x1, t2, x2, t3, x3, totalTime: 2 * t1 + t2 };
-        }
-
-        // ===== 繪圖工具 =====
-        function clearCanvas(ctx, canvas) {
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
-        }
-
-        // 依顯示尺寸與像素比重設 Canvas 解析度，避免文字與線條模糊
-        function resizeCanvasToDisplaySize(canvas) {
-            const dpr = window.devicePixelRatio || 1;
-            const rect = canvas.getBoundingClientRect();
-            const width = Math.max(1, Math.round(rect.width * dpr));
-            const height = Math.max(1, Math.round(rect.height * dpr));
-            if (canvas.width !== width || canvas.height !== height) {
-                canvas.width = width;
-                canvas.height = height;
-                return true;
+                // ===== 模擬邏輯類別 =====
+        class ElevatorSimulation {
+            constructor() {
+                this.FLOORS = 25;
+                this.FLOOR_HEIGHT = 3.5;
+                this.TOTAL_HEIGHT = (this.FLOORS - 1) * this.FLOOR_HEIGHT;
+                this.reset();
             }
-            return false;
-        }
 
-        function resizeAllCanvases() {
-            resizeCanvasToDisplaySize(animCanvas);
-            resizeCanvasToDisplaySize(chartXCanvas);
-            resizeCanvasToDisplaySize(chartVCanvas);
-            resizeCanvasToDisplaySize(chartACanvas);
-        }
+            reset(params = {}) {
+                this.a = params.a || 1.5;
+                this.vMax = params.vMax || 3;
+                this.speed = params.speed || 1;
+                this.t = 0;
+                this.x = 0;
+                this.v = 0;
+                this.a_curr = 0;
+                this.phase = 0; // 0: 等待, 1: 加速, 2: 等速, 3: 減速, 4: 到達
+                this.data = [];
+                this.landed = false;
+                this.running = false;
+                this.cachedPhases = null;
+            }
 
-        // ===== 繪製電梯動畫 =====
-        function drawAnimation() {
-            const ctx = animCtx;
-            const canvas = animCanvas;
-            clearCanvas(ctx, canvas);
+            calcPhases() {
+                if (this.cachedPhases) return this.cachedPhases;
 
-            const W = canvas.width;
-            const H = canvas.height;
-            const buildingW = Math.max(120, Math.min(220, W * 0.22));
-            const buildingX =  Math.max(20, (W - buildingW) / 2);
-            const buildingTop = Math.max(20, H * 0.04);
-            const buildingBottom = H - Math.max(30, H * 0.06);
-            const buildingH = buildingBottom - buildingTop;
+                const a = this.a;
+                const vMax = this.vMax;
+                const H = this.TOTAL_HEIGHT;
 
-            // 背景
-            ctx.fillStyle = '#f8fafc';
-            ctx.fillRect(0, 0, W, H);
+                const t1 = vMax / a;
+                const x1 = 0.5 * a * t1 * t1;
+                const t3 = t1;
+                const x3 = x1;
+                const x2 = H - 2 * x1;
+                const t2 = x2 / vMax;
 
-            // 繪製建築物外框
-            ctx.fillStyle = '#e2e8f0';
-            ctx.fillRect(buildingX - 5, buildingTop - 5, buildingW + 10, buildingH + 10);
-            ctx.strokeStyle = '#94a3b8';
-            ctx.lineWidth = 2.5;
-            ctx.strokeRect(buildingX - 5, buildingTop - 5, buildingW + 10, buildingH + 10);
+                this.cachedPhases = { t1, x1, t2, x2, t3, x3, totalTime: 2 * t1 + t2 };
+                return this.cachedPhases;
+            }
 
-            // 繪製每一層樓
-            const floorH = buildingH / (FLOORS - 1);
-            for (let i = 0; i < FLOORS; i++) {
-                const y = buildingBottom - i * floorH;
+            update(dt) {
+                if (this.landed || !this.running) return;
 
-                // 樓層線
-                ctx.strokeStyle = 'rgba(148, 163, 184, 0.4)';
-                ctx.lineWidth = 1;
-                ctx.beginPath();
-                ctx.moveTo(buildingX, y);
-                ctx.lineTo(buildingX + buildingW, y);
-                ctx.stroke();
+                const adjustedDt = dt * this.speed;
+                this.t += adjustedDt;
 
-                // 樓層數字（每5層顯示）
-                if (i % 5 === 0 || i === 0 || i === FLOORS - 1) {
-                    ctx.fillStyle = '#64748b';
-                    const floorLabelSize = Math.max(13, Math.round(H * 0.024));
-                    ctx.font = `${floorLabelSize}px sans-serif`;
-                    ctx.textAlign = 'center';
-                    ctx.fillText(`${i + 1}樓`, buildingX + buildingW / 2, y - 2);
+                const phases = this.calcPhases();
+                const a = this.a;
+                const vMax = this.vMax;
+                const H = this.TOTAL_HEIGHT;
+
+                if (this.t <= phases.t1) {
+                    this.phase = 1;
+                    this.a_curr = a;
+                    this.v = a * this.t;
+                    this.x = 0.5 * a * this.t * this.t;
+                } else if (this.t <= phases.t1 + phases.t2) {
+                    this.phase = 2;
+                    this.a_curr = 0;
+                    this.v = vMax;
+                    this.x = phases.x1 + vMax * (this.t - phases.t1);
+                } else if (this.t <= phases.totalTime) {
+                    this.phase = 3;
+                    this.a_curr = -a;
+                    const t3 = this.t - phases.t1 - phases.t2;
+                    this.v = vMax - a * t3;
+                    this.x = phases.x1 + phases.x2 + vMax * t3 - 0.5 * a * t3 * t3;
+                } else {
+                    this.t = phases.totalTime;
+                    this.x = H;
+                    this.v = 0;
+                    this.a_curr = 0;
+                    this.phase = 4;
+                    this.landed = true;
+                    this.running = false;
                 }
+
+                this.data.push({ t: this.t, x: this.x, v: this.v, a: this.a_curr });
             }
-
-            // 計算電梯位置
-            const progress = Math.min(sim.x / TOTAL_HEIGHT, 1);
-            const elevatorY = buildingBottom - progress * buildingH;
-            const elevatorH = Math.min(floorH * 0.7, Math.max(44, H * 0.085));
-            const elevatorW = buildingW - Math.max(14, buildingW * 0.1);
-            const elevatorX = buildingX + (buildingW - elevatorW) / 2;
-
-            // 電梯軌跡線
-            if (sim.t > 0 && !sim.landed) {
-                ctx.strokeStyle = 'rgba(168, 85, 247, 0.25)';
-                ctx.lineWidth = 2.5;
-                ctx.setLineDash([4, 4]);
-                ctx.beginPath();
-                ctx.moveTo(buildingX + buildingW / 2, buildingBottom);
-                ctx.lineTo(buildingX + buildingW / 2, elevatorY);
-                ctx.stroke();
-                ctx.setLineDash([]);
-            }
-
-            // 電梯本體
-            const elevGrad = ctx.createLinearGradient(elevatorX, elevatorY - elevatorH / 2, elevatorX, elevatorY + elevatorH / 2);
-            elevGrad.addColorStop(0, '#a855f7');
-            elevGrad.addColorStop(1, '#7c3aed');
-            ctx.fillStyle = elevGrad;
-            ctx.fillRect(elevatorX, elevatorY - elevatorH / 2, elevatorW, elevatorH);
-
-            // 電梯邊框
-            ctx.strokeStyle = '#c084fc';
-            ctx.lineWidth = 2;
-            ctx.strokeRect(elevatorX, elevatorY - elevatorH / 2, elevatorW, elevatorH);
-
-            // 電梯門
-            ctx.fillStyle = 'rgba(255, 255, 255, 0.3)';
-            const doorInset = Math.max(4, elevatorW * 0.06);
-            ctx.fillRect(elevatorX + doorInset, elevatorY - elevatorH / 2 + doorInset, elevatorW - doorInset * 2, elevatorH - doorInset * 2);
-
-            // 光暈效果
-            if (sim.running || sim.phase > 1) {
-                ctx.strokeStyle = 'rgba(168, 85, 247, 0.4)';
-                ctx.lineWidth = 2.5;
-                ctx.strokeRect(elevatorX - 2, elevatorY - elevatorH / 2 - 2, elevatorW + 4, elevatorH + 4);
-            }
-
-            // 當前樓層標記
-            const currentFloor = Math.round(sim.x / FLOOR_HEIGHT) + 1;
-            ctx.fillStyle = '#f59e0b';
-            const markerFontSize = Math.max(14, Math.round(H * 0.028));
-            ctx.font = `bold ${markerFontSize}px sans-serif`;
-            ctx.textAlign = 'left';
-            ctx.fillText(`第 ${currentFloor} 樓`, buildingX + buildingW + 10, elevatorY + 4);
-
-            // 起點和終點標記
-            ctx.fillStyle = '#22c55e';
-            ctx.font = `bold ${markerFontSize}px sans-serif`;
-            ctx.textAlign = 'right';
-            ctx.fillText('1樓', buildingX - 10, buildingBottom + 4);
-            ctx.fillStyle = '#ef4444';
-            ctx.textAlign = 'left';
-            ctx.fillText('25樓', buildingX + buildingW + 10, buildingTop + 4);
         }
 
-        // ===== 繪製圖表通用函數 =====
-        function drawChart(ctx, canvas, data, xKey, yKey, color, labelY, maxT, maxV, minV = 0) {
-            clearCanvas(ctx, canvas);
+                // ===== 渲染類別 =====
+        class SimulationRenderer {
+            constructor() {
+                this.animCanvas = document.getElementById('anim');
+                this.animCtx = this.animCanvas.getContext('2d');
+                this.chartXCanvas = document.getElementById('chartX');
+                this.chartXCtx = this.chartXCanvas.getContext('2d');
+                this.chartVCanvas = document.getElementById('chartV');
+                this.chartVCtx = this.chartVCanvas.getContext('2d');
+                this.chartACanvas = document.getElementById('chartA');
+                this.chartACtx = this.chartACanvas.getContext('2d');
 
-            const W = canvas.width;
-            const H = canvas.height;
-            const pad = { top: 25, right: 15, bottom: 35, left: 45 };
-            const chartW = W - pad.left - pad.right;
-            const chartH = H - pad.top - pad.bottom;
-            const yRange = Math.max(maxV - minV, 1e-6);
-            const yToPixel = (val) => pad.top + chartH - ((val - minV) / yRange) * chartH;
-
-            // 背景
-            ctx.fillStyle = '#f8fafc';
-            ctx.fillRect(0, 0, W, H);
-
-            // 網格
-            ctx.strokeStyle = 'rgba(148, 163, 184, 0.28)';
-            ctx.lineWidth = 0.8;
-            for (let i = 0; i <= 5; i++) {
-                const x = pad.left + (i / 5) * chartW;
-                const y = pad.top + (i / 5) * chartH;
-                ctx.beginPath();
-                ctx.moveTo(x, pad.top);
-                ctx.lineTo(x, pad.top + chartH);
-                ctx.stroke();
-                ctx.beginPath();
-                ctx.moveTo(pad.left, y);
-                ctx.lineTo(pad.left + chartW, y);
-                ctx.stroke();
+                this.bgCanvases = { x: null, v: null, a: null };
             }
 
-            // 座標軸
-            ctx.strokeStyle = '#94a3b8';
-            ctx.lineWidth = 2;
-            ctx.beginPath();
-            ctx.moveTo(pad.left, pad.top);
-            ctx.lineTo(pad.left, pad.top + chartH);
-            ctx.stroke();
-
-            const zeroInRange = minV <= 0 && maxV >= 0;
-            const xAxisY = zeroInRange ? yToPixel(0) : pad.top + chartH;
-            ctx.beginPath();
-            ctx.moveTo(pad.left, xAxisY);
-            ctx.lineTo(pad.left + chartW, xAxisY);
-            ctx.stroke();
-
-            // 軸標籤
-            ctx.fillStyle = '#475569';
-            ctx.font = '14px sans-serif';
-            ctx.textAlign = 'center';
-            ctx.fillText('時間 t (s)', pad.left + chartW / 2, H - 5);
-            ctx.save();
-            ctx.translate(10, pad.top + chartH / 2);
-            ctx.rotate(-Math.PI / 2);
-            ctx.fillText(labelY, 0, 0);
-            ctx.restore();
-
-            // 刻度
-            ctx.fillStyle = '#64748b';
-            ctx.font = '13px sans-serif';
-            for (let i = 0; i <= 5; i++) {
-                const val = (i / 5) * maxT;
-                const x = pad.left + (i / 5) * chartW;
-                ctx.textAlign = 'center';
-                ctx.fillText(val.toFixed(1), x, pad.top + chartH + 14);
+            clearCanvas(ctx, canvas) {
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
             }
-            for (let i = 0; i <= 5; i++) {
-                const val = minV + (i / 5) * yRange;
-                const y = yToPixel(val);
+
+            resizeCanvasToDisplaySize(canvas) {
+                const dpr = window.devicePixelRatio || 1;
+                const rect = canvas.getBoundingClientRect();
+                const width = Math.max(1, Math.round(rect.width * dpr));
+                const height = Math.max(1, Math.round(rect.height * dpr));
+                if (canvas.width !== width || canvas.height !== height) {
+                    canvas.width = width;
+                    canvas.height = height;
+                    return true;
+                }
+                return false;
+            }
+
+            resizeAll() {
+                this.resizeCanvasToDisplaySize(this.animCanvas);
+                this.resizeCanvasToDisplaySize(this.chartXCanvas);
+                this.resizeCanvasToDisplaySize(this.chartVCanvas);
+                this.resizeCanvasToDisplaySize(this.chartACanvas);
+            }
+
+            renderChartBackground(type, canvas, labelY, maxT, maxV, minV = 0) {
+                const bgCanvas = document.createElement('canvas');
+                bgCanvas.width = canvas.width;
+                bgCanvas.height = canvas.height;
+                const bgCtx = bgCanvas.getContext('2d');
+
+                const W = bgCanvas.width;
+                const H = bgCanvas.height;
+                const pad = { top: 25, right: 15, bottom: 35, left: 45 };
+                const chartW = W - pad.left - pad.right;
+                const chartH = H - pad.top - pad.bottom;
+
+                bgCtx.fillStyle = '#f8fafc';
+                bgCtx.fillRect(0, 0, W, H);
+
+                bgCtx.strokeStyle = 'rgba(148, 163, 184, 0.28)';
+                bgCtx.lineWidth = 0.8;
+                for (let i = 0; i <= 5; i++) {
+                    const x = pad.left + (i / 5) * chartW;
+                    const y = pad.top + (i / 5) * chartH;
+                    bgCtx.beginPath();
+                    bgCtx.moveTo(x, pad.top);
+                    bgCtx.lineTo(x, pad.top + chartH);
+                    bgCtx.stroke();
+                    bgCtx.beginPath();
+                    bgCtx.moveTo(pad.left, y);
+                    bgCtx.lineTo(pad.left + chartW, y);
+                    bgCtx.stroke();
+                }
+
+                bgCtx.strokeStyle = '#94a3b8';
+                bgCtx.lineWidth = 2;
+                bgCtx.beginPath();
+                bgCtx.moveTo(pad.left, pad.top);
+                bgCtx.lineTo(pad.left, pad.top + chartH);
+                bgCtx.stroke();
+
+                const yRange = Math.max(maxV - minV, 1e-6);
+                const yToPixel = (val) => pad.top + chartH - ((val - minV) / yRange) * chartH;
+                const zeroInRange = minV <= 0 && maxV >= 0;
+                const xAxisY = zeroInRange ? yToPixel(0) : pad.top + chartH;
+
+                bgCtx.beginPath();
+                bgCtx.moveTo(pad.left, xAxisY);
+                bgCtx.lineTo(pad.left + chartW, xAxisY);
+                bgCtx.stroke();
+
+                bgCtx.fillStyle = '#475569';
+                bgCtx.font = '14px sans-serif';
+                bgCtx.textAlign = 'center';
+                bgCtx.fillText('時間 t (s)', pad.left + chartW / 2, H - 5);
+                bgCtx.save();
+                bgCtx.translate(10, pad.top + chartH / 2);
+                bgCtx.rotate(-Math.PI / 2);
+                bgCtx.fillText(labelY, 0, 0);
+                bgCtx.restore();
+
+                bgCtx.fillStyle = '#64748b';
+                bgCtx.font = '13px sans-serif';
+                for (let i = 0; i <= 5; i++) {
+                    const val = (i / 5) * maxT;
+                    const x = pad.left + (i / 5) * chartW;
+                    bgCtx.textAlign = 'center';
+                    bgCtx.fillText(val.toFixed(1), x, pad.top + chartH + 14);
+                }
+                for (let i = 0; i <= 5; i++) {
+                    const val = minV + (i / 5) * (maxV - minV);
+                    const y = yToPixel(val);
+                    bgCtx.textAlign = 'right';
+                    bgCtx.fillText(val.toFixed(1), pad.left - 5, y + 3);
+                }
+
+                this.bgCanvases[type] = bgCanvas;
+            }
+
+            updateChartBackgrounds(sim) {
+                const phases = sim.calcPhases();
+                this.renderChartBackground('x', this.chartXCanvas, '位置 x (m)', phases.totalTime, sim.TOTAL_HEIGHT);
+                this.renderChartBackground('v', this.chartVCanvas, '速度 v (m/s)', phases.totalTime, sim.vMax * 1.2);
+                this.renderChartBackground('a', this.chartACanvas, '加速度 a (m/s²)', phases.totalTime, sim.a * 1.5, -sim.a * 1.5);
+            }
+
+            drawAnimation(sim) {
+                const ctx = this.animCtx;
+                const canvas = this.animCanvas;
+                this.clearCanvas(ctx, canvas);
+
+                const W = canvas.width;
+                const H = canvas.height;
+                const buildingW = Math.max(120, Math.min(220, W * 0.22));
+                const buildingX =  Math.max(20, (W - buildingW) / 2);
+                const buildingTop = Math.max(20, H * 0.04);
+                const buildingBottom = H - Math.max(30, H * 0.06);
+                const buildingH = buildingBottom - buildingTop;
+
+                ctx.fillStyle = '#f8fafc';
+                ctx.fillRect(0, 0, W, H);
+
+                ctx.fillStyle = '#e2e8f0';
+                ctx.fillRect(buildingX - 5, buildingTop - 5, buildingW + 10, buildingH + 10);
+                ctx.strokeStyle = '#94a3b8';
+                ctx.lineWidth = 2.5;
+                ctx.strokeRect(buildingX - 5, buildingTop - 5, buildingW + 10, buildingH + 10);
+
+                const floorH = buildingH / (sim.FLOORS - 1);
+                for (let i = 0; i < sim.FLOORS; i++) {
+                    const y = buildingBottom - i * floorH;
+                    ctx.strokeStyle = 'rgba(148, 163, 184, 0.4)';
+                    ctx.lineWidth = 1;
+                    ctx.beginPath();
+                    ctx.moveTo(buildingX, y);
+                    ctx.lineTo(buildingX + buildingW, y);
+                    ctx.stroke();
+
+                    if (i % 5 === 0 || i === 0 || i === sim.FLOORS - 1) {
+                        ctx.fillStyle = '#64748b';
+                        const floorLabelSize = Math.max(13, Math.round(H * 0.024));
+                        ctx.font = `${floorLabelSize}px sans-serif`;
+                        ctx.textAlign = 'center';
+                        ctx.fillText(`${i + 1}樓`, buildingX + buildingW / 2, y - 2);
+                    }
+                }
+
+                const progress = Math.min(sim.x / sim.TOTAL_HEIGHT, 1);
+                const elevatorY = buildingBottom - progress * buildingH;
+                const elevatorH = Math.min(floorH * 0.7, Math.max(44, H * 0.085));
+                const elevatorW = buildingW - Math.max(14, buildingW * 0.1);
+                const elevatorX = buildingX + (buildingW - elevatorW) / 2;
+
+                if (sim.t > 0 && !sim.landed) {
+                    ctx.strokeStyle = 'rgba(168, 85, 247, 0.25)';
+                    ctx.lineWidth = 2.5;
+                    ctx.setLineDash([4, 4]);
+                    ctx.beginPath();
+                    ctx.moveTo(buildingX + buildingW / 2, buildingBottom);
+                    ctx.lineTo(buildingX + buildingW / 2, elevatorY);
+                    ctx.stroke();
+                    ctx.setLineDash([]);
+                }
+
+                const elevGrad = ctx.createLinearGradient(elevatorX, elevatorY - elevatorH / 2, elevatorX, elevatorY + elevatorH / 2);
+                elevGrad.addColorStop(0, '#a855f7');
+                elevGrad.addColorStop(1, '#7c3aed');
+                ctx.fillStyle = elevGrad;
+                ctx.fillRect(elevatorX, elevatorY - elevatorH / 2, elevatorW, elevatorH);
+
+                ctx.strokeStyle = '#c084fc';
+                ctx.lineWidth = 2;
+                ctx.strokeRect(elevatorX, elevatorY - elevatorH / 2, elevatorW, elevatorH);
+
+                ctx.fillStyle = 'rgba(255, 255, 255, 0.3)';
+                const doorInset = Math.max(4, elevatorW * 0.06);
+                ctx.fillRect(elevatorX + doorInset, elevatorY - elevatorH / 2 + doorInset, elevatorW - doorInset * 2, elevatorH - doorInset * 2);
+
+                if (sim.running || sim.phase > 1) {
+                    ctx.strokeStyle = 'rgba(168, 85, 247, 0.4)';
+                    ctx.lineWidth = 2.5;
+                    ctx.strokeRect(elevatorX - 2, elevatorY - elevatorH / 2 - 2, elevatorW + 4, elevatorH + 4);
+                }
+
+                const currentFloor = Math.round(sim.x / sim.FLOOR_HEIGHT) + 1;
+                ctx.fillStyle = '#f59e0b';
+                const markerFontSize = Math.max(14, Math.round(H * 0.028));
+                ctx.font = `bold ${markerFontSize}px sans-serif`;
+                ctx.textAlign = 'left';
+                ctx.fillText(`第 ${currentFloor} 樓`, buildingX + buildingW + 10, elevatorY + 4);
+
+                ctx.fillStyle = '#22c55e';
+                ctx.font = `bold ${markerFontSize}px sans-serif`;
                 ctx.textAlign = 'right';
-                ctx.fillText(val.toFixed(1), pad.left - 5, y + 3);
+                ctx.fillText('1樓', buildingX - 10, buildingBottom + 4);
+                ctx.fillStyle = '#ef4444';
+                ctx.textAlign = 'left';
+                ctx.fillText('25樓', buildingX + buildingW + 10, buildingTop + 4);
             }
 
-            // 繪製數據線
-            if (data.length > 1) {
-                ctx.strokeStyle = color;
-                ctx.lineWidth = 2.5;
-                ctx.beginPath();
-                for (let i = 0; i < data.length; i++) {
-                    const d = data[i];
-                    const x = pad.left + (d[xKey] / maxT) * chartW;
-                    const y = yToPixel(d[yKey]);
-                    if (i === 0) ctx.moveTo(x, y);
-                    else ctx.lineTo(x, y);
+            drawChart(ctx, canvas, data, xKey, yKey, color, labelY, maxT, maxV, minV = 0) {
+                if (this.bgCanvases.x && canvas === this.chartXCanvas) {
+                    ctx.drawImage(this.bgCanvases.x, 0, 0);
+                } else if (this.bgCanvases.v && canvas === this.chartVCanvas) {
+                    ctx.drawImage(this.bgCanvases.v, 0, 0);
+                } else if (this.bgCanvases.a && canvas === this.chartACanvas) {
+                    ctx.drawImage(this.bgCanvases.a, 0, 0);
+                } else {
+                    this.clearCanvas(ctx, canvas);
                 }
-                ctx.stroke();
 
-                // 當前點
-                if (!sim.landed) {
+                const W = canvas.width;
+                const H = canvas.height;
+                const pad = { top: 25, right: 15, bottom: 35, left: 45 };
+                const chartW = W - pad.left - pad.right;
+                const chartH = H - pad.top - pad.bottom;
+                const yRange = Math.max(maxV - minV, 1e-6);
+                const yToPixel = (val) => pad.top + chartH - ((val - minV) / yRange) * chartH;
+
+                if (data.length > 1) {
+                    ctx.strokeStyle = color;
+                    ctx.lineWidth = 2.5;
+                    ctx.beginPath();
+                    for (let i = 0; i < data.length; i++) {
+                        const d = data[i];
+                        const x = pad.left + (d[xKey] / maxT) * chartW;
+                        const y = yToPixel(d[yKey]);
+                        if (i === 0) ctx.moveTo(x, y);
+                        else ctx.lineTo(x, y);
+                    }
+                    ctx.stroke();
+
+                    // 當前點’
                     const last = data[data.length - 1];
                     const x = pad.left + (last[xKey] / maxT) * chartW;
                     const y = yToPixel(last[yKey]);
@@ -511,13 +577,16 @@
         }
 
         function updateOverlay() {
-            const currentFloor = Math.round(sim.x / FLOOR_HEIGHT) + 1;
+            const currentFloor = Math.round(simInstance.x / simInstance.FLOOR_HEIGHT) + 1;
             document.getElementById('ov-floor').textContent = `樓層: ${currentFloor}`;
-            document.getElementById('ov-pos').textContent = `位置: ${sim.x.toFixed(2)} m`;
-            document.getElementById('ov-vel').textContent = `速度: ${sim.v.toFixed(2)} m/s`;
-            document.getElementById('ov-acc').textContent = `加速度: ${sim.a_curr.toFixed(2)} m/s²`;
-            document.getElementById('ov-time').textContent = `時間: ${sim.t.toFixed(2)} s`;
+            document.getElementById('ov-pos').textContent = `位置: ${simInstance.x.toFixed(2)} m`;
+            document.getElementById('ov-vel').textContent = `速度: ${simInstance.v.toFixed(2)} m/s`;
+            document.getElementById('ov-acc').textContent = `加速度: ${simInstance.a_curr.toFixed(2)} m/s²`;
+            document.getElementById('ov-time').textContent = `時間: ${simInstance.t.toFixed(2)} s`;
         }
+
+        let simInstance;
+        let renderer;
 
         // ===== 主循環 =====
         let lastTime = 0;
@@ -526,14 +595,14 @@
             const dt = Math.min((timestamp - lastTime) / 1000, 0.05);
             lastTime = timestamp;
 
-            updateSimulation(dt);
-            drawAnimation();
+            simInstance.update(dt);
+            renderer.drawAnimation(simInstance);
 
             // 繪製三個圖表
-            const phases = calcPhases();
-            drawChart(chartXCtx, chartXCanvas, sim.data, 't', 'x', '#a855f7', '位置 x (m)', phases.totalTime, TOTAL_HEIGHT);
-            drawChart(chartVCtx, chartVCanvas, sim.data, 't', 'v', '#22c55e', '速度 v (m/s)', phases.totalTime, sim.vMax * 1.2);
-            drawChart(chartACtx, chartACanvas, sim.data, 't', 'a', '#f59e0b', '加速度 a (m/s²)', phases.totalTime, sim.a * 1.5, -sim.a * 1.5);
+            const phases = simInstance.calcPhases();
+            renderer.drawChart(renderer.chartXCtx, renderer.chartXCanvas, simInstance.data, 't', 'x', '#a855f7', '位置 x (m)', phases.totalTime, simInstance.TOTAL_HEIGHT);
+            renderer.drawChart(renderer.chartVCtx, renderer.chartVCanvas, simInstance.data, 't', 'v', '#22c55e', '速度 v (m/s)', phases.totalTime, simInstance.vMax * 1.2);
+            renderer.drawChart(renderer.chartACtx, renderer.chartACanvas, simInstance.data, 't', 'a', '#f59e0b', '加速度 a (m/s²)', phases.totalTime, simInstance.a * 1.5, -simInstance.a * 1.5);
 
             updateOverlay();
 
@@ -542,38 +611,30 @@
 
         // ===== 按鈕控制 =====
         document.getElementById('run').addEventListener('click', () => {
-            if (!sim.landed) sim.running = true;
+            if (!simInstance.landed) simInstance.running = true;
         });
 
         document.getElementById('pause').addEventListener('click', () => {
-            sim.running = !sim.running;
+            simInstance.running = !simInstance.running;
         });
 
         document.getElementById('reset').addEventListener('click', () => {
-            sim.running = false;
-            sim.t = 0;
-            sim.x = 0;
-            sim.v = 0;
-            sim.a_curr = 0;
-            sim.phase = 0;
-            sim.data = [];
-            sim.landed = false;
+            simInstance.reset({
+                a: parseFloat(accelInput.value),
+                vMax: parseFloat(maxVelInput.value),
+                speed: parseFloat(document.getElementById('simSpeed').value)
+            });
         });
 
         // 參數變更時重置
         function onParamChange() {
-            sim.a = parseFloat(accelInput.value) || 1.5;
-            sim.vMax = parseFloat(maxVelInput.value) || 3;
-            sim.speed = parseFloat(document.getElementById('simSpeed').value) || 1;
-            // 重置模擬
-            sim.t = 0;
-            sim.x = 0;
-            sim.v = 0;
-            sim.a_curr = 0;
-            sim.phase = 0;
-            sim.data = [];
-            sim.landed = false;
-            sim.running = false;
+            const params = {
+                a: parseFloat(accelInput.value) || 1.5,
+                vMax: parseFloat(maxVelInput.value) || 3,
+                speed: parseFloat(document.getElementById('simSpeed').value) || 1
+            };
+            simInstance.reset(params);
+            renderer.updateChartBackgrounds(simInstance);
         }
 
         accelInput.addEventListener('change', onParamChange);
@@ -582,33 +643,25 @@
 
         // ===== 初始化 =====
         function init() {
-            // 初始化 Canvas
-            animCanvas = document.getElementById('anim');
-            animCtx = animCanvas.getContext('2d');
-            chartXCanvas = document.getElementById('chartX');
-            chartXCtx = chartXCanvas.getContext('2d');
-            chartVCanvas = document.getElementById('chartV');
-            chartVCtx = chartVCanvas.getContext('2d');
-            chartACanvas = document.getElementById('chartA');
-            chartACtx = chartACanvas.getContext('2d');
+            renderer = new SimulationRenderer();
+            simInstance = new ElevatorSimulation({
+                a: parseFloat(accelInput.value),
+                vMax: parseFloat(maxVelInput.value),
+                speed: parseFloat(document.getElementById('simSpeed').value)
+            });
 
-            // 檢查 Canvas 是否成功獲取
-            if (!animCtx || !chartXCtx || !chartVCtx || !chartACtx) {
-                console.error('Canvas 上下文初始化失敗');
-                return;
-            }
+            renderer.resizeAll();
+            renderer.updateChartBackgrounds(simInstance);
 
-            resizeAllCanvases();
-
-            sim.a = parseFloat(accelInput.value);
-            sim.vMax = parseFloat(maxVelInput.value);
-            sim.x = 0;
-            drawAnimation();
+            renderer.drawAnimation(simInstance);
             updateOverlay();
             requestAnimationFrame(mainLoop);
         }
 
-        window.addEventListener('resize', resizeAllCanvases);
+        window.addEventListener('resize', () => {
+            renderer.resizeAll();
+            renderer.updateChartBackgrounds(simInstance);
+        });
 
         if (window.MathJax) {
             MathJax.typesetPromise().then(init);
