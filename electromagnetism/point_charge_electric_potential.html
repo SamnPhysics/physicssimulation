@@ -301,332 +301,263 @@
     </div>
 
     <script>
-        const canvas = document.getElementById('canvas-layer');
-        const ctx = canvas.getContext('2d', { alpha: false }); // Optimize for no transparency on base layer
-        const tooltip = document.getElementById('potential-tooltip');
-        const chargePopover = document.getElementById('charge-popover');
-        const popoverTitle = document.getElementById('popover-title');
-        const deleteChargeBtn = document.getElementById('delete-charge-btn');
-        const closePopoverBtn = document.getElementById('close-popover-btn');
-        const chargeRange = document.getElementById('charge-range');
-        const chargeValDisplay = document.getElementById('charge-val-display');
-        const decChargeBtn = document.getElementById('dec-charge-btn');
-        const incChargeBtn = document.getElementById('inc-charge-btn');
+        const simulation = (() => {
+            const canvas = document.getElementById('canvas-layer');
+            const ctx = canvas.getContext('2d', { alpha: false });
+            const tooltip = document.getElementById('potential-tooltip');
+            const chargePopover = document.getElementById('charge-popover');
+            const popoverTitle = document.getElementById('popover-title');
+            const deleteChargeBtn = document.getElementById('delete-charge-btn');
+            const closePopoverBtn = document.getElementById('close-popover-btn');
+            const chargeRange = document.getElementById('charge-range');
+            const chargeValDisplay = document.getElementById('charge-val-display');
+            const decChargeBtn = document.getElementById('dec-charge-btn');
+            const incChargeBtn = document.getElementById('inc-charge-btn');
+            const infoToggleBtn = document.getElementById('info-toggle-btn');
+            const infoPanelContent = document.getElementById('info-panel-content');
+            const infoToggleIcon = document.getElementById('info-toggle-icon');
+            const infoPanel = document.getElementById('info-panel');
+            const toggleThemeBtn = document.getElementById('toggle-theme-btn');
+            const themeIconSun = document.getElementById('theme-icon-sun');
+            const themeIconMoon = document.getElementById('theme-icon-moon');
+            const themeBtnText = document.getElementById('theme-btn-text');
+            const toggleFieldlinesBtn = document.getElementById('toggle-fieldlines-btn');
+            const fieldlineBtnText = document.getElementById('fieldline-btn-text');
+            const addPosBtn = document.getElementById('add-pos-btn');
+            const addNegBtn = document.getElementById('add-neg-btn');
+            const clearBtn = document.getElementById('clear-btn');
 
-        // Physics constants and configuration
-        const CONFIG = {
-            k: 8.99e9,
-            qScale: 1e-9,
-            baseChargeVal: 1,
-            chargeRadius: 12,
-            resolution: 8,
-            maxPotentialColor: 2000,
-            contourInterval: 300,
-            baseLinesPerUnit: 12,
-            stepSize: 4,
-            maxSteps: 400
-        };
+            const CONFIG = {
+                k: 8.99e9,
+                qScale: 1e-9,
+                baseChargeVal: 1,
+                chargeRadius: 12,
+                resolution: 8,
+                maxPotentialColor: 2000,
+                contourInterval: 300,
+                baseLinesPerUnit: 12,
+                stepSize: 4,
+                maxSteps: 400
+            };
 
-        const k = CONFIG.k;
-        const qScale = CONFIG.qScale;
-        const baseChargeVal = CONFIG.baseChargeVal;
-        const chargeRadius = CONFIG.chargeRadius;
-        const resolution = CONFIG.resolution;
-        const maxPotentialColor = CONFIG.maxPotentialColor;
-        const contourInterval = CONFIG.contourInterval;
+            const state = {
+                width: 0,
+                height: 0,
+                cols: 0,
+                rows: 0,
+                charges: [],
+                isDraggingCharge: false,
+                draggedChargeIndex: -1,
+                selectedChargeForPopover: null,
+                pointerDownX: 0,
+                pointerDownY: 0,
+                isClickCandidate: false,
+                isMeasuring: false,
+                showFieldLines: true,
+                isDarkMode: true,
+                mouseX: 0,
+                mouseY: 0,
+                needsRedraw: true,
+                isInfoCollapsed: false
+            };
 
-        // Rendering configuration
-        let width, height;
-        let cols, rows;
+            class Charge {
+                constructor(x, y, q) {
+                    this.x = x;
+                    this.y = y;
+                    this.q = q;
+                }
 
-        // State
-        let charges = [];
-        let isDraggingCharge = false;
-        let draggedChargeIndex = -1;
-        let selectedChargeForPopover = null;
-        let pointerDownX = 0, pointerDownY = 0;
-        let isClickCandidate = false;
-        let isMeasuring = false;
-        let showFieldLines = true;
-        let isDarkMode = true;
-        let mouseX = 0, mouseY = 0;
-        let needsRedraw = true; // Flag to optimize rendering
+                draw(ctx) {
+                    const absQ = Math.abs(this.q);
+                    const r = CONFIG.chargeRadius + (absQ - 1) * 2;
 
-        class Charge {
-            constructor(x, y, q) {
-                this.x = x;
-                this.y = y;
-                this.q = q; // Charge value in base units (+1, +2, -3, etc.)
+                    ctx.beginPath();
+                    ctx.arc(this.x, this.y, r, 0, Math.PI * 2);
+
+                    if (this.q > 0) {
+                        ctx.fillStyle = '#ef4444';
+                        ctx.strokeStyle = '#991b1b';
+                    } else {
+                        ctx.fillStyle = '#3b82f6';
+                        ctx.strokeStyle = '#1e40af';
+                    }
+
+                    ctx.fill();
+                    ctx.lineWidth = 2;
+                    ctx.stroke();
+
+                    ctx.fillStyle = 'white';
+                    ctx.textAlign = 'center';
+                    ctx.textBaseline = 'middle';
+                    ctx.font = 'bold 13px Arial';
+
+                    const qDisplay = Math.round(this.q * 10) / 10;
+                    let label = qDisplay > 0 ? `+${qDisplay}` : `${qDisplay}`;
+                    if (qDisplay === 1) label = '+';
+                    if (qDisplay === -1) label = '-';
+
+                    ctx.fillText(label, this.x, this.y + 1);
+                }
             }
 
-            draw(ctx) {
-                const absQ = Math.abs(this.q);
-                // Visual radius scales slightly with charge magnitude
-                const r = chargeRadius + (absQ - 1) * 2;
+            function resizeCanvas() {
+                state.width = canvas.clientWidth;
+                state.height = canvas.clientHeight;
+                const dpr = window.devicePixelRatio || 1;
 
-                ctx.beginPath();
-                ctx.arc(this.x, this.y, r, 0, Math.PI * 2);
+                canvas.width = state.width * dpr;
+                canvas.height = state.height * dpr;
+                ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
 
-                // Style based on charge sign
-                if (this.q > 0) {
-                    ctx.fillStyle = '#ef4444'; // Red
-                    ctx.strokeStyle = '#991b1b';
+                state.cols = Math.ceil(state.width / CONFIG.resolution);
+                state.rows = Math.ceil(state.height / CONFIG.resolution);
+                state.needsRedraw = true;
+            }
+
+            function calculatePotential(x, y) {
+                let potential = 0;
+                const epsilon = 1.0;
+
+                for (const charge of state.charges) {
+                    const dx = x - charge.x;
+                    const dy = y - charge.y;
+                    let r = Math.sqrt(dx * dx + dy * dy);
+
+                    if (r < epsilon) r = epsilon;
+
+                    const qActual = charge.q * CONFIG.qScale * 1e4;
+                    potential += (CONFIG.k * qActual) / r;
+                }
+
+                return potential;
+            }
+
+            function getPotentialColor(v) {
+                let normalizedV = v / CONFIG.maxPotentialColor;
+                normalizedV = Math.max(-1, Math.min(1, normalizedV));
+
+                let rColor = 0;
+                let gColor = 0;
+                let bColor = 0;
+
+                if (state.isDarkMode) {
+                    if (normalizedV > 0) {
+                        const intensity = Math.pow(normalizedV, 0.6);
+                        rColor = Math.floor(intensity * 255);
+                    } else if (normalizedV < 0) {
+                        const intensity = Math.pow(-normalizedV, 0.6);
+                        bColor = Math.floor(intensity * 255);
+                    }
                 } else {
-                    ctx.fillStyle = '#3b82f6'; // Blue
-                    ctx.strokeStyle = '#1e40af';
-                }
-
-                ctx.fill();
-                ctx.lineWidth = 2;
-                ctx.stroke();
-                // Draw charge value text (e.g., "+", "+2", "-3", "+1.5")
-                ctx.fillStyle = 'white';
-                ctx.textAlign = 'center';
-                ctx.textBaseline = 'middle';
-                ctx.font = 'bold 13px Arial';
-
-                const qDisplay = Math.round(this.q * 10) / 10;
-                let label = qDisplay > 0 ? `+${qDisplay}` : `${qDisplay}`;
-                if (qDisplay === 1) label = '+';
-                if (qDisplay === -1) label = '-';
-
-                ctx.fillText(label, this.x, this.y + 1);
-            }
-        }
-
-        function resizeCanvas() {
-            width = canvas.clientWidth;
-            height = canvas.clientHeight;
-            // Handle high DPI displays for crisp rendering
-            const dpr = window.devicePixelRatio || 1;
-            canvas.width = width * dpr;
-            canvas.height = height * dpr;
-            ctx.scale(dpr, dpr);
-
-            cols = Math.ceil(width / resolution);
-            rows = Math.ceil(height / resolution);
-
-            needsRedraw = true;
-        }
-
-        let resizeTimeout;
-        window.addEventListener('resize', () => {
-            clearTimeout(resizeTimeout);
-            resizeTimeout = setTimeout(() => {
-                resizeCanvas();
-            }, 100);
-        });
-
-        // Calculate potential at a specific (x, y) point
-        function calculatePotential(x, y) {
-            let potential = 0;
-            // Prevent singularity at the exact center of a charge to avoid Infinity
-            const epsilon = 1.0;
-
-            for (let i = 0; i < charges.length; i++) {
-                const c = charges[i];
-                const dx = x - c.x;
-                const dy = y - c.y;
-                let r = Math.sqrt(dx * dx + dy * dy);
-
-                if (r < epsilon) r = epsilon;
-
-                // V = k * q / r
-                // We use simplified scaled values for visualization
-                // Distance 'r' is in pixels. In a real sim, map pixels to meters.
-                const qActual = c.q * qScale * 1e4; // Scaled up to make visible numbers
-                potential += (k * qActual) / r;
-            }
-            return potential;
-        }
-
-        function getPotentialColor(v, isDark) {
-            let normalizedV = v / maxPotentialColor;
-            normalizedV = Math.max(-1, Math.min(1, normalizedV));
-
-            let rColor = 0, gColor = 0, bColor = 0;
-            if (isDark) {
-                if (normalizedV > 0) {
-                    const intensity = Math.pow(normalizedV, 0.6);
-                    rColor = Math.floor(intensity * 255);
-                } else if (normalizedV < 0) {
-                    const intensity = Math.pow(-normalizedV, 0.6);
-                    bColor = Math.floor(intensity * 255);
-                }
-            } else {
-                if (normalizedV > 0) {
-                    const intensity = Math.pow(normalizedV, 0.6);
-                    rColor = 255;
-                    gColor = Math.floor(255 - intensity * 190);
-                    bColor = Math.floor(255 - intensity * 190);
-                } else if (normalizedV < 0) {
-                    const intensity = Math.pow(-normalizedV, 0.6);
-                    rColor = Math.floor(255 - intensity * 190);
-                    gColor = Math.floor(255 - intensity * 190);
-                    bColor = 255;
-                } else {
-                    rColor = 255; gColor = 255; bColor = 255;
-                }
-            }
-            return [rColor, gColor, bColor];
-        }
-
-        function drawPotentialField() {
-            ctx.clearRect(0, 0, width, height);
-
-            if (charges.length === 0) {
-                ctx.fillStyle = isDarkMode ? '#000000' : '#ffffff';
-                ctx.fillRect(0, 0, width, height);
-                return;
-            }
-
-            const physicalWidth = canvas.width;
-            const physicalHeight = canvas.height;
-            const dpr = window.devicePixelRatio || 1;
-            const physicalRes = resolution * dpr;
-            
-            const imgData = ctx.createImageData(physicalWidth, physicalHeight);
-            const data = imgData.data;
-
-            // Draw grid cells based on potential using ImageData for high performance
-            for (let r = 0; r < rows; r++) {
-                for (let c = 0; c < cols; c++) {
-                    const x = c * resolution + resolution / 2;
-                    const y = r * resolution + resolution / 2;
-
-                    const v = calculatePotential(x, y);
-                    const color = getPotentialColor(v, isDarkMode);
-
-                    const startX = Math.floor(c * physicalRes);
-                    const startY = Math.floor(r * physicalRes);
-                    const endX = Math.min(Math.floor((c + 1) * physicalRes), physicalWidth);
-                    const endY = Math.min(Math.floor((r + 1) * physicalRes), physicalHeight);
-
-                    for (let py = startY; py < endY; py++) {
-                        const rowOffset = py * physicalWidth * 4;
-                        for (let px = startX; px < endX; px++) {
-                            const index = rowOffset + px * 4;
-                            data[index] = color[0];
-                            data[index + 1] = color[1];
-                            data[index + 2] = color[2];
-                            data[index + 3] = 255; // Alpha
-                        }
+                    if (normalizedV > 0) {
+                        const intensity = Math.pow(normalizedV, 0.6);
+                        rColor = 255;
+                        gColor = Math.floor(255 - intensity * 190);
+                        bColor = Math.floor(255 - intensity * 190);
+                    } else if (normalizedV < 0) {
+                        const intensity = Math.pow(-normalizedV, 0.6);
+                        rColor = Math.floor(255 - intensity * 190);
+                        gColor = Math.floor(255 - intensity * 190);
+                        bColor = 255;
+                    } else {
+                        rColor = 255;
+                        gColor = 255;
+                        bColor = 255;
                     }
                 }
+
+                return [rColor, gColor, bColor];
             }
-            ctx.putImageData(imgData, 0, 0);
-        }
 
-        function drawEquipotentialLines() {
-            if (charges.length === 0) return;
+            function drawPotentialField() {
+                ctx.clearRect(0, 0, state.width, state.height);
 
-            ctx.strokeStyle = isDarkMode ? 'rgba(255, 255, 255, 0.4)' : 'rgba(30, 41, 59, 0.5)';
-            ctx.lineWidth = 1.5;
-
-            // Precalculate potential at grid corners to reuse
-            const gridV = new Float32Array((cols + 1) * (rows + 1));
-            for (let r = 0; r <= rows; r++) {
-                for (let c = 0; c <= cols; c++) {
-                    gridV[r * (cols + 1) + c] = calculatePotential(c * resolution, r * resolution);
+                if (state.charges.length === 0) {
+                    ctx.fillStyle = state.isDarkMode ? '#000000' : '#ffffff';
+                    ctx.fillRect(0, 0, state.width, state.height);
+                    return;
                 }
-            }
 
-            // Marching squares simplified approach
-            const intervals = [];
-            // Generate a set of contour levels to check
-            for (let i = -10; i <= 10; i++) {
-                if (i !== 0) intervals.push(i * contourInterval);
-            }
+                const physicalWidth = canvas.width;
+                const physicalHeight = canvas.height;
+                const dpr = window.devicePixelRatio || 1;
+                const physicalRes = CONFIG.resolution * dpr;
+                const imgData = ctx.createImageData(physicalWidth, physicalHeight);
+                const data = imgData.data;
 
-            ctx.beginPath();
+                for (let r = 0; r < state.rows; r++) {
+                    for (let c = 0; c < state.cols; c++) {
+                        const x = c * CONFIG.resolution + CONFIG.resolution / 2;
+                        const y = r * CONFIG.resolution + CONFIG.resolution / 2;
+                        const v = calculatePotential(x, y);
+                        const color = getPotentialColor(v);
 
-            for (let r = 0; r < rows; r++) {
-                for (let c = 0; c < cols; c++) {
-                    const vTopLeft = gridV[r * (cols + 1) + c];
-                    const vTopRight = gridV[r * (cols + 1) + c + 1];
-                    const vBottomLeft = gridV[(r + 1) * (cols + 1) + c];
-                    const vBottomRight = gridV[(r + 1) * (cols + 1) + c + 1];
+                        const startX = Math.floor(c * physicalRes);
+                        const startY = Math.floor(r * physicalRes);
+                        const endX = Math.min(Math.floor((c + 1) * physicalRes), physicalWidth);
+                        const endY = Math.min(Math.floor((r + 1) * physicalRes), physicalHeight);
 
-                    const minV = Math.min(vTopLeft, vTopRight, vBottomLeft, vBottomRight);
-                    const maxV = Math.max(vTopLeft, vTopRight, vBottomLeft, vBottomRight);
-
-                    // Check if any contour level passes through this cell
-                    for (const targetV of intervals) {
-                        if (minV <= targetV && maxV >= targetV) {
-                            // Find intersections on edges via linear interpolation
-                            let points = [];
-
-                            // Top edge
-                            if ((vTopLeft <= targetV && vTopRight >= targetV) || (vTopLeft >= targetV && vTopRight <= targetV)) {
-                                const t = (targetV - vTopLeft) / (vTopRight - vTopLeft || 1e-6);
-                                points.push({ x: (c + t) * resolution, y: r * resolution });
-                            }
-                            // Bottom edge
-                            if ((vBottomLeft <= targetV && vBottomRight >= targetV) || (vBottomLeft >= targetV && vBottomRight <= targetV)) {
-                                const t = (targetV - vBottomLeft) / (vBottomRight - vBottomLeft || 1e-6);
-                                points.push({ x: (c + t) * resolution, y: (r + 1) * resolution });
-                            }
-                            // Left edge
-                            if ((vTopLeft <= targetV && vBottomLeft >= targetV) || (vTopLeft >= targetV && vBottomLeft <= targetV)) {
-                                const t = (targetV - vTopLeft) / (vBottomLeft - vTopLeft || 1e-6);
-                                points.push({ x: c * resolution, y: (r + t) * resolution });
-                            }
-                            // Right edge
-                            if ((vTopRight <= targetV && vBottomRight >= targetV) || (vTopRight >= targetV && vBottomRight <= targetV)) {
-                                const t = (targetV - vTopRight) / (vBottomRight - vTopRight || 1e-6);
-                                points.push({ x: (c + 1) * resolution, y: (r + t) * resolution });
-                            }
-
-                            // If we have 2 points, draw a line segment
-                            if (points.length >= 2) {
-                                ctx.moveTo(points[0].x, points[0].y);
-                                ctx.lineTo(points[1].x, points[1].y);
+                        for (let py = startY; py < endY; py++) {
+                            const rowOffset = py * physicalWidth * 4;
+                            for (let px = startX; px < endX; px++) {
+                                const index = rowOffset + px * 4;
+                                data[index] = color[0];
+                                data[index + 1] = color[1];
+                                data[index + 2] = color[2];
+                                data[index + 3] = 255;
                             }
                         }
                     }
                 }
+
+                ctx.putImageData(imgData, 0, 0);
             }
-            ctx.stroke();
 
-            // Check if both positive and negative charges exist to draw U = 0 V zero potential equipotential line
-            const hasPos = charges.some(c => c.q > 0);
-            const hasNeg = charges.some(c => c.q < 0);
+            function drawContourLines(targetV, strokeStyle, lineWidth, lineDash) {
+                if (state.charges.length === 0) return;
 
-            if (hasPos && hasNeg) {
+                ctx.save();
+                ctx.strokeStyle = strokeStyle;
+                ctx.lineWidth = lineWidth;
+                ctx.setLineDash(lineDash);
                 ctx.beginPath();
-                ctx.strokeStyle = '#2dd4bf'; // Bright cyan for V = 0 line
-                ctx.lineWidth = 2.5;
-                ctx.setLineDash([6, 4]); // Distinct dashed pattern
 
-                for (let r = 0; r < rows; r++) {
-                    for (let c = 0; c < cols; c++) {
-                        const vTopLeft = gridV[r * (cols + 1) + c];
-                        const vTopRight = gridV[r * (cols + 1) + c + 1];
-                        const vBottomLeft = gridV[(r + 1) * (cols + 1) + c];
-                        const vBottomRight = gridV[(r + 1) * (cols + 1) + c + 1];
+                const gridV = new Float32Array((state.cols + 1) * (state.rows + 1));
+                for (let r = 0; r <= state.rows; r++) {
+                    for (let c = 0; c <= state.cols; c++) {
+                        gridV[r * (state.cols + 1) + c] = calculatePotential(c * CONFIG.resolution, r * CONFIG.resolution);
+                    }
+                }
+
+                for (let r = 0; r < state.rows; r++) {
+                    for (let c = 0; c < state.cols; c++) {
+                        const vTopLeft = gridV[r * (state.cols + 1) + c];
+                        const vTopRight = gridV[r * (state.cols + 1) + c + 1];
+                        const vBottomLeft = gridV[(r + 1) * (state.cols + 1) + c];
+                        const vBottomRight = gridV[(r + 1) * (state.cols + 1) + c + 1];
 
                         const minV = Math.min(vTopLeft, vTopRight, vBottomLeft, vBottomRight);
                         const maxV = Math.max(vTopLeft, vTopRight, vBottomLeft, vBottomRight);
 
-                        const targetV = 0;
                         if (minV <= targetV && maxV >= targetV) {
-                            let points = [];
+                            const points = [];
 
                             if ((vTopLeft <= targetV && vTopRight >= targetV) || (vTopLeft >= targetV && vTopRight <= targetV)) {
                                 const t = (targetV - vTopLeft) / (vTopRight - vTopLeft || 1e-6);
-                                points.push({ x: (c + t) * resolution, y: r * resolution });
+                                points.push({ x: (c + t) * CONFIG.resolution, y: r * CONFIG.resolution });
                             }
                             if ((vBottomLeft <= targetV && vBottomRight >= targetV) || (vBottomLeft >= targetV && vBottomRight <= targetV)) {
                                 const t = (targetV - vBottomLeft) / (vBottomRight - vBottomLeft || 1e-6);
-                                points.push({ x: (c + t) * resolution, y: (r + 1) * resolution });
+                                points.push({ x: (c + t) * CONFIG.resolution, y: (r + 1) * CONFIG.resolution });
                             }
                             if ((vTopLeft <= targetV && vBottomLeft >= targetV) || (vTopLeft >= targetV && vBottomLeft <= targetV)) {
                                 const t = (targetV - vTopLeft) / (vBottomLeft - vTopLeft || 1e-6);
-                                points.push({ x: c * resolution, y: (r + t) * resolution });
+                                points.push({ x: c * CONFIG.resolution, y: (r + t) * CONFIG.resolution });
                             }
                             if ((vTopRight <= targetV && vBottomRight >= targetV) || (vTopRight >= targetV && vBottomRight <= targetV)) {
                                 const t = (targetV - vTopRight) / (vBottomRight - vTopRight || 1e-6);
-                                points.push({ x: (c + 1) * resolution, y: (r + t) * resolution });
+                                points.push({ x: (c + 1) * CONFIG.resolution, y: (r + t) * CONFIG.resolution });
                             }
 
                             if (points.length >= 2) {
@@ -636,48 +567,59 @@
                         }
                     }
                 }
+
                 ctx.stroke();
-                ctx.setLineDash([]); // Reset dash pattern for other elements
+                ctx.restore();
             }
-        }
 
-        function drawElectricFieldLines() {
-            if (!showFieldLines || charges.length === 0) return;
+            function drawEquipotentialLines() {
+                if (state.charges.length === 0) return;
 
-            ctx.lineWidth = 1.5;
-            ctx.strokeStyle = isDarkMode ? 'rgba(253, 224, 71, 0.75)' : 'rgba(180, 83, 9, 0.85)';
-            ctx.fillStyle = isDarkMode ? 'rgba(253, 224, 71, 0.9)' : 'rgba(180, 83, 9, 0.95)';
+                const intervals = [];
+                for (let i = -10; i <= 10; i++) {
+                    if (i !== 0) intervals.push(i * CONFIG.contourInterval);
+                }
 
-            const baseLinesPerUnit = CONFIG.baseLinesPerUnit;
-            const stepSize = CONFIG.stepSize;
-            const maxSteps = CONFIG.maxSteps;
+                ctx.strokeStyle = state.isDarkMode ? 'rgba(255, 255, 255, 0.4)' : 'rgba(30, 41, 59, 0.5)';
+                ctx.lineWidth = 1.5;
+                ctx.setLineDash([]);
 
-            // Helper to get E field vector (ex, ey)
+                intervals.forEach((targetV) => {
+                    drawContourLines(targetV, ctx.strokeStyle, ctx.lineWidth, []);
+                });
+
+                const hasPos = state.charges.some((charge) => charge.q > 0);
+                const hasNeg = state.charges.some((charge) => charge.q < 0);
+                if (hasPos && hasNeg) {
+                    drawContourLines(0, '#2dd4bf', 2.5, [6, 4]);
+                }
+            }
+
             function getEField(x, y) {
-                let ex = 0, ey = 0;
-                for (let i = 0; i < charges.length; i++) {
-                    const c = charges[i];
-                    const dx = x - c.x;
-                    const dy = y - c.y;
+                let ex = 0;
+                let ey = 0;
+
+                for (const charge of state.charges) {
+                    const dx = x - charge.x;
+                    const dy = y - charge.y;
                     const r2 = dx * dx + dy * dy;
                     const r = Math.sqrt(r2);
                     if (r < 1) continue;
-                    // E = k * q / r^2
-                    const factor = c.q / (r2 * r);
+                    const factor = charge.q / (r2 * r);
                     ex += dx * factor;
                     ey += dy * factor;
                 }
+
                 return { ex, ey };
             }
 
-            // Trace path points
-            function tracePath(startX, startY, startRadius, reverse = false) {
+            function traceFieldPath(startX, startY, reverse = false) {
                 let currX = startX;
                 let currY = startY;
                 const path = [{ x: currX, y: currY }];
                 let hitPosCharge = false;
 
-                for (let step = 0; step < maxSteps; step++) {
+                for (let step = 0; step < CONFIG.maxSteps; step++) {
                     const field = getEField(currX, currY);
                     const mag = Math.sqrt(field.ex * field.ex + field.ey * field.ey);
                     if (mag === 0) break;
@@ -690,32 +632,31 @@
                         dirY = -dirY;
                     }
 
-                    currX += dirX * stepSize;
-                    currY += dirY * stepSize;
+                    currX += dirX * CONFIG.stepSize;
+                    currY += dirY * CONFIG.stepSize;
                     path.push({ x: currX, y: currY });
 
-                    // Stop if leaving canvas boundary
-                    if (currX < 0 || currX > width || currY < 0 || currY > height) break;
+                    if (currX < 0 || currX > state.width || currY < 0 || currY > state.height) break;
 
-                    // Stop if hitting a charge
                     let hitAny = false;
-                    for (const c of charges) {
-                        const cdx = currX - c.x;
-                        const cdy = currY - c.y;
-                        const targetR = chargeRadius + (Math.abs(c.q) - 1) * 2 + 3;
+                    for (const charge of state.charges) {
+                        const cdx = currX - charge.x;
+                        const cdy = currY - charge.y;
+                        const targetR = CONFIG.chargeRadius + (Math.abs(charge.q) - 1) * 2 + 3;
                         if (cdx * cdx + cdy * cdy <= targetR * targetR) {
-                            if (c.q > 0) hitPosCharge = true;
+                            if (charge.q > 0) hitPosCharge = true;
                             hitAny = true;
                             break;
                         }
                     }
+
                     if (hitAny) break;
                 }
+
                 return { path, hitPosCharge };
             }
 
-            // Draw a single field line path with directional arrow
-            function drawPath(path, isReverse = false) {
+            function drawFieldPath(path, isReverse = false) {
                 if (path.length < 2) return;
 
                 ctx.beginPath();
@@ -734,7 +675,6 @@
                         let dx = pCurr.x - pPrev.x;
                         let dy = pCurr.y - pPrev.y;
 
-                        // Reverse trace moves away from -q, so physical E field points in opposite direction
                         if (isReverse) {
                             dx = -dx;
                             dy = -dy;
@@ -762,407 +702,385 @@
                         ctx.moveTo(pCurr.x, pCurr.y);
                     }
                 }
+
                 ctx.stroke();
             }
 
-            const posCharges = charges.filter(c => c.q > 0);
-            const negCharges = charges.filter(c => c.q < 0);
+            function drawElectricFieldLines() {
+                if (!state.showFieldLines || state.charges.length === 0) return;
 
-            // 1. Trace outwards from positive charges (proportional to charge magnitude)
-            posCharges.forEach(c => {
-                const lineCount = Math.round(baseLinesPerUnit * c.q);
-                const startOffset = chargeRadius + (c.q - 1) * 2 + 3;
-                for (let i = 0; i < lineCount; i++) {
-                    const angle = (i * 2 * Math.PI) / lineCount;
-                    const sx = c.x + Math.cos(angle) * startOffset;
-                    const sy = c.y + Math.sin(angle) * startOffset;
-                    const res = tracePath(sx, sy, startOffset, false);
-                    drawPath(res.path, false);
-                }
-            });
+                ctx.lineWidth = 1.5;
+                ctx.strokeStyle = state.isDarkMode ? 'rgba(253, 224, 71, 0.75)' : 'rgba(180, 83, 9, 0.85)';
+                ctx.fillStyle = state.isDarkMode ? 'rgba(253, 224, 71, 0.9)' : 'rgba(180, 83, 9, 0.95)';
 
-            // 2. Trace backwards from negative charges (proportional to charge magnitude)
-            negCharges.forEach(c => {
-                const absQ = Math.abs(c.q);
-                const lineCount = Math.round(baseLinesPerUnit * absQ);
-                const startOffset = chargeRadius + (absQ - 1) * 2 + 3;
-                for (let i = 0; i < lineCount; i++) {
-                    const angle = (i * 2 * Math.PI) / lineCount;
-                    const sx = c.x + Math.cos(angle) * startOffset;
-                    const sy = c.y + Math.sin(angle) * startOffset;
-                    const res = tracePath(sx, sy, startOffset, true);
-                    if (!res.hitPosCharge) {
-                        drawPath(res.path, true);
+                const posCharges = state.charges.filter((charge) => charge.q > 0);
+                const negCharges = state.charges.filter((charge) => charge.q < 0);
+
+                posCharges.forEach((charge) => {
+                    const lineCount = Math.round(CONFIG.baseLinesPerUnit * charge.q);
+                    const startOffset = CONFIG.chargeRadius + (charge.q - 1) * 2 + 3;
+                    for (let i = 0; i < lineCount; i++) {
+                        const angle = (i * 2 * Math.PI) / lineCount;
+                        const sx = charge.x + Math.cos(angle) * startOffset;
+                        const sy = charge.y + Math.sin(angle) * startOffset;
+                        const res = traceFieldPath(sx, sy, false);
+                        drawFieldPath(res.path, false);
                     }
-                }
-            });
-        }
+                });
 
-        function render() {
-            if (!needsRedraw) {
+                negCharges.forEach((charge) => {
+                    const absQ = Math.abs(charge.q);
+                    const lineCount = Math.round(CONFIG.baseLinesPerUnit * absQ);
+                    const startOffset = CONFIG.chargeRadius + (absQ - 1) * 2 + 3;
+                    for (let i = 0; i < lineCount; i++) {
+                        const angle = (i * 2 * Math.PI) / lineCount;
+                        const sx = charge.x + Math.cos(angle) * startOffset;
+                        const sy = charge.y + Math.sin(angle) * startOffset;
+                        const res = traceFieldPath(sx, sy, true);
+                        if (!res.hitPosCharge) {
+                            drawFieldPath(res.path, true);
+                        }
+                    }
+                });
+            }
+
+            function render() {
+                if (!state.needsRedraw) {
+                    requestAnimationFrame(render);
+                    return;
+                }
+
+                drawPotentialField();
+                drawEquipotentialLines();
+                drawElectricFieldLines();
+
+                for (const charge of state.charges) {
+                    charge.draw(ctx);
+                }
+
+                if (state.isMeasuring && !state.isDraggingCharge) {
+                    drawMeasurementIndicator();
+                }
+
+                state.needsRedraw = false;
                 requestAnimationFrame(render);
-                return;
             }
 
-            drawPotentialField();
-            drawEquipotentialLines();
-            drawElectricFieldLines();
+            function drawMeasurementIndicator() {
+                ctx.beginPath();
+                ctx.strokeStyle = state.isDarkMode ? '#fef08a' : '#0f172a';
+                ctx.lineWidth = 1;
+                ctx.moveTo(state.mouseX - 10, state.mouseY);
+                ctx.lineTo(state.mouseX + 10, state.mouseY);
+                ctx.moveTo(state.mouseX, state.mouseY - 10);
+                ctx.lineTo(state.mouseX, state.mouseY + 10);
+                ctx.stroke();
 
-            // Draw charges
-            for (const charge of charges) {
-                charge.draw(ctx);
+                ctx.beginPath();
+                ctx.arc(state.mouseX, state.mouseY, 3, 0, Math.PI * 2);
+                ctx.fillStyle = state.isDarkMode ? 'white' : '#0284c7';
+                ctx.fill();
+                ctx.stroke();
             }
 
-            // Draw measurement crosshair if measuring
-            if (isMeasuring && !isDraggingCharge) {
-                drawMeasurementIndicator();
-            }
+            function getPos(e) {
+                const rect = canvas.getBoundingClientRect();
+                let clientX;
+                let clientY;
 
-            needsRedraw = false;
-            requestAnimationFrame(render);
-        }
-
-        function drawMeasurementIndicator() {
-            ctx.beginPath();
-            ctx.strokeStyle = isDarkMode ? '#fef08a' : '#0f172a';
-            ctx.lineWidth = 1;
-            // Crosshair
-            ctx.moveTo(mouseX - 10, mouseY);
-            ctx.lineTo(mouseX + 10, mouseY);
-            ctx.moveTo(mouseX, mouseY - 10);
-            ctx.lineTo(mouseX, mouseY + 10);
-            ctx.stroke();
-
-            // Small circle
-            ctx.beginPath();
-            ctx.arc(mouseX, mouseY, 3, 0, Math.PI * 2);
-            ctx.fillStyle = isDarkMode ? 'white' : '#0284c7';
-            ctx.fill();
-            ctx.stroke();
-        }
-
-
-        // Helper to get mouse/touch position
-        function getPos(e) {
-            const rect = canvas.getBoundingClientRect();
-            let clientX, clientY;
-            if (e.touches && e.touches.length > 0) {
-                clientX = e.touches[0].clientX;
-                clientY = e.touches[0].clientY;
-            } else {
-                clientX = e.clientX;
-                clientY = e.clientY;
-            }
-            return {
-                x: clientX - rect.left,
-                y: clientY - rect.top
-            };
-        }
-
-        function handlePointerDown(e) {
-            const pos = getPos(e);
-            mouseX = pos.x;
-            mouseY = pos.y;
-            pointerDownX = pos.x;
-            pointerDownY = pos.y;
-            isClickCandidate = true;
-
-            // Check if clicking on a charge
-            let foundCharge = false;
-            for (let i = charges.length - 1; i >= 0; i--) {
-                const c = charges[i];
-                const dx = mouseX - c.x;
-                const dy = mouseY - c.y;
-                if (dx * dx + dy * dy <= (chargeRadius + 8) * (chargeRadius + 8)) { // slightly larger hit area
-                    isDraggingCharge = true;
-                    draggedChargeIndex = i;
-                    foundCharge = true;
-                    // Move dragged charge to top of rendering order (end of array)
-                    const draggedCharge = charges.splice(i, 1)[0];
-                    charges.push(draggedCharge);
-                    draggedChargeIndex = charges.length - 1;
-                    break;
+                if (e.touches && e.touches.length > 0) {
+                    clientX = e.touches[0].clientX;
+                    clientY = e.touches[0].clientY;
+                } else {
+                    clientX = e.clientX;
+                    clientY = e.clientY;
                 }
+
+                return {
+                    x: clientX - rect.left,
+                    y: clientY - rect.top
+                };
             }
 
-            if (!foundCharge) {
-                hideChargePopover();
-                isMeasuring = true;
-                updateTooltip(mouseX, mouseY);
-                needsRedraw = true;
-            }
-        }
-
-        function handlePointerMove(e) {
-            const pos = getPos(e);
-            mouseX = pos.x;
-            mouseY = pos.y;
-
-            // Check if moved beyond click threshold
-            const distMoved = Math.hypot(mouseX - pointerDownX, mouseY - pointerDownY);
-            if (distMoved > 5) {
-                isClickCandidate = false;
+            function showChargePopover(charge) {
+                state.selectedChargeForPopover = charge;
+                updatePopoverUI();
+                updatePopoverPosition();
+                chargePopover.classList.remove('hidden');
             }
 
-            if (isDraggingCharge && draggedChargeIndex > -1) {
-                charges[draggedChargeIndex].x = mouseX;
-                charges[draggedChargeIndex].y = mouseY;
-                if (selectedChargeForPopover === charges[draggedChargeIndex]) {
-                    updatePopoverPosition();
+            function updatePopoverUI() {
+                if (!state.selectedChargeForPopover) return;
+                const q = Math.round(state.selectedChargeForPopover.q * 10) / 10;
+                popoverTitle.textContent = q > 0 ? `+${q}q 正電荷` : `${q}q 負電荷`;
+                chargeValDisplay.textContent = q > 0 ? `+${q} q` : `${q} q`;
+                chargeRange.value = q;
+            }
+
+            function updatePopoverPosition() {
+                if (!state.selectedChargeForPopover) return;
+                const absQ = Math.abs(state.selectedChargeForPopover.q);
+                const r = CONFIG.chargeRadius + (absQ - 1) * 2;
+                chargePopover.style.left = `${state.selectedChargeForPopover.x}px`;
+                chargePopover.style.top = `${state.selectedChargeForPopover.y - r - 8}px`;
+            }
+
+            function hideChargePopover() {
+                state.selectedChargeForPopover = null;
+                chargePopover.classList.add('hidden');
+            }
+
+            function setChargeValue(newQ) {
+                if (!state.selectedChargeForPopover) return;
+
+                newQ = Math.round(newQ * 10) / 10;
+                if (Math.abs(newQ) < 0.05) {
+                    newQ = state.selectedChargeForPopover.q > 0 ? -0.1 : 0.1;
                 }
-                needsRedraw = true;
-            } else if (isMeasuring) {
-                updateTooltip(mouseX, mouseY);
-                needsRedraw = true;
+                newQ = Math.max(-5, Math.min(5, newQ));
+                state.selectedChargeForPopover.q = newQ;
+                updatePopoverUI();
+                state.needsRedraw = true;
             }
 
-            // Cursor style update
-            if (!isDraggingCharge && !isMeasuring) {
-                let overCharge = false;
-                for (const c of charges) {
-                    const dx = mouseX - c.x;
-                    const dy = mouseY - c.y;
-                    if (dx * dx + dy * dy <= chargeRadius * chargeRadius) {
-                        overCharge = true;
+            function updateTooltip(x, y) {
+                const v = calculatePotential(x, y);
+                let vStr = v.toFixed(1);
+                if (Math.abs(v) > 10000) {
+                    vStr = v.toExponential(2);
+                }
+
+                tooltip.innerHTML = `電位 U = ${vStr} V`;
+                tooltip.style.display = 'block';
+                tooltip.style.left = `${x}px`;
+                tooltip.style.top = `${y}px`;
+            }
+
+            function handlePointerDown(e) {
+                const pos = getPos(e);
+                state.mouseX = pos.x;
+                state.mouseY = pos.y;
+                state.pointerDownX = pos.x;
+                state.pointerDownY = pos.y;
+                state.isClickCandidate = true;
+
+                let foundCharge = false;
+                for (let i = state.charges.length - 1; i >= 0; i--) {
+                    const charge = state.charges[i];
+                    const dx = state.mouseX - charge.x;
+                    const dy = state.mouseY - charge.y;
+                    if (dx * dx + dy * dy <= (CONFIG.chargeRadius + 8) * (CONFIG.chargeRadius + 8)) {
+                        state.isDraggingCharge = true;
+                        state.draggedChargeIndex = i;
+                        foundCharge = true;
+
+                        const draggedCharge = state.charges.splice(i, 1)[0];
+                        state.charges.push(draggedCharge);
+                        state.draggedChargeIndex = state.charges.length - 1;
                         break;
                     }
                 }
-                canvas.style.cursor = overCharge ? 'pointer' : 'crosshair';
-            } else if (isDraggingCharge) {
-                canvas.style.cursor = 'grabbing';
-            }
-        }
 
-        function handlePointerUp(e) {
-            if (isDraggingCharge && isClickCandidate && draggedChargeIndex > -1) {
-                // User clicked on charge without dragging significantly -> show popover
-                showChargePopover(charges[draggedChargeIndex]);
-            }
-
-            isDraggingCharge = false;
-            draggedChargeIndex = -1;
-
-            if (isMeasuring) {
-                isMeasuring = false;
-                tooltip.style.display = 'none';
-                needsRedraw = true;
-            }
-            canvas.style.cursor = 'crosshair';
-        }
-
-        function showChargePopover(charge) {
-            selectedChargeForPopover = charge;
-            updatePopoverUI();
-            updatePopoverPosition();
-            chargePopover.classList.remove('hidden');
-        }
-
-        function updatePopoverUI() {
-            if (!selectedChargeForPopover) return;
-            const q = Math.round(selectedChargeForPopover.q * 10) / 10;
-            popoverTitle.textContent = q > 0 ? `+${q}q 正電荷` : `${q}q 負電荷`;
-            chargeValDisplay.textContent = q > 0 ? `+${q} q` : `${q} q`;
-            chargeRange.value = q;
-        }
-
-        function setChargeValue(newQ) {
-            if (!selectedChargeForPopover) return;
-            // Round to 1 decimal place to prevent floating point precision issues
-            newQ = Math.round(newQ * 10) / 10;
-
-            // Skip 0 when adjusting charge
-            if (Math.abs(newQ) < 0.05) {
-                newQ = selectedChargeForPopover.q > 0 ? -0.1 : 0.1;
-            }
-            newQ = Math.max(-5, Math.min(5, newQ));
-            selectedChargeForPopover.q = newQ;
-            updatePopoverUI();
-            needsRedraw = true;
-        }
-
-        chargeRange.addEventListener('input', (e) => {
-            let val = parseFloat(e.target.value);
-            setChargeValue(val);
-        });
-
-        decChargeBtn.addEventListener('click', (e) => {
-            e.stopPropagation();
-            if (selectedChargeForPopover) {
-                let current = selectedChargeForPopover.q;
-                let next = current - 0.1;
-                setChargeValue(next);
-            }
-        });
-
-        incChargeBtn.addEventListener('click', (e) => {
-            e.stopPropagation();
-            if (selectedChargeForPopover) {
-                let current = selectedChargeForPopover.q;
-                let next = current + 0.1;
-                setChargeValue(next);
-            }
-        });
-
-        function updatePopoverPosition() {
-            if (!selectedChargeForPopover) return;
-            const absQ = Math.abs(selectedChargeForPopover.q);
-            const r = chargeRadius + (absQ - 1) * 2;
-            chargePopover.style.left = `${selectedChargeForPopover.x}px`;
-            chargePopover.style.top = `${selectedChargeForPopover.y - r - 8}px`;
-        }
-
-        function hideChargePopover() {
-            selectedChargeForPopover = null;
-            chargePopover.classList.add('hidden');
-        }
-
-        deleteChargeBtn.addEventListener('click', (e) => {
-            e.stopPropagation();
-            if (selectedChargeForPopover) {
-                const idx = charges.indexOf(selectedChargeForPopover);
-                if (idx > -1) {
-                    charges.splice(idx, 1);
+                if (!foundCharge) {
+                    hideChargePopover();
+                    state.isMeasuring = true;
+                    updateTooltip(state.mouseX, state.mouseY);
+                    state.needsRedraw = true;
                 }
+            }
+
+            function handlePointerMove(e) {
+                const pos = getPos(e);
+                state.mouseX = pos.x;
+                state.mouseY = pos.y;
+
+                const distMoved = Math.hypot(state.mouseX - state.pointerDownX, state.mouseY - state.pointerDownY);
+                if (distMoved > 5) {
+                    state.isClickCandidate = false;
+                }
+
+                if (state.isDraggingCharge && state.draggedChargeIndex > -1) {
+                    state.charges[state.draggedChargeIndex].x = state.mouseX;
+                    state.charges[state.draggedChargeIndex].y = state.mouseY;
+                    if (state.selectedChargeForPopover === state.charges[state.draggedChargeIndex]) {
+                        updatePopoverPosition();
+                    }
+                    state.needsRedraw = true;
+                } else if (state.isMeasuring) {
+                    updateTooltip(state.mouseX, state.mouseY);
+                    state.needsRedraw = true;
+                }
+
+                if (!state.isDraggingCharge && !state.isMeasuring) {
+                    let overCharge = false;
+                    for (const charge of state.charges) {
+                        const dx = state.mouseX - charge.x;
+                        const dy = state.mouseY - charge.y;
+                        if (dx * dx + dy * dy <= CONFIG.chargeRadius * CONFIG.chargeRadius) {
+                            overCharge = true;
+                            break;
+                        }
+                    }
+                    canvas.style.cursor = overCharge ? 'pointer' : 'crosshair';
+                } else if (state.isDraggingCharge) {
+                    canvas.style.cursor = 'grabbing';
+                }
+            }
+
+            function handlePointerUp() {
+                if (state.isDraggingCharge && state.isClickCandidate && state.draggedChargeIndex > -1) {
+                    showChargePopover(state.charges[state.draggedChargeIndex]);
+                }
+
+                state.isDraggingCharge = false;
+                state.draggedChargeIndex = -1;
+
+                if (state.isMeasuring) {
+                    state.isMeasuring = false;
+                    tooltip.style.display = 'none';
+                    state.needsRedraw = true;
+                }
+                canvas.style.cursor = 'crosshair';
+            }
+
+            function toggleTheme() {
+                state.isDarkMode = !state.isDarkMode;
+                document.body.classList.toggle('light-mode', !state.isDarkMode);
+
+                if (state.isDarkMode) {
+                    themeIconSun.classList.add('hidden');
+                    themeIconMoon.classList.remove('hidden');
+                    themeBtnText.textContent = '深色';
+                } else {
+                    themeIconSun.classList.remove('hidden');
+                    themeIconMoon.classList.add('hidden');
+                    themeBtnText.textContent = '淺色';
+                }
+                state.needsRedraw = true;
+            }
+
+            function toggleFieldLines() {
+                state.showFieldLines = !state.showFieldLines;
+                fieldlineBtnText.textContent = `電力線：${state.showFieldLines ? '顯示' : '隱藏'}`;
+                toggleFieldlinesBtn.classList.toggle('inactive', !state.showFieldLines);
+                state.needsRedraw = true;
+            }
+
+            function clearCharges() {
+                state.charges = [];
                 hideChargePopover();
-                needsRedraw = true;
-            }
-        });
-
-        closePopoverBtn.addEventListener('click', (e) => {
-            e.stopPropagation();
-            hideChargePopover();
-        });
-
-        // Toggle info panel collapse/expand
-        const infoToggleBtn = document.getElementById('info-toggle-btn');
-        const infoPanelContent = document.getElementById('info-panel-content');
-        const infoToggleIcon = document.getElementById('info-toggle-icon');
-        const infoPanel = document.getElementById('info-panel');
-        let isInfoCollapsed = false;
-
-        infoToggleBtn.addEventListener('click', (e) => {
-            e.stopPropagation();
-            isInfoCollapsed = !isInfoCollapsed;
-            if (isInfoCollapsed) {
-                infoPanelContent.style.display = 'none';
-                infoPanel.classList.add('collapsed');
-                infoToggleIcon.innerHTML = '<polyline points="6 9 12 15 18 9"></polyline>'; // Chevron down
-            } else {
-                infoPanelContent.style.display = 'block';
-                infoPanel.classList.remove('collapsed');
-                infoToggleIcon.innerHTML = '<polyline points="18 15 12 9 6 15"></polyline>'; // Chevron up
-            }
-        });
-
-        function updateTooltip(x, y) {
-            const v = calculatePotential(x, y);
-            // Format potential string
-            let vStr = v.toFixed(1);
-            if (Math.abs(v) > 10000) {
-                vStr = v.toExponential(2);
+                state.needsRedraw = true;
             }
 
-            tooltip.innerHTML = `電位 U = ${vStr} V`;
-            tooltip.style.display = 'block';
-            tooltip.style.left = `${x}px`;
-            tooltip.style.top = `${y}px`;
-        }
-
-        // Mouse Events
-        canvas.addEventListener('mousedown', handlePointerDown);
-        window.addEventListener('mousemove', handlePointerMove);
-        window.addEventListener('mouseup', handlePointerUp);
-        const toggleThemeBtn = document.getElementById('toggle-theme-btn');
-        const themeIconSun = document.getElementById('theme-icon-sun');
-        const themeIconMoon = document.getElementById('theme-icon-moon');
-        const themeBtnText = document.getElementById('theme-btn-text');
-
-        toggleThemeBtn.addEventListener('click', () => {
-            isDarkMode = !isDarkMode;
-            document.body.classList.toggle('light-mode', !isDarkMode);
-
-            if (isDarkMode) {
-                themeIconSun.classList.add('hidden');
-                themeIconMoon.classList.remove('hidden');
-                themeBtnText.textContent = '深色';
-            } else {
-                themeIconSun.classList.remove('hidden');
-                themeIconMoon.classList.add('hidden');
-                themeBtnText.textContent = '淺色';
+            function addCharge(q) {
+                const x = state.width / 2 + (Math.random() - 0.5) * 60;
+                const y = state.height / 2 + (Math.random() - 0.5) * 60;
+                state.charges.push(new Charge(x, y, q));
+                hideChargePopover();
+                state.needsRedraw = true;
             }
-            needsRedraw = true;
-        });
 
-        const toggleFieldlinesBtn = document.getElementById('toggle-fieldlines-btn');
-        const fieldlineBtnText = document.getElementById('fieldline-btn-text');
+            function bindEvents() {
+                let resizeTimeout;
+                window.addEventListener('resize', () => {
+                    clearTimeout(resizeTimeout);
+                    resizeTimeout = setTimeout(resizeCanvas, 100);
+                });
 
-        toggleFieldlinesBtn.addEventListener('click', () => {
-            showFieldLines = !showFieldLines;
-            fieldlineBtnText.textContent = `電力線：${showFieldLines ? '顯示' : '隱藏'}`;
-            if (showFieldLines) {
-                toggleFieldlinesBtn.classList.remove('inactive');
-            } else {
-                toggleFieldlinesBtn.classList.add('inactive');
+                canvas.addEventListener('mousedown', handlePointerDown);
+                window.addEventListener('mousemove', handlePointerMove);
+                window.addEventListener('mouseup', handlePointerUp);
+
+                chargeRange.addEventListener('input', (e) => {
+                    const val = parseFloat(e.target.value);
+                    setChargeValue(val);
+                });
+
+                decChargeBtn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    if (state.selectedChargeForPopover) {
+                        setChargeValue(state.selectedChargeForPopover.q - 0.1);
+                    }
+                });
+
+                incChargeBtn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    if (state.selectedChargeForPopover) {
+                        setChargeValue(state.selectedChargeForPopover.q + 0.1);
+                    }
+                });
+
+                deleteChargeBtn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    if (state.selectedChargeForPopover) {
+                        const idx = state.charges.indexOf(state.selectedChargeForPopover);
+                        if (idx > -1) {
+                            state.charges.splice(idx, 1);
+                        }
+                        hideChargePopover();
+                        state.needsRedraw = true;
+                    }
+                });
+
+                closePopoverBtn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    hideChargePopover();
+                });
+
+                infoToggleBtn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    state.isInfoCollapsed = !state.isInfoCollapsed;
+                    if (state.isInfoCollapsed) {
+                        infoPanelContent.style.display = 'none';
+                        infoPanel.classList.add('collapsed');
+                        infoToggleIcon.innerHTML = '<polyline points="6 9 12 15 18 9"></polyline>';
+                    } else {
+                        infoPanelContent.style.display = 'block';
+                        infoPanel.classList.remove('collapsed');
+                        infoToggleIcon.innerHTML = '<polyline points="18 15 12 9 6 15"></polyline>';
+                    }
+                });
+
+                toggleThemeBtn.addEventListener('click', toggleTheme);
+                toggleFieldlinesBtn.addEventListener('click', toggleFieldLines);
+                clearBtn.addEventListener('click', clearCharges);
+
+                addPosBtn.addEventListener('click', () => addCharge(CONFIG.baseChargeVal));
+                addNegBtn.addEventListener('click', () => addCharge(-CONFIG.baseChargeVal));
+
+                canvas.addEventListener('touchstart', (e) => {
+                    if (e.touches.length === 1) {
+                        e.preventDefault();
+                        handlePointerDown(e);
+                    }
+                }, { passive: false });
+
+                window.addEventListener('touchmove', (e) => {
+                    if (state.isDraggingCharge || state.isMeasuring) {
+                        handlePointerMove(e);
+                    }
+                });
+
+                window.addEventListener('touchend', handlePointerUp);
             }
-            needsRedraw = true;
-        });
 
-        document.getElementById('clear-btn').addEventListener('click', () => {
-            charges = [];
-            hideChargePopover();
-            needsRedraw = true;
-        });
+            function init() {
+                bindEvents();
+                resizeCanvas();
 
-        // Bind add positive and negative charge buttons
-        const addPosBtn = document.getElementById('add-pos-btn');
-        const addNegBtn = document.getElementById('add-neg-btn');
+                setTimeout(() => {
+                    state.charges.push(new Charge(state.width / 2 - 50, state.height / 2, CONFIG.baseChargeVal));
+                    state.charges.push(new Charge(state.width / 2 + 50, state.height / 2, -CONFIG.baseChargeVal));
+                    state.needsRedraw = true;
+                }, 100);
 
-        addPosBtn.addEventListener('click', () => {
-            const x = width / 2 + (Math.random() - 0.5) * 60;
-            const y = height / 2 + (Math.random() - 0.5) * 60;
-            charges.push(new Charge(x, y, baseChargeVal));
-            hideChargePopover();
-            needsRedraw = true;
-        });
-
-        addNegBtn.addEventListener('click', () => {
-            const x = width / 2 + (Math.random() - 0.5) * 60;
-            const y = height / 2 + (Math.random() - 0.5) * 60;
-            charges.push(new Charge(x, y, -baseChargeVal));
-            hideChargePopover();
-            needsRedraw = true;
-        });
-
-        // Add touch support for mobile interaction
-        canvas.addEventListener('touchstart', (e) => {
-            if (e.touches.length === 1) {
-                e.preventDefault();
-                handlePointerDown(e);
+                render();
             }
-        }, { passive: false });
 
-        window.addEventListener('touchmove', (e) => {
-            if (isDraggingCharge || isMeasuring) {
-                handlePointerMove(e);
-            }
-        });
+            return { init };
+        })();
 
-        window.addEventListener('touchend', (e) => {
-            handlePointerUp(e);
-        });
-
-        // Initialize
-        resizeCanvas();
-
-        // Add an initial dipole configuration
-        setTimeout(() => {
-            charges.push(new Charge(width / 2 - 50, height / 2, baseChargeVal));
-            charges.push(new Charge(width / 2 + 50, height / 2, -baseChargeVal));
-            needsRedraw = true;
-        }, 100); // small delay ensures width/height are set
-
-        render();
-
+        simulation.init();
     </script>
 </body>
 
