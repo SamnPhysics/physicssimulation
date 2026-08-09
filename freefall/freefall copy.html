@@ -158,222 +158,328 @@
   </div>
 
   <script>
-    const el = (id) => document.getElementById(id);
-    const [mEl, cdEl, AEl, rhoEl, h0El, gEl] = ['m', 'cd', 'A', 'rho', 'h0', 'g'].map(el);
-    const [anim, chart] = [el('anim'), el('chart')];
-    const [ctxA, ctxC] = [anim.getContext('2d'), chart.getContext('2d')];
-    const [btnRun, btnPause, btnReset] = [el('run'), el('pause'), el('reset')];
-    const [overlay, ovH, ovV, ovVt] = [el('overlay'), el('ov-h'), el('ov-v'), el('ov-vt')];
+    const simulation = (() => {
+        const el = (id) => document.getElementById(id);
+        const [mEl, cdEl, AEl, rhoEl, h0El, gEl] = ['m', 'cd', 'A', 'rho', 'h0', 'g'].map(el);
+        const [anim, chart] = [el('anim'), el('chart')];
+        const [ctxA, ctxC] = [anim.getContext('2d'), chart.getContext('2d')];
+        const [btnRun, btnPause, btnReset] = [el('run'), el('pause'), el('reset')];
+        const [overlay, ovH, ovV, ovVt] = [el('overlay'), el('ov-h'), el('ov-v'), el('ov-vt')];
 
-    // 效能優化：離線畫布 (Off-screen Canvas) 用于緩存靜態背景
-    const cacheA = document.createElement('canvas');
-    const cacheC = document.createElement('canvas');
-    const ctxCacheA = cacheA.getContext('2d');
-    const ctxCacheC = cacheC.getContext('2d');
+        // Off-screen canvases for static background caching
+        const cacheA = document.createElement('canvas');
+        const cacheC = document.createElement('canvas');
+        const ctxCacheA = cacheA.getContext('2d');
+        const ctxCacheC = cacheC.getContext('2d');
 
-    let running = false, paused = false, rafId = null;
-    let m, Cd, A, rho, h, v, t, dt = 0.01, g, vT, startH;
-    let series = [];
-    let vMax = 0; // 增量追蹤最大值，避免每次重新遍歷
-    
-    // 效能優化：快取 gradient 物件，避免每幀建立新物件
-    let ballGradCache = null;
-    let prevBallY = null;
-    
-    // 效能優化：離線畫布累積繪製圖表曲線
-    const chartBuffer = document.createElement('canvas');
-    const ctxChartBuffer = chartBuffer.getContext('2d');
-    let chartBufferDirty = true; // 標記是否需要重繪緩衝區
+        // Chart buffer for accumulated curve rendering
+        const chartBuffer = document.createElement('canvas');
+        const ctxChartBuffer = chartBuffer.getContext('2d');
 
-    // 預繪製動畫背景
-    function preRenderAnim() {
-      cacheA.width = anim.width; cacheA.height = anim.height;
-      ctxCacheA.clearRect(0, 0, cacheA.width, cacheA.height);
-      const groundY = anim.height - 40;
-      ctxCacheA.fillStyle = '#94a3b8';
-      ctxCacheA.fillRect(0, groundY, anim.width, 40);
-    }
+        // Simulation state
+        const state = {
+            running: false,
+            paused: false,
+            rafId: null,
+            m: 1.0,
+            Cd: 0.47,
+            A: 0.01,
+            rho: 1.225,
+            h: 100,
+            v: 0,
+            t: 0,
+            dt: 0.01,
+            g: 9.81,
+            vT: 0,
+            startH: 100,
+            vMax: 0,
+            series: [],
+            ballGradCache: null,
+            prevBallY: null,
+            chartBufferDirty: true,
+            lastTime: null
+        };
 
-    // 預繪製圖表背景
-    function preRenderChart() {
-      cacheC.width = chart.width; cacheC.height = chart.height;
-      ctxCacheC.clearRect(0, 0, cacheC.width, cacheC.height);
-      const p = { l: 50, r: 20, t: 30, b: 50 }, w = chart.width - p.l - p.r, hgt = chart.height - p.t - p.b;
-      ctxCacheC.strokeStyle = '#94a3b8'; ctxCacheC.lineWidth = 1;
-      ctxCacheC.beginPath(); ctxCacheC.moveTo(p.l, p.t); ctxCacheC.lineTo(p.l, p.b + hgt); ctxCacheC.lineTo(p.l + w, p.b + hgt); ctxCacheC.stroke();
-      
-      // 效能優化：初始化圖表緩衝區畫布
-      chartBuffer.width = chart.width;
-      chartBuffer.height = chart.height;
-      ctxChartBuffer.clearRect(0, 0, chartBuffer.width, chartBuffer.height);
-      chartBufferDirty = true;
-    }
+        // Physics constants
+        const CONFIG = {
+            groundOffset: 40,
+            ballPadding: 60,
+            ballRadius: 15,
+            shadowMaxSize: 15,
+            shadowMinFactor: 0.4,
+            chartPadding: { l: 50, r: 20, t: 30, b: 50 },
+            chartMinTimeRange: 5,
+            vLimitMultiplier: 1.2,
+            maxSeriesLength: 3000,
+            gradientColorInner: '#818cf8',
+            gradientColorOuter: '#4f46e5',
+            terminalVelocityColor: '#f59e0b',
+            velocityCurveColor: '#6366f1',
+            gridColor: '#94a3b8',
+            shadowColor: 'rgba(0,0,0,0.15)'
+        };
 
-    // RK4 運算優化：改為手動計算，減少 Array 機制帶來的記憶體負擔 (GC)
-    function rk4_step_optimized(h_val, v_val, dt_val, params) {
-      const { m, g, rho, Cd, A } = params;
-      const factor = 0.5 * rho * Cd * A;
+        // RK4 integration step - manual calculation to reduce GC pressure
+        function rk4Step(h, v, dt) {
+            const { m, g, rho, Cd, A } = state;
+            const dragFactor = 0.5 * rho * Cd * A;
 
-      const f = (valV) => (m * g - factor * valV * Math.abs(valV)) / m;
+            const force = (velocity) => (m * g - dragFactor * velocity * Math.abs(velocity)) / m;
 
-      // k1
-      const k1h = -v_val;
-      const k1v = f(v_val);
+            const k1v = force(v);
+            const k1h = -v;
 
-      // k2
-      const k2v = f(v_val + k1v * dt_val * 0.5);
-      const k2h = -(v_val + k1v * dt_val * 0.5);
+            const k2v = force(v + k1v * dt * 0.5);
+            const k2h = -(v + k1v * dt * 0.5);
 
-      // k3
-      const k3v = f(v_val + k2v * dt_val * 0.5);
-      const k3h = -(v_val + k2v * dt_val * 0.5);
+            const k3v = force(v + k2v * dt * 0.5);
+            const k3h = -(v + k2v * dt * 0.5);
 
-      // k4
-      const k4v = f(v_val + k3v * dt_val);
-      const k4h = -(v_val + k3v * dt_val);
+            const k4v = force(v + k3v * dt);
+            const k4h = -(v + k3v * dt);
 
-      return [
-        h_val + (dt_val / 6) * (k1h + 2 * k2h + 2 * k3h + k4h),
-        v_val + (dt_val / 6) * (k1v + 2 * k2v + 2 * k3v + k4v)
-      ];
-    }
-
-    function drawAnim() {
-      ctxA.clearRect(0, 0, anim.width, anim.height);
-      ctxA.drawImage(cacheA, 0, 0); // 使用緩存背景
-      
-      const groundY = anim.height - 40;
-      const padding = 60;
-      const effectiveH = groundY - padding - 20;
-      const frac = Math.max(0, Math.min(1, h / startH));
-      const ballY = padding + effectiveH * (1 - frac);
-
-      const shadowSize = Math.max(0, 15 * (1 - frac * 0.6));
-      ctxA.beginPath();
-      ctxA.ellipse(anim.width / 2, groundY, shadowSize * 2, shadowSize / 2, 0, 0, Math.PI * 2);
-      ctxA.fillStyle = 'rgba(0,0,0,0.15)';
-      ctxA.fill();
-
-      // 效能優化：快取 gradient，只在球位置改變時重建
-      if (prevBallY !== ballY) {
-        const grad = ctxA.createRadialGradient(anim.width / 2 - 5, ballY - 5, 2, anim.width / 2, ballY, 15);
-        grad.addColorStop(0, '#818cf8'); grad.addColorStop(1, '#4f46e5');
-        prevBallY = ballY;
-        ballGradCache = grad;
-      }
-      ctxA.beginPath();
-      ctxA.arc(anim.width / 2, ballY, 15, 0, Math.PI * 2);
-      ctxA.fillStyle = ballGradCache;
-      ctxA.fill();
-
-      ovH.innerText = `高度: ${Math.max(0, h).toFixed(2)} m`;
-      ovV.innerText = `速度: ${v.toFixed(2)} m/s`;
-      ovVt.innerText = `終端速度: ${vT.toFixed(2)} m/s`;
-    }
-
-    function drawChart() {
-      ctxC.clearRect(0, 0, chart.width, chart.height);
-      ctxC.drawImage(cacheC, 0, 0); // 使用緩存背景
-      
-      const p = { l: 50, r: 20, t: 30, b: 50 }, w = chart.width - p.l - p.r, hgt = chart.height - p.t - p.b;
-      if (series.length < 2) return;
-      
-      const tMax = Math.max(5, series[series.length - 1].t);
-      const tMin = series[0].t;
-      const tRange = Math.max(tMax - tMin, 5);
-      const vLimitMax = Math.max(vT * 1.2, vMax);
-
-      const ty = p.t + hgt * (1 - vT / vLimitMax);
-      ctxC.strokeStyle = '#f59e0b'; ctxC.setLineDash([5, 5]);
-      ctxC.beginPath(); ctxC.moveTo(p.l, ty); ctxC.lineTo(p.l + w, ty); ctxC.stroke();
-      
-      ctxC.strokeStyle = '#6366f1'; ctxC.setLineDash([]); ctxC.lineWidth = 2.5;
-      ctxC.beginPath();
-      for (let i = 0; i < series.length; i++) {
-        const x = p.l + ((series[i].t - tMin) / tRange) * w;
-        const y = p.t + hgt * (1 - series[i].v / vLimitMax);
-        if (i === 0) ctxC.moveTo(x, y); else ctxC.lineTo(x, y);
-      }
-      ctxC.stroke();
-      
-      // 效能優化：同步繪製到離線緩衝區，下次只需複製緩衝區
-      ctxChartBuffer.clearRect(0, 0, chartBuffer.width, chartBuffer.height);
-      ctxChartBuffer.drawImage(cacheC, 0, 0);
-      ctxChartBuffer.strokeStyle = '#6366f1'; ctxChartBuffer.setLineDash([]); ctxChartBuffer.lineWidth = 2.5;
-      ctxChartBuffer.beginPath();
-      for (let i = 0; i < series.length; i++) {
-        const x = p.l + ((series[i].t - tMin) / tRange) * w;
-        const y = p.t + hgt * (1 - series[i].v / vLimitMax);
-        if (i === 0) ctxChartBuffer.moveTo(x, y); else ctxChartBuffer.lineTo(x, y);
-       }
-      ctxChartBuffer.stroke();
-      chartBufferDirty = false;
-     }
-
-    function init() {
-      m = Math.max(0.1, +mEl.value || 1);
-      Cd = Math.max(0, +cdEl.value || 0.47);
-      A = Math.max(0.001, +AEl.value || 0.01);
-      rho = Math.max(0, +rhoEl.value || 1.225);
-      startH = Math.max(1, +h0El.value || 100);
-      g = +gEl.value || 9.81;
-      
-      h = startH; v = 0; t = 0;
-      vT = Math.sqrt((2 * m * g) / (rho * Cd * A));
-      vMax = v;
-      series = [{ t, v }];
-      overlay.classList.remove('hidden');
-      preRenderAnim(); preRenderChart(); // 重新生成背景緩存
-      drawAnim(); drawChart();
-     }
-
-    function loop() {
-      if (!running || paused) return;
-
-       // 效能優化：基於實際時間增量計算步數，確保模擬速度在不同刷新率螢幕上一致
-      const now = performance.now();
-      if (!loop.lastTime) loop.lastTime = now;
-      const deltaMs = now - loop.lastTime;
-      loop.lastTime = now;
-      const deltaS = deltaMs / 1000;
-      const stepsPerFrame = Math.max(1, Math.round(deltaS / dt));
-      
-      for (let i = 0; i < stepsPerFrame; i++) {
-        if (h <= 0) {
-          h = 0; v = 0; running = false;
-          break;
-         }
-        const state = rk4_step_optimized(h, v, dt, { m, g, rho, Cd, A });
-         [h, v] = state; t += dt;
-        
-        if (v > vMax) vMax = v;
-        series.push({ t, v });
-       }
-
-       // 效能優化：使用 shift() 每次只移除一個元素，避免 splice 的 O(n) 移動開銷
-      while (series.length > 3000) {
-        series.shift();
+            return [
+                h + (dt / 6) * (k1h + 2 * k2h + 2 * k3h + k4h),
+                v + (dt / 6) * (k1v + 2 * k2v + 2 * k3v + k4v)
+            ];
         }
 
-      drawAnim();
-      drawChart(); // 由於效能充裕，可直接每幀更新圖表確保平滑
-      
-      if (running) {
-        rafId = requestAnimationFrame(loop);
-          }
-         }
-      
-    btnRun.onclick = () => { if (!running) { init(); running = true; paused = false; loop(); } };
-    btnPause.onclick = () => { if (running) { paused = !paused; if (!paused) loop(); } };
-    btnReset.onclick = () => { cancelAnimationFrame(rafId); running = paused = false; init(); };
+        // Pre-render static backgrounds
+        function preRenderBackgrounds() {
+            // Animation background
+            cacheA.width = anim.width;
+            cacheA.height = anim.height;
+            ctxCacheA.clearRect(0, 0, cacheA.width, cacheA.height);
+            const groundY = anim.height - CONFIG.groundOffset;
+            ctxCacheA.fillStyle = CONFIG.gridColor;
+            ctxCacheA.fillRect(0, groundY, anim.width, CONFIG.groundOffset);
 
-    window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => { 
-      preRenderAnim(); preRenderChart(); drawAnim(); drawChart(); 
-      });
-    
-    init();
-  </script>
+            // Chart background
+            cacheC.width = chart.width;
+            cacheC.height = chart.height;
+            ctxCacheC.clearRect(0, 0, cacheC.width, cacheC.height);
+            const p = CONFIG.chartPadding;
+            const w = chart.width - p.l - p.r;
+            const hgt = chart.height - p.t - p.b;
+            ctxCacheC.strokeStyle = CONFIG.gridColor;
+            ctxCacheC.lineWidth = 1;
+            ctxCacheC.beginPath();
+            ctxCacheC.moveTo(p.l, p.t);
+            ctxCacheC.lineTo(p.l, p.b + hgt);
+            ctxCacheC.lineTo(p.l + w, p.b + hgt);
+            ctxCacheC.stroke();
 
+            // Chart buffer
+            chartBuffer.width = chart.width;
+            chartBuffer.height = chart.height;
+            ctxChartBuffer.clearRect(0, 0, chartBuffer.width, chartBuffer.height);
+            state.chartBufferDirty = true;
+        }
+
+        // Draw animation frame
+        function drawAnimation() {
+            ctxA.clearRect(0, 0, anim.width, anim.height);
+            ctxA.drawImage(cacheA, 0, 0);
+
+            const groundY = anim.height - CONFIG.groundOffset;
+            const effectiveH = groundY - CONFIG.ballPadding - 20;
+            const frac = Math.max(0, Math.min(1, state.h / state.startH));
+            const ballY = CONFIG.ballPadding + effectiveH * (1 - frac);
+
+            // Draw shadow
+            const shadowSize = Math.max(0, CONFIG.shadowMaxSize * (1 - frac * CONFIG.shadowMinFactor));
+            ctxA.beginPath();
+            ctxA.ellipse(anim.width / 2, groundY, shadowSize * 2, shadowSize / 2, 0, 0, Math.PI * 2);
+            ctxA.fillStyle = CONFIG.shadowColor;
+            ctxA.fill();
+
+            // Draw ball with cached gradient
+            if (state.prevBallY !== ballY) {
+                const grad = ctxA.createRadialGradient(
+                    anim.width / 2 - 5, ballY - 5, 2,
+                    anim.width / 2, ballY, CONFIG.ballRadius
+                );
+                grad.addColorStop(0, CONFIG.gradientColorInner);
+                grad.addColorStop(1, CONFIG.gradientColorOuter);
+                state.prevBallY = ballY;
+                state.ballGradCache = grad;
+            }
+
+            ctxA.beginPath();
+            ctxA.arc(anim.width / 2, ballY, CONFIG.ballRadius, 0, Math.PI * 2);
+            ctxA.fillStyle = state.ballGradCache;
+            ctxA.fill();
+
+            // Update overlay
+            ovH.innerText = `高度: ${Math.max(0, state.h).toFixed(2)} m`;
+            ovV.innerText = `速度: ${state.v.toFixed(2)} m/s`;
+            ovVt.innerText = `終端速度: ${state.vT.toFixed(2)} m/s`;
+        }
+
+        // Draw chart
+        function drawChart() {
+            ctxC.clearRect(0, 0, chart.width, chart.height);
+            ctxC.drawImage(cacheC, 0, 0);
+
+            if (state.series.length < 2) return;
+
+            const p = CONFIG.chartPadding;
+            const w = chart.width - p.l - p.r;
+            const hgt = chart.height - p.t - p.b;
+
+            const tMax = Math.max(5, state.series[state.series.length - 1].t);
+            const tMin = state.series[0].t;
+            const tRange = Math.max(tMax - tMin, CONFIG.chartMinTimeRange);
+            const vLimitMax = Math.max(state.vT * CONFIG.vLimitMultiplier, state.vMax);
+
+            // Draw terminal velocity line
+            const ty = p.t + hgt * (1 - state.vT / vLimitMax);
+            ctxC.strokeStyle = CONFIG.terminalVelocityColor;
+            ctxC.setLineDash([5, 5]);
+            ctxC.beginPath();
+            ctxC.moveTo(p.l, ty);
+            ctxC.lineTo(p.l + w, ty);
+            ctxC.stroke();
+
+            // Draw velocity curve
+            ctxC.strokeStyle = CONFIG.velocityCurveColor;
+            ctxC.setLineDash([]);
+            ctxC.lineWidth = 2.5;
+            ctxC.beginPath();
+
+            for (let i = 0; i < state.series.length; i++) {
+                const x = p.l + ((state.series[i].t - tMin) / tRange) * w;
+                const y = p.t + hgt * (1 - state.series[i].v / vLimitMax);
+                if (i === 0) ctxC.moveTo(x, y);
+                else ctxC.lineTo(x, y);
+            }
+            ctxC.stroke();
+
+            // Sync to buffer for next frame optimization
+            ctxChartBuffer.clearRect(0, 0, chartBuffer.width, chartBuffer.height);
+            ctxChartBuffer.drawImage(cacheC, 0, 0);
+            ctxChartBuffer.strokeStyle = CONFIG.velocityCurveColor;
+            ctxChartBuffer.setLineDash([]);
+            ctxChartBuffer.lineWidth = 2.5;
+            ctxChartBuffer.beginPath();
+            for (let i = 0; i < state.series.length; i++) {
+                const x = p.l + ((state.series[i].t - tMin) / tRange) * w;
+                const y = p.t + hgt * (1 - state.series[i].v / vLimitMax);
+                if (i === 0) ctxChartBuffer.moveTo(x, y);
+                else ctxChartBuffer.lineTo(x, y);
+            }
+            ctxChartBuffer.stroke();
+            state.chartBufferDirty = false;
+        }
+
+        // Initialize simulation parameters
+        function init() {
+            state.m = Math.max(0.1, +mEl.value || 1);
+            state.Cd = Math.max(0, +cdEl.value || 0.47);
+            state.A = Math.max(0.001, +AEl.value || 0.01);
+            state.rho = Math.max(0, +rhoEl.value || 1.225);
+            state.startH = Math.max(1, +h0El.value || 100);
+            state.g = +gEl.value || 9.81;
+
+            state.h = state.startH;
+            state.v = 0;
+            state.t = 0;
+            state.vT = Math.sqrt((2 * state.m * state.g) / (state.rho * state.Cd * state.A));
+            state.vMax = state.v;
+            state.series = [{ t: state.t, v: state.v }];
+            state.lastTime = null;
+
+            overlay.classList.remove('hidden');
+            preRenderBackgrounds();
+            drawAnimation();
+            drawChart();
+        }
+
+        // Animation loop
+        function loop() {
+            if (!state.running || state.paused) return;
+
+            const now = performance.now();
+            if (!state.lastTime) state.lastTime = now;
+            const deltaMs = now - state.lastTime;
+            state.lastTime = now;
+            const deltaS = deltaMs / 1000;
+            const stepsPerFrame = Math.max(1, Math.round(deltaS / state.dt));
+
+            for (let i = 0; i < stepsPerFrame; i++) {
+                if (state.h <= 0) {
+                    state.h = 0;
+                    state.v = 0;
+                    state.running = false;
+                    break;
+                }
+
+                const [newH, newV] = rk4Step(state.h, state.v, state.dt);
+                state.h = newH;
+                state.v = newV;
+                state.t += state.dt;
+
+                if (state.v > state.vMax) state.vMax = state.v;
+                state.series.push({ t: state.t, v: state.v });
+            }
+
+            // Trim series to prevent memory issues
+            while (state.series.length > CONFIG.maxSeriesLength) {
+                state.series.shift();
+            }
+
+            drawAnimation();
+            drawChart();
+
+            if (state.running) {
+                state.rafId = requestAnimationFrame(loop);
+            }
+        }
+
+        // Event handlers
+        function bindEvents() {
+            btnRun.onclick = () => {
+                if (!state.running) {
+                    init();
+                    state.running = true;
+                    state.paused = false;
+                    loop();
+                }
+            };
+
+            btnPause.onclick = () => {
+                if (state.running) {
+                    state.paused = !state.paused;
+                    if (!state.paused) loop();
+                }
+            };
+
+            btnReset.onclick = () => {
+                cancelAnimationFrame(state.rafId);
+                state.running = false;
+                state.paused = false;
+                init();
+            };
+
+            // Handle theme changes
+            window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => {
+                preRenderBackgrounds();
+                drawAnimation();
+                drawChart();
+            });
+        }
+
+        // Public API
+        return {
+            init: () => {
+                bindEvents();
+                init();
+            }
+        };
+    })();
+
+    simulation.init();
+</script>
 </body>
 
 </html>
