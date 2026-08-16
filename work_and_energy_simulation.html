@@ -11,144 +11,225 @@
     <script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
 
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600&family=KaTeX_Math:wght@400&display=swap');
-        
-        body {
-            font-family: 'Inter', sans-serif;
-            background-color: #f8fafc;
-        }
-        
-        /* Math font for formulas */
-        .math-text {
-            font-family: 'KaTeX_Math', 'Times New Roman', serif;
-            font-style: italic;
+        @import url('https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap');
+
+        :root {
+            --bg: #F0F2F5;
+            --panel: #FFFFFF;
+            --panel-alt: #F8FAFF;
+            --line: #E2E6EA;
+            --primary: #2563EB;
+            --primary-deep: #1D4ED8;
+            --primary-soft: #DBEAFE;
+            --text: #111827;
+            --text-soft: #6B7280;
+            --text-faint: #9CA3AF;
+            --green: #10B981;
+            --orange: #F59E0B;
+            --shadow: 0 10px 30px rgba(15, 23, 42, 0.06);
+            --radius: 6px;
         }
 
-        #canvas-container {
-            position: relative;
-            width: 100%;
-            max-width: 800px;
-            aspect-ratio: 4 / 3; 
-            margin: 0 auto;
-            box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
-            background-color: white;
-            border-radius: 0.75rem;
-            overflow: hidden;
-        }
-
-        canvas {
-            display: block;
-            width: 100%;
-            height: 100%;
-        }
+        * { box-sizing: border-box; }
+        html, body { margin: 0; min-height: 100%; background: var(--bg); color: var(--text); font-family: 'Instrument Sans', 'Segoe UI', sans-serif; }
+        body { padding: 18px 24px 20px; }
+        button, input { font: inherit; }
+        .app-shell { max-width: 1500px; margin: 0 auto; }
+        .topbar { display: flex; align-items: center; justify-content: space-between; gap: 16px; background: rgba(255,255,255,0.5); border: 1px solid rgba(226,230,234,0.8); border-radius: 16px; padding: 12px 18px; margin-bottom: 18px; }
+        .topbar-left, .topbar-right { display: flex; align-items: center; gap: 12px; min-width: 0; }
+        .logo-mark { width: 36px; height: 36px; border-radius: 10px; background: linear-gradient(135deg, var(--primary-soft), #eff6ff 40%, #dbeafe 100%); border: 1px solid rgba(37,99,235,0.15); position: relative; }
+        .logo-mark::before, .logo-mark::after { content: ""; position: absolute; border-radius: 4px; background: rgba(37,99,235,0.22); }
+        .logo-mark::before { width: 18px; height: 18px; left: 9px; top: 9px; }
+        .logo-mark::after { width: 8px; height: 8px; right: 7px; bottom: 7px; background: var(--primary); }
+        .lab-name { font-size: 1.05rem; font-weight: 800; letter-spacing: 0.04em; text-transform: uppercase; white-space: nowrap; }
+        .nav-tabs { display: flex; align-items: center; justify-content: center; gap: 18px; padding: 6px 10px; background: rgba(15,23,42,0.02); border-radius: 12px; border: 1px solid rgba(226,230,234,0.85); }
+        .nav-tab { padding: 8px 12px; border-radius: 8px; color: var(--text-soft); font-size: 0.88rem; font-weight: 600; border: none; background: transparent; cursor: pointer; }
+        .nav-tab.active { color: var(--primary); background: rgba(37,99,235,0.07); box-shadow: inset 0 -2px 0 var(--primary); }
+        .page-title-block { display: flex; flex-direction: column; align-items: flex-end; text-align: right; min-width: 0; }
+        .page-title { font-size: 0.78rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: var(--text-soft); }
+        .page-path { font-size: 0.72rem; color: var(--text-faint); letter-spacing: 0.04em; }
+        .header-actions { display: flex; align-items: center; gap: 10px; }
+        .rounded-pill { display: inline-flex; align-items: center; justify-content: center; min-height: 34px; padding: 0 12px; border-radius: 999px; background: rgba(148,163,184,0.08); border: 1px solid var(--line); color: var(--text-soft); font-size: 0.8rem; font-weight: 700; }
+        .action-btn, .secondary-btn { appearance: none; border: 1px solid transparent; border-radius: var(--radius); height: 40px; padding: 0 16px; font-weight: 700; cursor: pointer; }
+        .action-btn { background: linear-gradient(180deg, var(--primary), var(--primary-deep)); color: white; box-shadow: 0 8px 18px rgba(37,99,235,0.2); }
+        .secondary-btn { background: rgba(255,255,255,0.8); border-color: var(--line); color: var(--text); }
+        .app-grid { display: grid; grid-template-columns: 280px minmax(430px, 1fr) 340px; gap: 18px; min-height: calc(100vh - 120px); }
+        .panel { background: var(--panel); border: 1px solid var(--line); border-radius: 18px; box-shadow: var(--shadow); }
+        .left-panel, .right-panel { display: flex; flex-direction: column; gap: 18px; padding: 18px; }
+        .panel-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; padding-bottom: 10px; border-bottom: 1px solid rgba(226,230,234,0.9); }
+        .panel-header h2 { margin: 0; font-size: 0.86rem; letter-spacing: 0.18em; text-transform: uppercase; color: var(--text-soft); font-weight: 800; }
+        .control-list { display: flex; flex-direction: column; gap: 16px; }
+        .field-group { display: flex; flex-direction: column; gap: 8px; }
+        .field-header { display: flex; justify-content: space-between; align-items: center; }
+        .field-label-wrap { display: inline-flex; align-items: center; gap: 6px; min-width: 0; }
+        .field-label { font-size: 0.84rem; font-weight: 700; color: var(--text); }
+        .tooltip-btn { width: 16px; height: 16px; border-radius: 50%; border: 1px solid rgba(148,163,184,0.8); background: rgba(148,163,184,0.08); color: var(--text-soft); font-size: 0.72rem; font-weight: 700; padding: 0; cursor: help; }
+        .field-value { display: inline-flex; align-items: center; gap: 8px; font-family: 'JetBrains Mono', monospace; font-size: 0.86rem; font-weight: 700; color: var(--primary); }
+        .unit-tag { display: inline-flex; align-items: center; justify-content: center; min-width: 42px; padding: 2px 8px; border-radius: 999px; background: rgba(37,99,235,0.08); color: var(--primary); border: 1px solid rgba(37,99,235,0.12); font-family: 'JetBrains Mono', monospace; font-size: 0.7rem; font-weight: 700; }
+        .field-group input[type=range] { -webkit-appearance: none; appearance: none; width: 100%; height: 6px; border-radius: 999px; background: linear-gradient(to right, var(--primary) 0%, var(--primary) var(--progress, 50%), #E5E7EB var(--progress, 50%), #E5E7EB 100%); outline: none; border: none; }
+        .field-group input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 16px; height: 16px; border-radius: 50%; background: var(--primary); border: 2px solid white; box-shadow: 0 0 0 3px rgba(37,99,235,0.2); cursor: pointer; }
+        .field-group input[type=range]::-moz-range-thumb { width: 16px; height: 16px; border: 2px solid white; border-radius: 50%; background: var(--primary); box-shadow: 0 0 0 3px rgba(37,99,235,0.2); cursor: pointer; }
+        .field-group input[type=range]:focus-visible { box-shadow: 0 0 0 3px rgba(37,99,235,0.18); }
+        .input-field { width: 100%; background: rgba(248,250,252,0.9); border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; color: var(--text); }
+        .sim-panel { display: flex; flex-direction: column; padding: 16px; min-width: 0; }
+        .sim-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; gap: 10px; }
+        .sim-header h2 { margin: 0; font-size: 0.86rem; letter-spacing: 0.18em; text-transform: uppercase; color: var(--text-soft); }
+        .time-badge { display: inline-flex; align-items: center; border-radius: 999px; border: 1px solid rgba(37,99,235,0.15); background: rgba(37,99,235,0.05); color: var(--primary-deep); font-family: 'JetBrains Mono', monospace; font-size: 0.8rem; font-weight: 700; padding: 6px 10px; }
+        .sim-canvas-wrap { position: relative; background: linear-gradient(180deg, var(--panel-alt), rgba(219,234,254,0.56)); border: 1px solid var(--line); border-radius: 18px; overflow: hidden; height: 430px; }
+        #anim, #simCanvas { width: 100%; height: 100%; display: block; }
+        .canvas-badge { position: absolute; top: 12px; left: 12px; background: rgba(255,255,255,0.82); border: 1px solid rgba(148,163,184,0.55); border-radius: 999px; padding: 5px 10px; font-size: 0.7rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--text-soft); font-weight: 700; }
+        .chart-panel { margin-top: 12px; background: var(--panel-alt); border: 1px solid var(--line); border-radius: 18px; min-height: 178px; padding: 12px 12px 0; }
+        .status-badge { display: inline-flex; align-items: center; gap: 8px; width: fit-content; padding: 6px 10px; border-radius: 999px; background: rgba(16,185,129,0.1); border: 1px solid rgba(16,185,129,0.2); color: #047857; font-size: 0.72rem; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase; }
+        .status-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--green); box-shadow: 0 0 0 3px rgba(16,185,129,0.12); }
+        .description-panel { padding: 18px 18px 16px; }
+        .experiment-name { margin: 6px 0 10px; font-weight: 800; font-size: clamp(1.5rem, 1.6vw, 2rem); line-height: 1.15; }
+        .description-copy { margin: 0 0 16px; color: var(--text-soft); line-height: 1.6; font-size: 0.95rem; }
+        .metric-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; margin: 16px 0 18px; }
+        .metric-card { background: linear-gradient(180deg, rgba(255,255,255,0.7), rgba(248,250,252,0.9)); border: 1px solid var(--line); border-radius: 12px; padding: 10px 12px; min-height: 84px; display: flex; flex-direction: column; justify-content: space-between; }
+        .metric-card span { font-size: 0.72rem; color: var(--text-soft); letter-spacing: 0.04em; text-transform: uppercase; font-weight: 700; }
+        .metric-card strong { font-family: 'JetBrains Mono', monospace; font-size: 1.05rem; font-weight: 700; }
+        .metric-card.blue strong { color: var(--primary); }
+        .metric-card.black strong { color: var(--text); }
+        .metric-card.orange strong { color: var(--orange); }
+        .metric-card.green strong { color: var(--green); }
+        .notes-block { background: rgba(248,250,255,0.8); border: 1px solid rgba(226,230,234,0.9); border-radius: 14px; padding: 12px 14px; }
+        .notes-block h3 { margin: 0 0 8px; font-size: 0.72rem; letter-spacing: 0.14em; text-transform: uppercase; color: var(--text-soft); }
+        .notes-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+        .notes-list li { font-size: 0.82rem; line-height: 1.55; color: var(--text-soft); }
+        .notes-list strong { color: var(--text); }
+        .formula-box { margin-top: 10px; border-radius: 10px; background: rgba(219,234,254,0.5); border: 1px solid rgba(37,99,235,0.1); padding: 10px 12px; font-size: 0.8rem; color: var(--primary-deep); font-family: 'JetBrains Mono', monospace; line-height: 1.6; }
+        .export-btn { margin-top: 16px; width: 100%; background: rgba(255,255,255,0.7); border: 1px solid var(--line); color: var(--text-soft); }
+        @media (max-width: 1024px) { .app-grid { grid-template-columns: 1fr; } .topbar { flex-wrap: wrap; justify-content: center; } .topbar-left, .topbar-right { width: 100%; justify-content: center; } .page-title-block { align-items: center; text-align: center; } }
+        @media (max-width: 768px) { body { padding: 14px; } .topbar { padding: 12px; border-radius: 12px; } .nav-tabs { width: 100%; justify-content: space-between; overflow-x: auto; } .header-actions { width: 100%; justify-content: center; flex-wrap: wrap; } .sim-canvas-wrap { height: 340px; } }
     </style>
 </head>
-<body class="p-4 md:p-8 flex justify-center w-full">
-
-    <!-- 主容器：移除 min-h-screen，並將 md:flex-row 改為 lg:flex-row 提升 iframe 適應性 -->
-    <div class="max-w-6xl w-full flex flex-col lg:flex-row gap-6 items-start">
-        
-        <!-- 左側面板容器：包含參數與原理說明 -->
-        <div class="w-full lg:w-80 shrink-0 flex flex-col gap-4">
-            
-            <!-- 參數調整卡片 -->
-            <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-200 flex flex-col space-y-6">
-                <h2 class="text-xl font-bold text-slate-800 border-b pb-2">參數調整</h2>
-                
-                <div class="space-y-3">
-                    <label class="flex justify-between text-sm font-semibold text-slate-700">
-                        <span>&Delta;s 切割數 (<span class="math-text">N</span>)</span>
-                        <span id="val-steps" class="text-blue-600">30</span>
-                    </label>
-                    <input type="range" id="slider-steps" min="5" max="100" value="30" class="w-full accent-blue-600">
-                    <p class="text-xs text-slate-500">調整路徑切割數量，數值越大越接近真實作功面積。</p>
+<body class="bg-slate-50 text-slate-800 min-h-screen font-sans">
+    <div class="app-shell">
+        <header class="topbar" aria-label="Top navigation">
+            <div class="topbar-left">
+                <div class="logo-mark" aria-hidden="true"></div>
+                <div class="lab-name">物理實驗室</div>
+            </div>
+            <nav class="nav-tabs" aria-label="主要導覽">
+                <button class="nav-tab active" type="button">儀表板</button>
+                <button class="nav-tab" type="button">模擬</button>
+                <button class="nav-tab" type="button">結果</button>
+                <button class="nav-tab" type="button">設定</button>
+            </nav>
+            <div class="topbar-right">
+                <div class="page-title-block">
+                    <div class="page-title">變力作功模擬</div>
+                    <div class="page-path">物理 / 力學 / 功與能</div>
                 </div>
-
-                <div class="space-y-3">
-                    <label class="flex justify-between text-sm font-semibold text-slate-700">
-                        <span>斜坡高度 (<span class="math-text">h</span>)</span>
-                        <span id="val-height" class="text-blue-600">180 m</span>
-                    </label>
-                    <input type="range" id="slider-height" min="50" max="300" value="180" class="w-full accent-blue-600">
-                </div>
-
-                <div class="space-y-3">
-                    <label class="flex items-center space-x-2 text-sm font-semibold text-slate-700 cursor-pointer">
-                        <input type="checkbox" id="check-friction" class="w-4 h-4 accent-blue-600 rounded">
-                        <span>啟用摩擦力</span>
-                    </label>
-                </div>
-
-                <div class="space-y-3 transition-opacity duration-300 opacity-50 pointer-events-none" id="friction-group">
-                    <label class="flex justify-between text-sm font-semibold text-slate-700">
-                        <span>動摩擦係數 (<span class="math-text">&mu;<sub>k</sub></span>)</span>
-                        <span id="val-friction" class="text-blue-600">0.20</span>
-                    </label>
-                    <input type="range" id="slider-friction" min="0.05" max="0.5" step="0.05" value="0.20" class="w-full accent-blue-600">
+                <div class="header-actions">
+                    <span class="rounded-pill">Rounding: 6px</span>
+                    <button id="btn-prev" class="secondary-btn" type="button">◀</button>
+                    <button id="btn-next" class="secondary-btn" type="button">▶</button>
+                    <button id="btn-play" class="action-btn" type="button">▶ 播放</button>
+                    <button id="btn-pause" class="secondary-btn" type="button">⏸ 暫停</button>
+                    <button id="btn-reset" class="secondary-btn" type="button">↺ 重設</button>
                 </div>
             </div>
+        </header>
 
-            <!-- 變力作功原理說明卡片 -->
-            <div class="bg-indigo-50/50 p-6 rounded-xl shadow-sm border border-indigo-100 flex flex-col space-y-4">
-                <h3 class="text-lg font-bold text-indigo-900 flex items-center gap-2">
-                    💡 變力作功原理
-                </h3>
-                <div class="text-sm text-slate-700 space-y-3 leading-relaxed">
-                    <p>物體在曲面滑動時，沿著路徑的有效受力（下滑力與動摩擦力）會隨斜面角度不斷變化。</p>
-                    <p>此時無法直接代入常數公式 <span class="math-text font-semibold">W = F &times; s</span>，我們必須將路徑切分為無數個微小的 <span class="math-text font-semibold">&Delta;s</span>，計算每一段的微小作功後再行加總（即右圖的黎曼和）。</p>
-                    <p>當切割數量 <span class="math-text font-semibold">N &rarr; &infin;</span> 時，面積加總即為精確的作功值，以微積分表示：</p>
+        <main class="app-grid">
+            <aside class="left-panel panel" aria-label="模擬參數控制面板">
+                <div class="panel-header"><h2>模擬參數</h2></div>
+                <div class="control-list">
+                    <div class="field-group">
+                        <div class="field-header">
+                            <div class="field-label-wrap">
+                                <label class="field-label" for="slider-steps">Δs 切割數</label>
+                                <button class="tooltip-btn" type="button" title="調整路徑切割數量，數值越大越接近真實作功面積。" aria-label="切割數說明">?</button>
+                            </div>
+                            <div class="field-value"><span class="unit-tag">N</span><span id="val-steps">30</span></div>
+                        </div>
+                        <input type="range" id="slider-steps" min="5" max="100" value="30" aria-label="Δs 切割數">
+                    </div>
+                    <div class="field-group">
+                        <div class="field-header">
+                            <div class="field-label-wrap">
+                                <label class="field-label" for="slider-height">斜坡高度</label>
+                                <button class="tooltip-btn" type="button" title="控制斜坡高度，決定作功路徑長度與受力變化。" aria-label="斜坡高度說明">?</button>
+                            </div>
+                            <div class="field-value"><span class="unit-tag">m</span><span id="val-height">180</span></div>
+                        </div>
+                        <input type="range" id="slider-height" min="50" max="300" value="180" aria-label="斜坡高度">
+                    </div>
+                    <div class="field-group">
+                        <div class="field-header">
+                            <div class="field-label-wrap">
+                                <label class="field-label" for="check-friction">摩擦力</label>
+                                <button class="tooltip-btn" type="button" title="啟用或停用動摩擦力，以比較保守與非保守系統的作功。" aria-label="摩擦力說明">?</button>
+                            </div>
+                            <div class="field-value"><span class="unit-tag">on</span><span id="friction-status">OFF</span></div>
+                        </div>
+                        <label style="display:flex; align-items:center; gap:10px; margin-top:4px;">
+                            <input type="checkbox" id="check-friction" class="w-4 h-4 accent-blue-600 rounded">
+                            <span style="font-size:0.8rem; color:var(--text-soft);">啟用摩擦力</span>
+                        </label>
+                    </div>
+                    <div class="field-group" id="friction-group" style="opacity:0.55; pointer-events:none;">
+                        <div class="field-header">
+                            <div class="field-label-wrap">
+                                <label class="field-label" for="slider-friction">動摩擦係數</label>
+                                <button class="tooltip-btn" type="button" title="動摩擦係數會影響沿路徑的阻力項，改變總作功。" aria-label="動摩擦係數說明">?</button>
+                            </div>
+                            <div class="field-value"><span class="unit-tag">μk</span><span id="val-friction">0.20</span></div>
+                        </div>
+                        <input type="range" id="slider-friction" min="0.05" max="0.5" step="0.05" value="0.20" aria-label="動摩擦係數">
+                    </div>
                 </div>
-                <div class="bg-white py-3 px-4 rounded-lg shadow-inner text-center border border-indigo-50 mt-2">
-                    <span class="math-text text-indigo-800 text-lg">W = &int; F<sub>net</sub> &middot; ds</span>
+                <div class="secondary-panel" style="padding:12px; border-radius:16px; background: linear-gradient(180deg, rgba(248,250,255,0.95), rgba(255,255,255,0.75)); border:1px solid rgba(226,230,234,0.8);">
+                    <div class="panel-header" style="margin-bottom:10px;"><h2>變力作功原理</h2></div>
+                    <div class="notes-list" style="gap:8px;">
+                        <div class="p-3 bg-slate-50 rounded-lg border border-slate-200">物體在曲面滑動時，沿路徑的有效受力會隨斜面角度變化。</div>
+                        <div class="p-3 bg-slate-50 rounded-lg border border-slate-200">因此需要將路徑切分成微小區段，逐段累積微小作功。</div>
+                        <div class="p-3 bg-slate-50 rounded-lg border border-slate-200">當切割數越大，作功近似越接近精確值。</div>
+                    </div>
+                    <div class="formula-box" style="margin-top:10px;"><span id="static-work-formula"></span></div>
                 </div>
-            </div>
+            </aside>
 
-        </div>
-
-        <!-- 右側畫布區域 -->
-        <div class="flex-1 min-w-0 w-full flex flex-col items-center space-y-4">
-            
-            <div class="text-center space-y-1">
-                <h1 class="text-3xl font-bold text-slate-800">計算變力作功</h1>
-                <p class="text-slate-600">模擬物體沿曲面下滑，視覺化呈現 <span class="math-text">W = &int; F &middot; ds</span></p>
-            </div>
-
-            <div id="canvas-container" class="w-full">
-                <canvas id="simCanvas" width="800" height="600"></canvas>
-                <div id="formula-overlay" class="absolute top-4 right-4 bg-white/90 backdrop-blur-sm px-4 py-3 rounded-lg shadow border border-slate-200 transition-opacity duration-300 pointer-events-none">
-                    <span id="formula-content" class="math-text text-xl text-slate-800"></span>
+            <section class="sim-panel panel" aria-label="模擬視覺區">
+                <div class="sim-header"><h2>模擬</h2><span class="time-badge">將力與路徑整合</span></div>
+                <div class="sim-canvas-wrap" id="canvas-container" style="padding:0;">
+                    <canvas id="simCanvas" width="800" height="600" aria-label="變力作功模擬畫布"></canvas>
+                    <div id="formula-overlay" style="position:absolute; top:16px; right:16px; background:rgba(255,255,255,0.9); border:1px solid rgba(148,163,184,0.5); border-radius:10px; padding:10px 12px; box-shadow:0 8px 18px rgba(15,23,42,0.05);">
+                        <span id="formula-content" class="math-text" style="font-size:1.2rem; color:var(--text); font-family:'JetBrains Mono',monospace;">\(W = \int F \cdot ds\)</span>
+                    </div>
+                    <div class="canvas-badge">場景視覺化</div>
                 </div>
-            </div>
+                <div class="chart-panel" style="display:flex; gap:10px;">
+                    <div style="flex:1; background: rgba(255,255,255,0.75); border:1px solid var(--line); border-radius:12px; padding:10px; min-height:150px;">
+                        <h3 style="margin:0 0 8px; font-size:0.74rem; letter-spacing:0.08em; text-transform:uppercase; color:var(--text-soft);">關係圖</h3>
+                    </div>
+                </div>
+            </section>
 
-            <!-- 唯一的一組播放控制列 -->
-            <div class="flex space-x-4 bg-white p-4 rounded-xl shadow-sm border border-slate-200">
-                <button id="btn-prev" class="flex items-center justify-center w-12 h-12 rounded-full bg-slate-100 text-slate-700 hover:bg-slate-200 transition-colors focus:outline-none focus:ring-2 focus:ring-slate-400" title="上一步">
-                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-6 h-6">
-                        <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" />
-                    </svg>
-                </button>
-                <button id="btn-play" class="flex items-center justify-center w-12 h-12 rounded-full bg-blue-600 text-white hover:bg-blue-700 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500" title="播放">
-                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="w-6 h-6 ml-1">
-                        <path fill-rule="evenodd" d="M4.5 5.653c0-1.426 1.529-2.33 2.779-1.643l11.54 6.348c1.295.712 1.295 2.573 0 3.285L7.28 19.991c-1.25.687-2.779-.217-2.779-1.643V5.653z" clip-rule="evenodd" />
-                    </svg>
-                </button>
-                <button id="btn-pause" class="flex items-center justify-center w-12 h-12 rounded-full bg-blue-600 text-white hover:bg-blue-700 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 hidden" title="暫停">
-                     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="w-6 h-6">
-                        <path fill-rule="evenodd" d="M6.75 5.25a.75.75 0 01.75-.75H9a.75.75 0 01.75.75v13.5a.75.75 0 01-.75.75H7.5a.75.75 0 01-.75-.75V5.25zm7.5 0A.75.75 0 0115 4.5h1.5a.75.75 0 01.75.75v13.5a.75.75 0 01-.75.75H15a.75.75 0 01-.75-.75V5.25z" clip-rule="evenodd" />
-                    </svg>
-                </button>
-                <button id="btn-next" class="flex items-center justify-center w-12 h-12 rounded-full bg-slate-100 text-slate-700 hover:bg-slate-200 transition-colors focus:outline-none focus:ring-2 focus:ring-slate-400" title="下一步">
-                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-6 h-6">
-                        <path stroke-linecap="round" stroke-linejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
-                    </svg>
-                </button>
-                <button id="btn-reset" class="flex items-center justify-center w-12 h-12 rounded-full bg-slate-100 text-slate-700 hover:bg-slate-200 transition-colors focus:outline-none focus:ring-2 focus:ring-slate-400" title="重置">
-                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="w-6 h-6">
-                        <path fill-rule="evenodd" d="M4.755 10.059a7.5 7.5 0 0112.548-3.364l1.903 1.903h-3.183a.75.75 0 100 1.5h4.992a.75.75 0 00.75-.75V4.356a.75.75 0 00-1.5 0v3.18l-1.9-1.9A9 9 0 003.306 9.67a.75.75 0 101.45.388zm15.408 3.352a.75.75 0 00-.919.53 7.5 7.5 0 01-12.548 3.364l-1.902-1.903h3.183a.75.75 0 000-1.5H2.984a.75.75 0 00-.75.75v4.992a.75.75 0 001.5 0v-3.18l1.9 1.9a9 9 0 0015.059-4.035.75.75 0 00-.53-.918z" clip-rule="evenodd" />
-                    </svg>
-                </button>
-            </div>
-        </div>
+            <aside class="right-panel panel description-panel" aria-label="說明與數據面板">
+                <div class="status-badge"><span class="status-dot" aria-hidden="true"></span> 執行中</div>
+                <h1 class="experiment-name">計算變力作功</h1>
+                <p class="description-copy">物體沿著曲面滑動時，作用力與路徑方向不再固定，必須利用微小路徑段對總作功進行累積。</p>
+                <p class="description-copy">調整切割數、斜坡高度與摩擦係數，可觀察黎曼和逼近真實作功的效果。</p>
+                <div class="metric-grid">
+                    <div class="metric-card blue"><span>總作功</span><strong id="sum-work">0.00 J</strong></div>
+                    <div class="metric-card black"><span>位移</span><strong id="distance-total">0.00 m</strong></div>
+                    <div class="metric-card orange"><span>平均力</span><strong id="average-force">0.00 N</strong></div>
+                    <div class="metric-card green"><span>摩擦</span><strong id="friction-value">0.00 N</strong></div>
+                </div>
+                <div class="notes-block">
+                    <h3>物理筆記</h3>
+                    <ul class="notes-list">
+                        <li><strong>黎曼和：</strong> 將整段路徑切成許多微小區段求和。</li>
+                        <li><strong>有效力：</strong> 作用沿切線方向的分量決定作功。</li>
+                        <li><strong>概念式：</strong> \(W = \\sum F \\cdot \\Delta s\)</li>
+                    </ul>
+                    <div class="formula-box"><span id="summary-work-formula"></span></div>
+                </div>
+                <button class="secondary-btn export-btn" type="button">⬇ 匯出 CSV</button>
+            </aside>
+        </main>
     </div>
 
     <!-- 架構重構與邏輯層 -->
@@ -172,7 +253,8 @@
             valSteps: document.getElementById('val-steps'),
             valHeight: document.getElementById('val-height'),
             valFriction: document.getElementById('val-friction'),
-            frictionGroup: document.getElementById('friction-group')
+            frictionGroup: document.getElementById('friction-group'),
+            frictionStatus: document.getElementById('friction-status')
         };
 
         // --- 2. Configuration & State ---
@@ -743,6 +825,9 @@
 
         DOM.checkFriction.addEventListener('change', (e) => {
             State.hasFriction = e.target.checked;
+            if (DOM.frictionStatus) {
+                DOM.frictionStatus.textContent = State.hasFriction ? 'ON' : 'OFF';
+            }
             if (State.hasFriction) DOM.frictionGroup.classList.remove('opacity-50', 'pointer-events-none');
             else DOM.frictionGroup.classList.add('opacity-50', 'pointer-events-none');
             resetFromControls();
@@ -755,9 +840,11 @@
         });
 
         function init() {
-            // KaTeX script has 'defer', double check it's loaded before initial render if needed, 
-            // but usually onload is late enough.
             DOM.formulaOverlay.style.opacity = "0";
+            if (window.katex) {
+                katex.render('W = \\int F_{net} \\cdot ds', document.getElementById('static-work-formula'), { throwOnError: false, displayMode: false });
+                katex.render('W = \\sum F \\cdot \\Delta s', document.getElementById('summary-work-formula'), { throwOnError: false, displayMode: false });
+            }
             precalculatePhysics();
             render();
         }

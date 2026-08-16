@@ -9,142 +9,215 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
     <style>
-        input[type=range] {
-            -webkit-appearance: none;
-            width: 100%;
-            background: transparent;
+        @import url('https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap');
+
+        :root {
+            --bg: #F0F2F5;
+            --panel: #FFFFFF;
+            --panel-alt: #F8FAFF;
+            --line: #E2E6EA;
+            --primary: #2563EB;
+            --primary-deep: #1D4ED8;
+            --primary-soft: #DBEAFE;
+            --text: #111827;
+            --text-soft: #6B7280;
+            --text-faint: #9CA3AF;
+            --green: #10B981;
+            --orange: #F59E0B;
+            --shadow: 0 10px 30px rgba(15, 23, 42, 0.06);
+            --radius: 6px;
         }
-        input[type=range]::-webkit-slider-thumb {
-            -webkit-appearance: none;
-            height: 16px;
-            width: 16px;
-            border-radius: 50%;
-            background: #4f46e5;
-            cursor: pointer;
-            margin-top: -6px;
-        }
-        input[type=range]::-webkit-slider-runnable-track {
-            width: 100%;
-            height: 4px;
-            cursor: pointer;
-            background: #e2e8f0;
-            border-radius: 2px;
-        }
-        input[type=range]:focus {
-            outline: none;
-        }
-        #canvas-container {
-            touch-action: none; 
-        }
+
+        * { box-sizing: border-box; }
+        html, body { margin: 0; height: 100%; background: var(--bg); color: var(--text); font-family: 'Instrument Sans', 'Segoe UI', sans-serif; }
+        body { padding: 18px 24px 20px; }
+        button, input { font: inherit; }
+        .app-shell { max-width: 1500px; margin: 0 auto; }
+        .topbar { display: flex; align-items: center; justify-content: space-between; gap: 16px; background: rgba(255,255,255,0.5); border: 1px solid rgba(226,230,234,0.8); border-radius: 16px; padding: 12px 18px; margin-bottom: 18px; }
+        .topbar-left, .topbar-right { display: flex; align-items: center; gap: 12px; min-width: 0; }
+        .logo-mark { width: 36px; height: 36px; border-radius: 10px; background: linear-gradient(135deg, var(--primary-soft), #eff6ff 40%, #dbeafe 100%); border: 1px solid rgba(37,99,235,0.15); position: relative; }
+        .logo-mark::before, .logo-mark::after { content: ""; position: absolute; border-radius: 4px; background: rgba(37,99,235,0.22); }
+        .logo-mark::before { width: 18px; height: 18px; left: 9px; top: 9px; }
+        .logo-mark::after { width: 8px; height: 8px; right: 7px; bottom: 7px; background: var(--primary); }
+        .lab-name { font-size: 1.05rem; font-weight: 800; letter-spacing: 0.04em; text-transform: uppercase; white-space: nowrap; }
+        .nav-tabs { display: flex; align-items: center; justify-content: center; gap: 18px; padding: 6px 10px; background: rgba(15,23,42,0.02); border-radius: 12px; border: 1px solid rgba(226,230,234,0.85); }
+        .nav-tab { padding: 8px 12px; border-radius: 8px; color: var(--text-soft); font-size: 0.88rem; font-weight: 600; border: none; background: transparent; cursor: pointer; }
+        .nav-tab.active { color: var(--primary); background: rgba(37,99,235,0.07); box-shadow: inset 0 -2px 0 var(--primary); }
+        .page-title-block { display: flex; flex-direction: column; align-items: flex-end; text-align: right; min-width: 0; }
+        .page-title { font-size: 0.78rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: var(--text-soft); }
+        .page-path { font-size: 0.72rem; color: var(--text-faint); letter-spacing: 0.04em; }
+        .header-actions { display: flex; align-items: center; gap: 10px; }
+        .rounded-pill { display: inline-flex; align-items: center; justify-content: center; min-height: 34px; padding: 0 12px; border-radius: 999px; background: rgba(148,163,184,0.08); border: 1px solid var(--line); color: var(--text-soft); font-size: 0.8rem; font-weight: 700; }
+        .action-btn, .secondary-btn { appearance: none; border: 1px solid transparent; border-radius: var(--radius); height: 40px; padding: 0 16px; font-weight: 700; cursor: pointer; }
+        .action-btn { background: linear-gradient(180deg, var(--primary), var(--primary-deep)); color: white; box-shadow: 0 8px 18px rgba(37,99,235,0.2); }
+        .secondary-btn { background: rgba(255,255,255,0.8); border-color: var(--line); color: var(--text); }
+        .app-grid { display: grid; grid-template-columns: 280px minmax(430px, 1fr) 340px; gap: 18px; min-height: calc(100vh - 120px); }
+        .panel { background: var(--panel); border: 1px solid var(--line); border-radius: 18px; box-shadow: var(--shadow); }
+        .left-panel, .right-panel { display: flex; flex-direction: column; gap: 18px; padding: 18px; }
+        .panel-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; padding-bottom: 10px; border-bottom: 1px solid rgba(226,230,234,0.9); }
+        .panel-header h2 { margin: 0; font-size: 0.86rem; letter-spacing: 0.18em; text-transform: uppercase; color: var(--text-soft); font-weight: 800; }
+        .control-list { display: flex; flex-direction: column; gap: 16px; }
+        .field-group { display: flex; flex-direction: column; gap: 8px; }
+        .field-header { display: flex; justify-content: space-between; align-items: center; }
+        .field-label-wrap { display: inline-flex; align-items: center; gap: 6px; min-width: 0; }
+        .field-label { font-size: 0.84rem; font-weight: 700; color: var(--text); }
+        .tooltip-btn { width: 16px; height: 16px; border-radius: 50%; border: 1px solid rgba(148,163,184,0.8); background: rgba(148,163,184,0.08); color: var(--text-soft); font-size: 0.72rem; font-weight: 700; padding: 0; cursor: help; }
+        .field-value { display: inline-flex; align-items: center; gap: 8px; font-family: 'JetBrains Mono', monospace; font-size: 0.86rem; font-weight: 700; color: var(--primary); }
+        .unit-tag { display: inline-flex; align-items: center; justify-content: center; min-width: 42px; padding: 2px 8px; border-radius: 999px; background: rgba(37,99,235,0.08); color: var(--primary); border: 1px solid rgba(37,99,235,0.12); font-family: 'JetBrains Mono', monospace; font-size: 0.7rem; font-weight: 700; }
+        .field-group input[type=range] { -webkit-appearance: none; appearance: none; width: 100%; height: 6px; border-radius: 999px; background: linear-gradient(to right, var(--primary) 0%, var(--primary) var(--progress, 50%), #E5E7EB var(--progress, 50%), #E5E7EB 100%); outline: none; border: none; }
+        .field-group input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 16px; height: 16px; border-radius: 50%; background: var(--primary); border: 2px solid white; box-shadow: 0 0 0 3px rgba(37,99,235,0.2); cursor: pointer; }
+        .field-group input[type=range]::-moz-range-thumb { width: 16px; height: 16px; border: 2px solid white; border-radius: 50%; background: var(--primary); box-shadow: 0 0 0 3px rgba(37,99,235,0.2); cursor: pointer; }
+        .field-group input[type=range]:focus-visible { box-shadow: 0 0 0 3px rgba(37,99,235,0.18); }
+        .control-actions { display: flex; gap: 10px; margin-top: auto; }
+        .control-actions .secondary-btn, .control-actions .action-btn { flex: 1; }
+        .sim-panel { display: flex; flex-direction: column; padding: 16px; min-width: 0; }
+        .sim-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; gap: 10px; }
+        .sim-header h2 { margin: 0; font-size: 0.86rem; letter-spacing: 0.18em; text-transform: uppercase; color: var(--text-soft); }
+        .time-badge { display: inline-flex; align-items: center; border-radius: 999px; border: 1px solid rgba(37,99,235,0.15); background: rgba(37,99,235,0.05); color: var(--primary-deep); font-family: 'JetBrains Mono', monospace; font-size: 0.8rem; font-weight: 700; padding: 6px 10px; }
+        .sim-canvas-wrap { position: relative; background: linear-gradient(180deg, var(--panel-alt), rgba(219,234,254,0.56)); border: 1px solid var(--line); border-radius: 18px; overflow: hidden; height: 430px; }
+        #canvas-container { width: 100%; height: 100%; display: block; touch-action: none; }
+        .canvas-badge { position: absolute; top: 12px; left: 12px; background: rgba(255,255,255,0.82); border: 1px solid rgba(148,163,184,0.55); border-radius: 999px; padding: 5px 10px; font-size: 0.7rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--text-soft); font-weight: 700; }
+        .status-badge { display: inline-flex; align-items: center; gap: 8px; width: fit-content; padding: 6px 10px; border-radius: 999px; background: rgba(16,185,129,0.1); border: 1px solid rgba(16,185,129,0.2); color: #047857; font-size: 0.72rem; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase; }
+        .status-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--green); box-shadow: 0 0 0 3px rgba(16,185,129,0.12); }
+        .description-panel { padding: 18px 18px 16px; }
+        .experiment-name { margin: 6px 0 10px; font-weight: 800; font-size: clamp(1.5rem, 1.6vw, 2rem); line-height: 1.15; }
+        .description-copy { margin: 0 0 16px; color: var(--text-soft); line-height: 1.6; font-size: 0.95rem; }
+        .metric-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; margin: 16px 0 18px; }
+        .metric-card { background: linear-gradient(180deg, rgba(255,255,255,0.7), rgba(248,250,252,0.9)); border: 1px solid var(--line); border-radius: 12px; padding: 10px 12px; min-height: 84px; display: flex; flex-direction: column; justify-content: space-between; }
+        .metric-card span { font-size: 0.72rem; color: var(--text-soft); letter-spacing: 0.04em; text-transform: uppercase; font-weight: 700; }
+        .metric-card strong { font-family: 'JetBrains Mono', monospace; font-size: 1.2rem; font-weight: 700; }
+        .metric-card.blue strong { color: var(--primary); }
+        .metric-card.black strong { color: var(--text); }
+        .metric-card.orange strong { color: var(--orange); }
+        .metric-card.green strong { color: var(--green); }
+        .notes-block { background: rgba(248,250,255,0.8); border: 1px solid rgba(226,230,234,0.9); border-radius: 14px; padding: 12px 14px; }
+        .notes-block h3 { margin: 0 0 8px; font-size: 0.72rem; letter-spacing: 0.14em; text-transform: uppercase; color: var(--text-soft); }
+        .notes-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+        .notes-list li { font-size: 0.82rem; line-height: 1.55; color: var(--text-soft); }
+        .notes-list strong { color: var(--text); }
+        .formula-box { margin-top: 10px; border-radius: 10px; background: rgba(219,234,254,0.5); border: 1px solid rgba(37,99,235,0.1); padding: 10px 12px; font-size: 0.8rem; color: var(--primary-deep); font-family: 'JetBrains Mono', monospace; line-height: 1.6; }
+        .export-btn { margin-top: 16px; width: 100%; background: rgba(255,255,255,0.7); border: 1px solid var(--line); color: var(--text-soft); }
+        @media (max-width: 1024px) { .app-grid { grid-template-columns: 1fr; } .topbar { flex-wrap: wrap; justify-content: center; } .topbar-left, .topbar-right { width: 100%; justify-content: center; } .page-title-block { align-items: center; text-align: center; } }
+        @media (max-width: 768px) { body { padding: 14px; } .topbar { padding: 12px; border-radius: 12px; } .nav-tabs { width: 100%; justify-content: space-between; overflow-x: auto; } .header-actions { width: 100%; justify-content: center; flex-wrap: wrap; } .sim-canvas-wrap { height: 340px; } }
     </style>
 </head>
 <body class="bg-slate-50 text-slate-800 font-sans h-screen flex flex-col p-4 md:p-8 box-border">
 
-    <header class="mb-6 flex-shrink-0">
-        <h1 class="text-3xl font-bold text-indigo-900">角動量定義 3D 模擬</h1>
-        <p class="text-slate-600 mt-1">互動式立體展示 $\vec{L} = \vec{r} \times \vec{p}$ 向量關係</p>
-    </header>
-
-    <div class="flex flex-col lg:flex-row gap-6 flex-1 min-h-0">
-        
-        <!-- 左側控制與數據面板 -->
-        <div class="w-full lg:w-80 flex flex-col gap-6 overflow-y-auto">
-            
-            <!-- 控制面板 -->
-            <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
-                <h2 class="text-lg font-bold mb-4 text-indigo-900 border-b pb-2">參數控制</h2>
-                
-                <div class="space-y-6">
-                    <div>
-                        <div class="flex justify-between mb-1">
-                            <label class="text-sm font-bold text-blue-600">位置大小 $|\vec{r}|$</label>
-                            <span id="val-r" class="text-sm font-mono font-bold text-blue-600">100</span>
-                        </div>
-                        <input type="range" id="slider-r" min="20" max="150" value="100">
-                    </div>
-
-                    <div>
-                        <div class="flex justify-between mb-1">
-                            <label class="text-sm font-bold text-red-600">動量大小 $|\vec{p}|$</label>
-                            <span id="val-p" class="text-sm font-mono font-bold text-red-600">80</span>
-                        </div>
-                        <input type="range" id="slider-p" min="20" max="150" value="80">
-                    </div>
-
-                    <div>
-                        <div class="flex justify-between mb-1">
-                            <label class="text-sm font-bold text-slate-700">夾角 $\theta$</label>
-                            <span id="val-theta" class="text-sm font-mono font-bold text-slate-700">90°</span>
-                        </div>
-                        <input type="range" id="slider-theta" min="0" max="360" value="90">
-                    </div>
+    <div class="app-shell">
+        <header class="topbar" aria-label="Top navigation">
+            <div class="topbar-left">
+                <div class="logo-mark" aria-hidden="true"></div>
+                <div class="lab-name">物理實驗室</div>
+            </div>
+            <nav class="nav-tabs" aria-label="主要導覽">
+                <button class="nav-tab active" type="button">儀表板</button>
+                <button class="nav-tab" type="button">模擬</button>
+                <button class="nav-tab" type="button">結果</button>
+                <button class="nav-tab" type="button">設定</button>
+            </nav>
+            <div class="topbar-right">
+                <div class="page-title-block">
+                    <div class="page-title">角動量模擬</div>
+                    <div class="page-path">物理 / 實驗室 / 3D</div>
+                </div>
+                <div class="header-actions">
+                    <span class="rounded-pill">Rounding: 6px</span>
+                    <button class="action-btn" type="button">▶ 執行模擬</button>
+                    <button class="secondary-btn" type="button">↻ 更新</button>
                 </div>
             </div>
+        </header>
 
-            <!-- 數據顯示面板 -->
-            <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 flex-1">
-                <h2 class="text-lg font-bold mb-4 text-indigo-900 border-b pb-2">即時運算結果</h2>
-                
-                <div class="space-y-4 text-sm">
-                    <div class="bg-slate-50 p-3 rounded-lg border border-slate-100">
-                        <div class="font-mono text-center font-bold mb-2 pb-2 border-b border-slate-200">
-                            $|\vec{L}| = |\vec{r}| \cdot |\vec{p}| \cdot \sin(\theta)$
-                        </div>
-                        <div class="flex justify-between items-center text-slate-600 mt-2">
-                            <span id="formula-text">$100 \times 80 \times \sin(90^\circ)$</span>
-                            <span id="calc-result" class="font-mono font-bold text-emerald-600 text-lg">8000</span>
-                        </div>
-                    </div>
-
-                    <div class="grid grid-cols-2 gap-4">
-                        <div class="bg-indigo-50 p-3 rounded-lg border border-indigo-100 flex flex-col justify-center items-center">
-                            <span class="text-xs font-bold text-indigo-500 mb-1">角動量方向 (Z軸)</span>
-                            <div id="dir-indicator" class="flex items-center text-indigo-700 font-bold text-base">
-                                +Z (向上)
+        <main class="app-grid">
+            <aside class="left-panel panel" aria-label="模擬參數控制面板">
+                <div class="panel-header"><h2>模擬參數</h2></div>
+                <div class="control-list">
+                    <div class="field-group">
+                        <div class="field-header">
+                            <div class="field-label-wrap">
+                                <label class="field-label" for="slider-r">位置大小</label>
+                                <button class="tooltip-btn" type="button" title="從原點到粒子的徑向距離，決定角動量的力臂長度。" aria-label="位置大小說明">?</button>
                             </div>
+                            <div class="field-value"><span class="unit-tag">m</span><span id="val-r">100</span></div>
                         </div>
-                        <div class="bg-slate-50 p-3 rounded-lg border border-slate-200 flex flex-col justify-center items-center">
-                            <span class="text-xs font-bold text-slate-500 mb-1">$\sin(\theta)$ 值</span>
-                            <span id="val-sin" class="font-mono font-bold text-slate-700 text-lg">1.00</span>
+                        <input type="range" id="slider-r" min="20" max="150" value="100" aria-label="位置大小">
+                    </div>
+                    <div class="field-group">
+                        <div class="field-header">
+                            <div class="field-label-wrap">
+                                <label class="field-label" for="slider-p">動量大小</label>
+                                <button class="tooltip-btn" type="button" title="粒子的線性動量大小，會直接影響角動量大小。" aria-label="動量大小說明">?</button>
+                            </div>
+                            <div class="field-value"><span class="unit-tag">kg·m/s</span><span id="val-p">80</span></div>
+                        </div>
+                        <input type="range" id="slider-p" min="20" max="150" value="80" aria-label="動量大小">
+                    </div>
+                    <div class="field-group">
+                        <div class="field-header">
+                            <div class="field-label-wrap">
+                                <label class="field-label" for="slider-theta">夾角</label>
+                                <button class="tooltip-btn" type="button" title="位置向量與動量向量之間的夾角，正弦值決定角動量大小。" aria-label="夾角說明">?</button>
+                            </div>
+                            <div class="field-value"><span class="unit-tag">°</span><span id="val-theta">90°</span></div>
+                        </div>
+                        <input type="range" id="slider-theta" min="0" max="360" value="90" aria-label="夾角">
+                    </div>
+                </div>
+                <div class="control-actions">
+                    <button class="secondary-btn" type="button" id="reset-sim">↺ 重設</button>
+                    <button class="action-btn" type="button" id="run-sim-secondary">▶ 執行模擬</button>
+                </div>
+            </aside>
+
+            <section class="sim-panel panel" aria-label="模擬視覺區">
+                <div class="sim-header"><h2>模擬</h2><span class="time-badge">t = 1.25 s</span></div>
+                <div class="sim-canvas-wrap">
+                    <div id="canvas-container" class="cursor-grab active:cursor-grabbing" aria-label="3D 模擬畫布"></div>
+                    <div class="canvas-badge">3D 視角</div>
+                </div>
+            </section>
+
+            <aside class="right-panel panel description-panel" aria-label="說明與數據面板">
+                <div class="status-badge"><span class="status-dot" aria-hidden="true"></span> 執行中</div>
+                <h1 class="experiment-name">角動量 3D 向量模型</h1>
+                <p class="description-copy">此模擬以三維方式展示位置向量與動量向量交叉形成的角動量，幫助觀察量值與方向如何在空間中變化。</p>
+                <p class="description-copy">拖動滑桿或旋轉 3D 視角，可比較不同夾角下、角動量的大小與 Z 軸方向變化。</p>
+                <div class="metric-grid">
+                    <div class="metric-card blue"><span>角動量</span><strong id="metric-angular">8000</strong></div>
+                    <div class="metric-card black"><span>半徑</span><strong id="metric-radius">100</strong></div>
+                    <div class="metric-card orange"><span>夾角</span><strong id="metric-angle">90°</strong></div>
+                    <div class="metric-card green"><span>sin(θ)</span><strong id="metric-sin">1.00</strong></div>
+                </div>
+                <div class="grid grid-cols-2 gap-4 mb-4">
+                    <div class="bg-indigo-50 p-3 rounded-lg border border-indigo-100 flex flex-col justify-center items-center">
+                        <span class="text-xs font-bold text-indigo-500 mb-1">角動量方向 (Z軸)</span>
+                        <div id="dir-indicator" class="flex items-center text-indigo-700 font-bold text-base">
+                            +Z (向上)
                         </div>
                     </div>
-                    
-                    <p class="text-[11px] text-slate-400 mt-2 text-center">
-                        (註：為了讓 3D 畫面清晰，$\vec{L}$ 的箭頭長度在視覺上已作等比例縮小)
-                    </p>
+                    <div class="bg-slate-50 p-3 rounded-lg border border-slate-200 flex flex-col justify-center items-center">
+                        <span class="text-xs font-bold text-slate-500 mb-1">$\sin(\theta)$ 值</span>
+                        <span id="val-sin" class="font-mono font-bold text-slate-700 text-lg">1.00</span>
+                    </div>
                 </div>
-            </div>
-
-        </div>
-
-        <!-- 右側 3D 畫布區域 -->
-        <div class="flex-1 bg-white rounded-2xl shadow-xl border border-slate-200 overflow-hidden relative min-h-[400px]">
-            <div id="canvas-container" class="w-full h-full cursor-grab active:cursor-grabbing"></div>
-            
-            <div class="absolute top-4 left-4 bg-white/90 backdrop-blur px-4 py-2 rounded-lg shadow-sm text-sm border border-slate-200 pointer-events-none">
-                <div class="font-bold text-slate-800 mb-1">3D 視角控制</div>
-                <div class="text-slate-600 text-xs">滑鼠左鍵：旋轉視角</div>
-                <div class="text-slate-600 text-xs">滾輪：縮放大小</div>
-                <div class="text-slate-600 text-xs">滑鼠右鍵：平移畫面</div>
-            </div>
-
-            <!-- 圖例 -->
-            <div class="absolute bottom-4 right-4 bg-white/90 backdrop-blur p-3 rounded-lg shadow-sm border border-slate-200 pointer-events-none">
-                <div class="flex items-center gap-2 mb-1">
-                    <div class="w-3 h-3 rounded-full bg-blue-500"></div>
-                    <span class="text-xs font-bold text-slate-700">位置 $\vec{r}$</span>
+                <div class="notes-block">
+                    <h3>物理筆記</h3>
+                    <ul class="notes-list">
+                        <li><strong>位置向量：</strong> 決定力臂長度與旋轉平面。</li>
+                        <li><strong>動量向量：</strong> 決定粒子的線性運動強度。</li>
+                        <li><strong>核心關係：</strong> <span id="calc-result-note">\(L = \vec{r} \times \vec{p} = |\vec{r}||\vec{p}|\sin\theta\)</span></li>
+                    </ul>
+                    <div class="formula-box">
+                        <span id="formula-text">100 × 80 × sin(90°)</span>
+                        <span class="mx-1 text-slate-500">=</span>
+                        <span id="calc-result">8000</span>
+                        <span class="ml-2 text-slate-500">=</span>
+                        <span>\(|\vec{r}||\vec{p}|\sin(\theta)\)</span>
+                    </div>
                 </div>
-                <div class="flex items-center gap-2 mb-1">
-                    <div class="w-3 h-3 rounded-full bg-red-500"></div>
-                    <span class="text-xs font-bold text-slate-700">動量 $\vec{p}$</span>
-                </div>
-                <div class="flex items-center gap-2">
-                    <div class="w-3 h-3 rounded-full bg-emerald-500"></div>
-                    <span class="text-xs font-bold text-slate-700">角動量 $\vec{L}$</span>
-                </div>
-            </div>
-        </div>
-
+                <button class="secondary-btn export-btn" type="button">⬇ 匯出 CSV</button>
+            </aside>
+        </main>
     </div>
 
     <!-- MathJax 用於渲染數學公式 -->

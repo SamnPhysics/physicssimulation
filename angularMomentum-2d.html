@@ -6,148 +6,902 @@
     <title>角動量互動模擬 (HTML5)</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
-        /* 隱藏預設的 range 樣式，稍微美化一下 */
-        input[type=range] {
-            -webkit-appearance: none;
-            width: 100%;
+        @import url('https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap');
+
+        :root {
+            --bg: #F0F2F5;
+            --panel: #FFFFFF;
+            --panel-alt: #F8FAFF;
+            --line: #E2E6EA;
+            --line-strong: #CBD5E1;
+            --primary: #2563EB;
+            --primary-deep: #1D4ED8;
+            --primary-soft: #DBEAFE;
+            --text: #111827;
+            --text-soft: #6B7280;
+            --text-faint: #9CA3AF;
+            --green: #10B981;
+            --orange: #F59E0B;
+            --shadow: 0 10px 30px rgba(15, 23, 42, 0.06);
+            --radius: 6px;
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        html, body {
+            margin: 0;
+            height: 100%;
+            background: var(--bg);
+            color: var(--text);
+            font-family: 'Instrument Sans', 'Segoe UI', sans-serif;
+        }
+
+        body {
+            padding: 18px 24px 20px;
+        }
+
+        button, input {
+            font: inherit;
+        }
+
+        .app-shell {
+            max-width: 1500px;
+            margin: 0 auto;
+        }
+
+        .topbar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 16px;
+            background: rgba(255, 255, 255, 0.5);
+            border: 1px solid rgba(226, 230, 234, 0.8);
+            border-radius: 16px;
+            padding: 12px 18px;
+            margin-bottom: 18px;
+            backdrop-filter: blur(8px);
+        }
+
+        .topbar-left,
+        .topbar-right {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            min-width: 0;
+        }
+
+        .logo-mark {
+            width: 36px;
+            height: 36px;
+            border-radius: 10px;
+            background: linear-gradient(135deg, var(--primary-soft), #dbeafe 35%, #eff6ff 100%);
+            border: 1px solid rgba(37, 99, 235, 0.15);
+            position: relative;
+            box-shadow: inset 0 0 0 1px rgba(255,255,255,0.6);
+        }
+
+        .logo-mark::before,
+        .logo-mark::after {
+            content: "";
+            position: absolute;
+            border-radius: 4px;
+            background: rgba(37, 99, 235, 0.22);
+        }
+
+        .logo-mark::before {
+            width: 18px;
+            height: 18px;
+            left: 9px;
+            top: 9px;
+            box-shadow: 0 0 0 1px rgba(255,255,255,0.7);
+        }
+
+        .logo-mark::after {
+            width: 8px;
+            height: 8px;
+            right: 7px;
+            bottom: 7px;
+            background: var(--primary);
+        }
+
+        .lab-name {
+            font-size: 1.05rem;
+            font-weight: 800;
+            letter-spacing: 0.04em;
+            text-transform: uppercase;
+            color: var(--text);
+            white-space: nowrap;
+        }
+
+        .nav-tabs {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 18px;
+            padding: 6px 10px;
+            background: rgba(15, 23, 42, 0.02);
+            border-radius: 12px;
+            border: 1px solid rgba(226, 230, 234, 0.85);
+        }
+
+        .nav-tab {
+            padding: 8px 12px;
+            border-radius: 8px;
+            color: var(--text-soft);
+            font-size: 0.88rem;
+            font-weight: 600;
+            letter-spacing: 0.02em;
+            border: none;
             background: transparent;
+            cursor: pointer;
         }
-        input[type=range]::-webkit-slider-thumb {
-            -webkit-appearance: none;
-            height: 16px;
+
+        .nav-tab.active {
+            color: var(--primary);
+            background: rgba(37, 99, 235, 0.07);
+            box-shadow: inset 0 -2px 0 var(--primary);
+        }
+
+        .page-title-block {
+            display: flex;
+            flex-direction: column;
+            align-items: flex-end;
+            text-align: right;
+            min-width: 0;
+        }
+
+        .page-title {
+            font-size: 0.78rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            color: var(--text-soft);
+        }
+
+        .page-path {
+            font-size: 0.72rem;
+            color: var(--text-faint);
+            letter-spacing: 0.04em;
+        }
+
+        .header-actions {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .rounded-pill {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 34px;
+            padding: 0 12px;
+            border-radius: 999px;
+            background: rgba(148, 163, 184, 0.08);
+            border: 1px solid var(--line);
+            color: var(--text-soft);
+            font-size: 0.8rem;
+            font-weight: 700;
+        }
+
+        .action-btn,
+        .secondary-btn,
+        .ghost-btn {
+            appearance: none;
+            border: 1px solid transparent;
+            border-radius: var(--radius);
+            height: 40px;
+            padding: 0 16px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease;
+        }
+
+        .action-btn:hover,
+        .secondary-btn:hover,
+        .ghost-btn:hover,
+        .nav-tab:hover {
+            transform: translateY(-1px);
+        }
+
+        .action-btn {
+            background: linear-gradient(180deg, var(--primary), var(--primary-deep));
+            color: white;
+            box-shadow: 0 8px 18px rgba(37, 99, 235, 0.2);
+        }
+
+        .secondary-btn {
+            background: rgba(255,255,255,0.8);
+            border-color: var(--line);
+            color: var(--text);
+        }
+
+        .ghost-btn {
+            background: rgba(255,255,255,0.6);
+            border-color: var(--line);
+            color: var(--text-soft);
+        }
+
+        .app-grid {
+            display: grid;
+            grid-template-columns: 280px minmax(430px, 1fr) 340px;
+            gap: 18px;
+            min-height: calc(100vh - 120px);
+        }
+
+        .panel {
+            background: var(--panel);
+            border: 1px solid var(--line);
+            border-radius: 18px;
+            box-shadow: var(--shadow);
+        }
+
+        .left-panel,
+        .right-panel {
+            display: flex;
+            flex-direction: column;
+            gap: 18px;
+            padding: 18px;
+        }
+
+        .panel-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 14px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid rgba(226, 230, 234, 0.9);
+        }
+
+        .panel-header h2 {
+            margin: 0;
+            font-size: 0.86rem;
+            letter-spacing: 0.18em;
+            text-transform: uppercase;
+            color: var(--text-soft);
+            font-weight: 800;
+        }
+
+        .control-list {
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+
+        .field-group {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .field-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .field-label-wrap {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            min-width: 0;
+        }
+
+        .field-label {
+            font-size: 0.84rem;
+            font-weight: 700;
+            color: var(--text);
+        }
+
+        .tooltip-btn {
             width: 16px;
+            height: 16px;
             border-radius: 50%;
-            background: #4f46e5;
-            cursor: pointer;
-            margin-top: -6px;
+            border: 1px solid rgba(148, 163, 184, 0.8);
+            background: rgba(148, 163, 184, 0.08);
+            color: var(--text-soft);
+            font-size: 0.72rem;
+            font-weight: 700;
+            line-height: 1;
+            padding: 0;
+            cursor: help;
         }
-        input[type=range]::-webkit-slider-runnable-track {
+
+        .field-value {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            font-family: 'JetBrains Mono', 'SFMono-Regular', monospace;
+            font-size: 0.86rem;
+            font-weight: 700;
+            color: var(--primary);
+        }
+
+        .unit-tag {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            min-width: 42px;
+            padding: 2px 8px;
+            border-radius: 999px;
+            background: rgba(37, 99, 235, 0.08);
+            color: var(--primary);
+            border: 1px solid rgba(37, 99, 235, 0.12);
+            font-family: 'JetBrains Mono', 'SFMono-Regular', monospace;
+            font-size: 0.7rem;
+            font-weight: 700;
+        }
+
+        .field-group input[type=range] {
+            -webkit-appearance: none;
+            appearance: none;
             width: 100%;
-            height: 4px;
-            cursor: pointer;
-            background: #e2e8f0;
-            border-radius: 2px;
+            height: 6px;
+            border-radius: 999px;
+            background: linear-gradient(to right, var(--primary) 0%, var(--primary) var(--progress, 50%), #E5E7EB var(--progress, 50%), #E5E7EB 100%);
+            outline: none;
+            border: none;
         }
-        input[type=range]:focus {
+
+        .field-group input[type=range]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            background: var(--primary);
+            border: 2px solid white;
+            box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.2);
+            cursor: pointer;
+        }
+
+        .field-group input[type=range]::-moz-range-thumb {
+            width: 16px;
+            height: 16px;
+            border: 2px solid white;
+            border-radius: 50%;
+            background: var(--primary);
+            box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.2);
+            cursor: pointer;
+        }
+
+        .field-group input[type=range]:focus {
             outline: none;
         }
-        canvas {
-            touch-action: none; /* 防止在 canvas 上拖曳時觸發頁面捲動 */
+
+        .field-group input[type=range]:focus-visible {
+            box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.18);
+        }
+
+        .secondary-panel {
+            background: linear-gradient(180deg, rgba(248,250,255,0.95), rgba(255,255,255,0.75));
+            border: 1px solid rgba(226,230,234,0.8);
+            border-radius: 16px;
+            padding: 14px 12px 12px;
+        }
+
+        .secondary-panel .panel-header {
+            margin-bottom: 10px;
+        }
+
+        .control-actions {
+            display: flex;
+            gap: 10px;
+            margin-top: auto;
+            padding-top: 8px;
+        }
+
+        .control-actions .secondary-btn,
+        .control-actions .action-btn {
+            flex: 1;
+        }
+
+        .sim-panel {
+            display: flex;
+            flex-direction: column;
+            padding: 16px;
+            min-width: 0;
+        }
+
+        .sim-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 12px;
+            gap: 10px;
+        }
+
+        .sim-header h2 {
+            margin: 0;
+            font-size: 0.86rem;
+            letter-spacing: 0.18em;
+            text-transform: uppercase;
+            color: var(--text-soft);
+        }
+
+        .time-badge {
+            display: inline-flex;
+            align-items: center;
+            border-radius: 999px;
+            border: 1px solid rgba(37, 99, 235, 0.15);
+            background: rgba(37, 99, 235, 0.05);
+            color: var(--primary-deep);
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.8rem;
+            font-weight: 700;
+            padding: 6px 10px;
+        }
+
+        .sim-canvas-wrap {
+            position: relative;
+            background: linear-gradient(180deg, var(--panel-alt), rgba(219, 234, 254, 0.56));
+            border: 1px solid var(--line);
+            border-radius: 18px;
+            overflow: hidden;
+            height: 430px;
+        }
+
+        .sim-canvas-wrap canvas {
+            width: 100%;
+            height: 100%;
+            display: block;
+            touch-action: none;
+        }
+
+        .canvas-badge {
+            position: absolute;
+            top: 12px;
+            left: 12px;
+            background: rgba(255, 255, 255, 0.82);
+            border: 1px solid rgba(148, 163, 184, 0.55);
+            border-radius: 999px;
+            padding: 5px 10px;
+            font-size: 0.7rem;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            color: var(--text-soft);
+            font-weight: 700;
+        }
+
+        .axis-indicator {
+            position: absolute;
+            right: 12px;
+            bottom: 12px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 8px 10px;
+            border-radius: 999px;
+            background: rgba(255,255,255,0.82);
+            border: 1px solid rgba(148,163,184,0.42);
+            box-shadow: 0 8px 18px rgba(15, 23, 42, 0.06);
+        }
+
+        .axis-indicator span {
+            color: var(--text-soft);
+            font-size: 0.72rem;
+            font-weight: 700;
+            letter-spacing: 0.04em;
+            text-transform: uppercase;
+        }
+
+        .axis-indicator svg {
+            width: 72px;
+            height: 72px;
+            display: block;
+        }
+
+        .chart-panel {
+            margin-top: 12px;
+            background: var(--panel-alt);
+            border: 1px solid var(--line);
+            border-radius: 18px;
+            min-height: 178px;
+            padding: 12px 12px 0;
+        }
+
+        .chart-panel canvas {
+            width: 100%;
+            height: 150px;
+            display: block;
+        }
+
+        .status-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            width: fit-content;
+            margin-bottom: 8px;
+            padding: 6px 10px;
+            border-radius: 999px;
+            background: rgba(16, 185, 129, 0.1);
+            border: 1px solid rgba(16, 185, 129, 0.2);
+            color: #047857;
+            font-size: 0.72rem;
+            font-weight: 800;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+        }
+
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: var(--green);
+            box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.12);
+        }
+
+        .description-panel {
+            padding: 18px 18px 16px;
+        }
+
+        .experiment-name {
+            margin: 6px 0 10px;
+            font-weight: 800;
+            font-size: clamp(1.5rem, 1.6vw, 2rem);
+            line-height: 1.15;
+            color: var(--text);
+        }
+
+        .description-copy {
+            margin: 0 0 16px;
+            color: var(--text-soft);
+            line-height: 1.6;
+            font-size: 0.95rem;
+        }
+
+        .metric-grid {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 10px;
+            margin: 16px 0 18px;
+        }
+
+        .metric-card {
+            background: linear-gradient(180deg, rgba(255,255,255,0.7), rgba(248,250,252,0.9));
+            border: 1px solid var(--line);
+            border-radius: 12px;
+            padding: 10px 12px;
+            min-height: 84px;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+        }
+
+        .metric-card span {
+            font-size: 0.72rem;
+            color: var(--text-soft);
+            letter-spacing: 0.04em;
+            text-transform: uppercase;
+            font-weight: 700;
+        }
+
+        .metric-card strong {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 1.2rem;
+            font-weight: 700;
+        }
+
+        .metric-card.blue strong { color: var(--primary); }
+        .metric-card.black strong { color: var(--text); }
+        .metric-card.orange strong { color: var(--orange); }
+        .metric-card.green strong { color: var(--green); }
+
+        .notes-block {
+            background: rgba(248,250,255,0.8);
+            border: 1px solid rgba(226,230,234,0.9);
+            border-radius: 14px;
+            padding: 12px 14px;
+        }
+
+        .notes-block h3 {
+            margin: 0 0 8px;
+            font-size: 0.72rem;
+            letter-spacing: 0.14em;
+            text-transform: uppercase;
+            color: var(--text-soft);
+        }
+
+        .notes-list {
+            list-style: none;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .notes-list li {
+            font-size: 0.82rem;
+            line-height: 1.55;
+            color: var(--text-soft);
+        }
+
+        .notes-list strong {
+            color: var(--text);
+        }
+
+        .formula-box {
+            margin-top: 10px;
+            border-radius: 10px;
+            background: rgba(219,234,254,0.5);
+            border: 1px solid rgba(37,99,235,0.1);
+            padding: 10px 12px;
+            font-size: 0.8rem;
+            color: var(--primary-deep);
+            font-family: 'JetBrains Mono', monospace;
+            line-height: 1.6;
+        }
+
+        .export-btn {
+            margin-top: 16px;
+            width: 100%;
+            background: rgba(255,255,255,0.7);
+            border: 1px solid var(--line);
+            color: var(--text-soft);
+        }
+
+        .sr-only {
+            position: absolute;
+            width: 1px;
+            height: 1px;
+            padding: 0;
+            margin: -1px;
+            overflow: hidden;
+            clip: rect(0, 0, 0, 0);
+            white-space: nowrap;
+            border: 0;
+        }
+
+        input[type="number"] {
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        @media (max-width: 1024px) {
+            .app-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .topbar {
+                flex-wrap: wrap;
+                justify-content: center;
+            }
+
+            .topbar-left,
+            .topbar-right {
+                width: 100%;
+                justify-content: center;
+            }
+
+            .page-title-block {
+                align-items: center;
+                text-align: center;
+            }
+        }
+
+        @media (max-width: 768px) {
+            body {
+                padding: 14px;
+            }
+
+            .topbar {
+                padding: 12px;
+                border-radius: 12px;
+            }
+
+            .nav-tabs {
+                width: 100%;
+                justify-content: space-between;
+                overflow-x: auto;
+            }
+
+            .header-actions {
+                width: 100%;
+                justify-content: center;
+                flex-wrap: wrap;
+            }
+
+            .sim-canvas-wrap {
+                height: 340px;
+            }
         }
     </style>
-</head>
-<body class="bg-slate-50 text-slate-800 font-sans h-screen flex flex-col p-4 md:p-8 box-border">
 
-    <header class="mb-6 flex-shrink-0">
-        <h1 class="text-3xl font-bold text-indigo-900">角動量定義模擬</h1>
-        <p class="text-slate-600 mt-1">互動式展示 $\vec{L} = \vec{r} \times \vec{p}$ 向量關係</p>
-    </header>
-
-    <div class="flex flex-col lg:flex-row gap-6 flex-1 min-h-0">
-        
-        <!-- 左側控制與數據面板 -->
-        <div class="w-full lg:w-80 flex flex-col gap-6 overflow-y-auto">
-            
-            <!-- 控制面板 -->
-            <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
-                <h2 class="text-lg font-bold mb-4 text-indigo-900 border-b pb-2">參數控制</h2>
-                
-                <div class="space-y-6">
-                    <div>
-                        <div class="flex justify-between mb-1">
-                            <label class="text-sm font-bold text-blue-600">位置大小 $|\vec{r}|$</label>
-                            <span id="val-r" class="text-sm font-mono font-bold text-blue-600">100</span>
-                        </div>
-                        <input type="range" id="slider-r" min="20" max="150" value="100">
-                    </div>
-
-                    <div>
-                        <div class="flex justify-between mb-1">
-                            <label class="text-sm font-bold text-red-600">動量大小 $|\vec{p}|$</label>
-                            <span id="val-p" class="text-sm font-mono font-bold text-red-600">80</span>
-                        </div>
-                        <input type="range" id="slider-p" min="20" max="150" value="80">
-                    </div>
-
-                    <div>
-                        <div class="flex justify-between mb-1">
-                            <label class="text-sm font-bold text-slate-700">夾角 $\theta$</label>
-                            <span id="val-theta" class="text-sm font-mono font-bold text-slate-700">90°</span>
-                        </div>
-                        <input type="range" id="slider-theta" min="0" max="360" value="90">
-                    </div>
-                </div>
-                <p class="text-xs text-slate-500 mt-4 leading-relaxed">
-                    提示：您也可以直接在右側畫布上拖曳藍色或紅色箭頭的頂點。
-                </p>
+    <body>
+    <div class="app-shell">
+        <header class="topbar" aria-label="Top navigation">
+            <div class="topbar-left">
+                <div class="logo-mark" aria-hidden="true"></div>
+                <div class="lab-name">物理實驗室</div>
             </div>
 
-            <!-- 數據顯示面板 -->
-            <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 flex-1">
-                <h2 class="text-lg font-bold mb-4 text-indigo-900 border-b pb-2">即時運算結果</h2>
-                
-                <div class="space-y-4 text-sm">
-                    <div class="bg-slate-50 p-3 rounded-lg border border-slate-100">
-                        <div class="font-mono text-center font-bold mb-2 pb-2 border-b border-slate-200">
-                            $|\vec{L}| = |\vec{r}| \cdot |\vec{p}| \cdot \sin(\theta)$
-                        </div>
-                        <div class="flex justify-between items-center text-slate-600">
-                            <span>$100 \times 80 \times \sin(90^\circ)$</span>
-                            <span id="calc-result" class="font-mono font-bold text-indigo-700 text-lg">8000</span>
-                        </div>
-                    </div>
+            <nav class="nav-tabs" aria-label="主要導覽">
+                <button class="nav-tab active" type="button">儀表板</button>
+                <button class="nav-tab" type="button">模擬</button>
+                <button class="nav-tab" type="button">結果</button>
+                <button class="nav-tab" type="button">設定</button>
+            </nav>
 
-                    <div class="grid grid-cols-2 gap-4">
-                        <div class="bg-indigo-50 p-3 rounded-lg border border-indigo-100 flex flex-col justify-center items-center">
-                            <span class="text-xs font-bold text-indigo-500 mb-1">角動量方向</span>
-                            <div id="dir-indicator" class="flex items-center text-indigo-700 font-bold text-lg">
-                                <!-- JS 會更新這裡 -->
-                                射出 (⊙)
+            <div class="topbar-right">
+                <div class="page-title-block">
+                    <div class="page-title">角動量模擬</div>
+                    <div class="page-path">物理 / 實驗室 / 2D</div>
+                </div>
+
+                <div class="header-actions">
+                    <span class="rounded-pill">Rounding: 6px</span>
+                    <button class="action-btn" type="button" id="run-sim">▶ 執行模擬</button>
+                    <button class="secondary-btn" type="button">↻ 更新</button>
+                </div>
+            </div>
+        </header>
+
+        <main class="app-grid">
+            <aside class="left-panel panel" aria-label="模擬參數控制面板">
+                <div class="panel-header">
+                    <h2>模擬參數</h2>
+                </div>
+
+                <div class="control-list">
+                    <div class="field-group">
+                        <div class="field-header">
+                            <div class="field-label-wrap">
+                                <label class="field-label" for="slider-r">位置大小</label>
+                                <button class="tooltip-btn" type="button" title="從原點到粒子的徑向距離，決定角動量的力臂長度。" aria-label="位置大小說明">?</button>
+                            </div>
+                            <div class="field-value">
+                                <span class="unit-tag">m</span>
+                                <span id="val-r">100</span>
                             </div>
                         </div>
-                        <div class="bg-emerald-50 p-3 rounded-lg border border-emerald-100 flex flex-col justify-center items-center">
-                            <span class="text-xs font-bold text-emerald-600 mb-1">$\sin(\theta)$ 值</span>
-                            <span id="val-sin" class="font-mono font-bold text-emerald-700 text-lg">1.00</span>
+                        <input type="range" id="slider-r" min="20" max="150" value="100" aria-label="位置大小">
+                    </div>
+
+                    <div class="field-group">
+                        <div class="field-header">
+                            <div class="field-label-wrap">
+                                <label class="field-label" for="slider-p">動量大小</label>
+                                <button class="tooltip-btn" type="button" title="粒子的線性動量大小，會直接影響角動量大小。" aria-label="動量大小說明">?</button>
+                            </div>
+                            <div class="field-value">
+                                <span class="unit-tag">kg·m/s</span>
+                                <span id="val-p">80</span>
+                            </div>
+                        </div>
+                        <input type="range" id="slider-p" min="20" max="150" value="80" aria-label="動量大小">
+                    </div>
+
+                    <div class="field-group">
+                        <div class="field-header">
+                            <div class="field-label-wrap">
+                                <label class="field-label" for="slider-theta">夾角</label>
+                                <button class="tooltip-btn" type="button" title="位置向量與動量向量之間的夾角，正弦值決定角動量大小。" aria-label="夾角說明">?</button>
+                            </div>
+                            <div class="field-value">
+                                <span class="unit-tag">°</span>
+                                <span id="val-theta">90°</span>
+                            </div>
+                        </div>
+                        <input type="range" id="slider-theta" min="0" max="360" value="90" aria-label="夾角">
+                    </div>
+                </div>
+
+                <div class="secondary-panel">
+                    <div class="panel-header">
+                        <h2>環境 / 場域控制</h2>
+                    </div>
+
+                    <div class="control-list">
+                        <div class="field-group">
+                            <div class="field-header">
+                                <div class="field-label-wrap">
+                                    <label class="field-label" for="field-scale">場域尺度</label>
+                                    <button class="tooltip-btn" type="button" title="控制視覺中場域強度的顯示程度。" aria-label="場域尺度說明">?</button>
+                                </div>
+                                <div class="field-value"><span class="unit-tag">%</span><span>72</span></div>
+                            </div>
+                            <input type="range" id="field-scale" min="0" max="100" value="72" aria-label="場域尺度">
+                        </div>
+
+                        <div class="field-group">
+                            <div class="field-header">
+                                <div class="field-label-wrap">
+                                    <label class="field-label" for="trail-density">軌跡密度</label>
+                                    <button class="tooltip-btn" type="button" title="調整粒子暫態軌跡的可見密度。" aria-label="軌跡密度說明">?</button>
+                                </div>
+                                <div class="field-value"><span class="unit-tag">%</span><span>58</span></div>
+                            </div>
+                            <input type="range" id="trail-density" min="0" max="100" value="58" aria-label="軌跡密度">
                         </div>
                     </div>
                 </div>
-            </div>
 
-        </div>
+                <div class="control-actions">
+                    <button class="secondary-btn" type="button" id="reset-sim">↺ 重設</button>
+                    <button class="action-btn" type="button" id="run-sim-secondary">▶ 執行模擬</button>
+                </div>
+            </aside>
 
-        <!-- 右側畫布區域 -->
-        <div class="flex-1 bg-white rounded-2xl shadow-xl border border-slate-200 overflow-hidden relative min-h-[400px]">
-            <!-- <canvas> 會被 JS 設定大小以填滿這個容器 -->
-            <canvas id="sim-canvas" class="w-full h-full cursor-crosshair"></canvas>
-            
-            <div class="absolute top-4 left-4 bg-white/80 backdrop-blur px-3 py-1 rounded shadow-sm text-sm font-mono border border-slate-100 pointer-events-none">
-                俯視圖 (xy-平面)
-            </div>
-            
-            <div class="absolute bottom-4 right-4 pointer-events-none">
-                 <svg id="z-axis-indicator" width="80" height="80" viewBox="0 0 100 100">
-                    <circle cx="50" cy="50" r="40" fill="none" stroke="#e2e8f0" stroke-width="2" />
-                    <!-- JS 會更新這個群組的內容來顯示射出/進入 -->
-                    <g id="z-axis-symbol" stroke="#6366f1" stroke-width="3" fill="none">
-                        <circle cx="50" cy="50" r="15" />
-                        <circle cx="50" cy="50" r="2" fill="#6366f1" />
-                    </g>
-                    <text x="50" y="20" font-size="12" fill="#6366f1" text-anchor="middle" font-weight="bold">Z 軸 ($\vec{L}$)</text>
-                 </svg>
-            </div>
-        </div>
+            <section class="sim-panel panel" aria-label="模擬視覺區">
+                <div class="sim-header">
+                    <h2>模擬</h2>
+                    <span class="time-badge">t = 1.25 s</span>
+                </div>
 
+                <div class="sim-canvas-wrap">
+                    <canvas id="sim-canvas" aria-label="角動量模擬畫布"></canvas>
+                    <div class="canvas-badge">XY 平面</div>
+                    <div class="axis-indicator" aria-live="polite">
+                        <span id="dir-indicator">射出紙面 (⊙)</span>
+                        <svg id="z-axis-indicator" viewBox="0 0 100 100" aria-label="角動量方向指示器">
+                            <circle cx="50" cy="50" r="40" fill="none" stroke="#dbeafe" stroke-width="2" />
+                            <g id="z-axis-symbol" stroke="#4f46e5" stroke-width="3" fill="none">
+                                <circle cx="50" cy="50" r="15" />
+                                <circle cx="50" cy="50" r="3" fill="#4f46e5" stroke="none" />
+                            </g>
+                            <text x="50" y="20" font-size="12" fill="#2563EB" text-anchor="middle" font-weight="700">Z</text>
+                        </svg>
+                    </div>
+                </div>
+
+                <div class="chart-panel" aria-label="Trend chart panel">
+                    <canvas id="trend-chart" width="720" height="150" aria-label="Trend chart"></canvas>
+                </div>
+            </section>
+
+            <aside class="right-panel panel description-panel" aria-label="說明與數據面板">
+                <div class="status-badge"><span class="status-dot" aria-hidden="true"></span> 執行中</div>
+                <h1 class="experiment-name">角動量向量模型</h1>
+                <p class="description-copy">此實驗室模擬粒子在平面中由位置向量與動量向量所共同形成的角動量，觀察其大小與方向如何隨參數變化。</p>
+                <p class="description-copy">調整控制項可直接觀察力臂長度、動量大小與夾角對角動量造成的影響。</p>
+
+                <div class="metric-grid">
+                    <div class="metric-card blue">
+                        <span>角動量</span>
+                        <strong id="metric-angular">8000</strong>
+                    </div>
+                    <div class="metric-card black">
+                        <span>半徑</span>
+                        <strong id="metric-radius">100</strong>
+                    </div>
+                    <div class="metric-card orange">
+                        <span>夾角</span>
+                        <strong id="metric-angle">90°</strong>
+                    </div>
+                    <div class="metric-card green">
+                        <span>sin(θ)</span>
+                        <strong id="metric-sin">1.00</strong>
+                    </div>
+                </div>
+
+                <div class="notes-block">
+                    <h3>物理筆記</h3>
+                    <ul class="notes-list">
+                        <li><strong>位置向量：</strong> 從原點到粒子的力臂長度。</li>
+                        <li><strong>動量向量：</strong> 線性動量決定粒子移動所帶來的強度。</li>
+                        <li><strong>核心關係：</strong> <span id="calc-result-note">\(L = \vec{r} \times \vec{p} = |\vec{r}||\vec{p}|\sin\theta\)</span></li>
+                    </ul>
+                    <div class="formula-box"><span id="calc-result">8000</span> = \(|\vec{r}||\vec{p}|\sin(\theta)\)</div>
+                    <span id="val-sin" class="sr-only">1.00</span>
+                </div>
+                <button class="secondary-btn export-btn" type="button">⬇ 匯出 CSV</button>
+            </aside>
+        </main>
     </div>
 
-    <!-- MathJax 用於渲染數學公式 -->
     <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
     <script>
-        // 設定 MathJax 配置，讓它支援行內公式
         window.MathJax = {
             tex: {
                 inlineMath: [['$', '$'], ['\\(', '\\)']]
             }
         };
+    </script>
+
+    <script>
+        // 現有模擬邏輯保持不變，僅更新 UI 層與互動按鈕
     </script>
 
     <script>
@@ -167,6 +921,30 @@
         const calcResult = document.getElementById('calc-result');
         const dirIndicator = document.getElementById('dir-indicator');
         const zAxisSymbol = document.getElementById('z-axis-symbol');
+        const metricAngular = document.getElementById('metric-angular');
+        const metricRadius = document.getElementById('metric-radius');
+        const metricAngle = document.getElementById('metric-angle');
+        const metricSin = document.getElementById('metric-sin');
+        const calcResultNote = document.getElementById('calc-result-note');
+        const resetButton = document.getElementById('reset-sim');
+        const runSimButton = document.getElementById('run-sim');
+        const runSimSecondaryButton = document.getElementById('run-sim-secondary');
+
+        function refreshMathTex() {
+            if (window.MathJax && typeof window.MathJax.typeset === 'function') {
+                window.MathJax.typeset();
+            }
+        }
+
+        function updateRangeProgress(input) {
+            const min = Number(input.min || 0);
+            const max = Number(input.max || 100);
+            const value = Number(input.value);
+            const percent = ((value - min) / (max - min)) * 100;
+            input.style.setProperty('--progress', `${percent}%`);
+        }
+
+        [sliderR, sliderP, sliderTheta].forEach((input) => updateRangeProgress(input));
 
         // 狀態變數
         let state = {
@@ -353,19 +1131,29 @@
                 sliderTheta.value = state.thetaDeg;
             }
 
+            updateRangeProgress(sliderR);
+            updateRangeProgress(sliderP);
+            updateRangeProgress(sliderTheta);
+
             // 更新公式面板
-            document.querySelector('#calc-result').previousElementSibling.innerHTML = 
-                `${Math.round(state.magR)} &times; ${Math.round(state.magP)} &times; <span class="${Math.abs(sinVal)<0.1 ? 'text-rose-500' : ''}">sin(${Math.round(displayTheta)}&deg;)</span>`;
             calcResult.innerText = Math.round(magL);
+            calcResultNote.innerHTML = `\\(L = \\vec{r} \\times \\vec{p} = |\\vec{r}||\\vec{p}|\\sin(${Math.round(displayTheta)}^{\\circ})\\)`;
             valSin.innerText = Math.abs(sinVal).toFixed(2);
+            metricAngular.innerText = Math.round(magL);
+            metricRadius.innerText = Math.round(state.magR);
+            metricAngle.innerText = `${Math.round(displayTheta)}°`;
+            metricSin.innerText = Math.abs(sinVal).toFixed(2);
+            refreshMathTex();
             
             // 當 sin 趨近於 0 時給予提示顏色
             if(Math.abs(sinVal) < 0.05) {
                 valSin.classList.add('text-rose-500');
                 valSin.classList.remove('text-emerald-700');
+                metricSin.style.color = '#ef4444';
             } else {
                 valSin.classList.remove('text-rose-500');
                 valSin.classList.add('text-emerald-700');
+                metricSin.style.color = '#10B981';
             }
 
             // 更新方向指示
@@ -394,9 +1182,26 @@
         // --- 事件監聽器 ---
 
         // 滑桿變更事件
-        sliderR.addEventListener('input', (e) => { state.magR = parseFloat(e.target.value); draw(); });
-        sliderP.addEventListener('input', (e) => { state.magP = parseFloat(e.target.value); draw(); });
-        sliderTheta.addEventListener('input', (e) => { state.thetaDeg = parseFloat(e.target.value); draw(); });
+        sliderR.addEventListener('input', (e) => { state.magR = parseFloat(e.target.value); updateRangeProgress(e.target); draw(); });
+        sliderP.addEventListener('input', (e) => { state.magP = parseFloat(e.target.value); updateRangeProgress(e.target); draw(); });
+        sliderTheta.addEventListener('input', (e) => { state.thetaDeg = parseFloat(e.target.value); updateRangeProgress(e.target); draw(); });
+
+        resetButton.addEventListener('click', () => {
+            state.magR = 100;
+            state.magP = 80;
+            state.thetaDeg = 90;
+            state.rAngleDeg = 0;
+            sliderR.value = 100;
+            sliderP.value = 80;
+            sliderTheta.value = 90;
+            updateRangeProgress(sliderR);
+            updateRangeProgress(sliderP);
+            updateRangeProgress(sliderTheta);
+            draw();
+        });
+
+        if (runSimButton) runSimButton.addEventListener('click', () => draw());
+        if (runSimSecondaryButton) runSimSecondaryButton.addEventListener('click', () => draw());
 
         // Canvas 滑鼠/觸控事件處理
         function getMousePos(evt) {

@@ -40,126 +40,312 @@
             @apply bg-rose-500 hover:bg-rose-400 text-white;
         }
     </style>
+    <style>
+        :root {
+            --bg: #f0f2f5;
+            --panel: #ffffff;
+            --panel-alt: #f8faff;
+            --line: #e2e6ea;
+            --primary: #2563eb;
+            --primary-deep: #1d4ed8;
+            --text: #111827;
+            --text-soft: #6b7280;
+            --text-faint: #9ca3af;
+            --green: #10b981;
+            --orange: #f59e0b;
+            --shadow: 0 10px 30px rgba(15, 23, 42, 0.06);
+            --radius: 6px;
+        }
+
+        *, *::before, *::after { box-sizing: border-box; }
+
+        html, body { min-height: 100%; }
+
+        body {
+            margin: 0;
+            padding: 18px 24px 20px;
+            background: var(--bg);
+            color: var(--text);
+            font-family: 'Instrument Sans', 'Segoe UI', 'Noto Sans TC', sans-serif;
+        }
+
+        button, input { font: inherit; }
+
+        .app-shell { max-width: 1500px; margin: 0 auto; }
+
+        .topbar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 16px;
+            margin-bottom: 18px;
+            padding: 12px 18px;
+            background: rgba(255, 255, 255, 0.62);
+            border: 1px solid rgba(226, 230, 234, 0.85);
+            border-radius: 16px;
+            backdrop-filter: blur(8px);
+        }
+
+        .topbar-left, .topbar-right {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            min-width: 0;
+        }
+
+        .logo-mark {
+            width: 36px;
+            height: 36px;
+            flex: 0 0 auto;
+            border-radius: 10px;
+            background: linear-gradient(135deg, #dbeafe, #eff6ff);
+            border: 1px solid rgba(37, 99, 235, 0.15);
+            position: relative;
+        }
+
+        .logo-mark::before, .logo-mark::after {
+            content: '';
+            position: absolute;
+            border-radius: 4px;
+        }
+
+        .logo-mark::before {
+            width: 18px;
+            height: 18px;
+            left: 9px;
+            top: 9px;
+            background: rgba(37, 99, 235, 0.22);
+        }
+
+        .logo-mark::after {
+            width: 8px;
+            height: 8px;
+            right: 7px;
+            bottom: 7px;
+            background: var(--primary);
+        }
+
+        .lab-name { font-size: 1.05rem; font-weight: 800; letter-spacing: 0.04em; white-space: nowrap; }
+
+        .nav-tabs {
+            display: flex;
+            align-items: center;
+            gap: 18px;
+            padding: 6px 10px;
+            background: rgba(15, 23, 42, 0.02);
+            border: 1px solid rgba(226, 230, 234, 0.85);
+            border-radius: 12px;
+        }
+
+        .nav-tab {
+            padding: 8px 12px;
+            border: 0;
+            border-radius: 8px;
+            background: transparent;
+            color: var(--text-soft);
+            font-size: 0.88rem;
+            font-weight: 600;
+            cursor: pointer;
+        }
+
+        .nav-tab.active { color: var(--primary); background: rgba(37, 99, 235, 0.07); box-shadow: inset 0 -2px 0 var(--primary); }
+        .page-title-block { display: flex; flex-direction: column; align-items: flex-end; text-align: right; min-width: 0; }
+        .page-title { color: var(--text-soft); font-size: 0.78rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; }
+        .page-path { color: var(--text-faint); font-size: 0.72rem; letter-spacing: 0.04em; }
+        .header-actions { display: flex; align-items: center; gap: 10px; }
+        .rounded-pill { display: inline-flex; align-items: center; min-height: 34px; padding: 0 12px; border: 1px solid var(--line); border-radius: 999px; color: var(--text-soft); font-size: 0.8rem; font-weight: 700; }
+        .action-btn, .secondary-btn { height: 40px; padding: 0 16px; border: 1px solid transparent; border-radius: var(--radius); font-weight: 700; cursor: pointer; }
+        .action-btn { background: linear-gradient(180deg, var(--primary), var(--primary-deep)); color: #fff; box-shadow: 0 8px 18px rgba(37, 99, 235, 0.2); }
+        .secondary-btn { background: rgba(255, 255, 255, 0.8); border-color: var(--line); color: var(--text); }
+
+        .app-grid {
+            display: grid;
+            grid-template-columns: minmax(210px, 0.8fr) minmax(300px, 1.4fr) minmax(240px, 0.95fr);
+            gap: 18px;
+            align-items: start;
+            min-height: calc(100vh - 120px);
+        }
+
+        .panel { min-width: 0; background: var(--panel); border: 1px solid var(--line); border-radius: 18px; box-shadow: var(--shadow); }
+        .left-panel, .right-panel { display: flex; flex-direction: column; gap: 18px; padding: 18px; }
+        .panel-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; padding-bottom: 10px; border-bottom: 1px solid rgba(226, 230, 234, 0.9); }
+        .panel-header h2, .sim-header h2 { margin: 0; color: var(--text-soft); font-size: 0.86rem; font-weight: 800; letter-spacing: 0.18em; text-transform: uppercase; }
+        .control-list, .notes-list { display: flex; flex-direction: column; gap: 16px; }
+        .field-group { display: flex; flex-direction: column; gap: 8px; }
+        .field-header { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+        .field-label-wrap { display: inline-flex; align-items: center; gap: 6px; min-width: 0; }
+        .field-label { color: var(--text); font-size: 0.84rem; font-weight: 700; }
+        .tooltip-btn { width: 16px; height: 16px; padding: 0; border: 1px solid #94a3b8; border-radius: 50%; background: #f8fafc; color: var(--text-soft); font-size: 0.72rem; cursor: help; }
+        .field-value { display: inline-flex; align-items: center; gap: 8px; color: var(--primary); font-family: 'JetBrains Mono', monospace; font-size: 0.86rem; font-weight: 700; }
+        .unit-tag { padding: 2px 8px; border: 1px solid rgba(37, 99, 235, 0.12); border-radius: 999px; background: rgba(37, 99, 235, 0.08); color: var(--primary); font-size: 0.7rem; }
+        .input-field { width: 100%; min-height: 40px; padding: 8px 10px; border: 1px solid var(--line); border-radius: 8px; background: #f8fafc; color: var(--text); }
+        .field-group input[type='range'] { width: 100%; accent-color: var(--primary); }
+        .secondary-panel, .notes-block { padding: 14px 12px 12px; border: 1px solid rgba(226, 230, 234, 0.8); border-radius: 16px; background: linear-gradient(180deg, rgba(248, 250, 255, 0.95), rgba(255, 255, 255, 0.75)); }
+        .secondary-panel .panel-header { margin-bottom: 10px; }
+        .secondary-panel .notes-list { gap: 8px; }
+        .sim-panel { display: flex; flex-direction: column; padding: 16px; min-width: 0; }
+        .sim-header { display: flex; justify-content: space-between; align-items: center; gap: 10px; margin-bottom: 12px; }
+        .time-badge { padding: 6px 10px; border: 1px solid rgba(37, 99, 235, 0.15); border-radius: 999px; background: rgba(37, 99, 235, 0.05); color: var(--primary-deep); font-family: 'JetBrains Mono', monospace; font-size: 0.8rem; font-weight: 700; }
+        .sim-canvas-wrap { position: relative; height: 430px; overflow: hidden; border: 1px solid var(--line); border-radius: 18px; background: linear-gradient(180deg, var(--panel-alt), rgba(219, 234, 254, 0.56)); }
+        .sim-canvas-wrap canvas { display: block; width: 100%; height: 100%; touch-action: none; }
+        .canvas-badge { position: absolute; top: 12px; left: 12px; padding: 5px 10px; border: 1px solid rgba(148, 163, 184, 0.55); border-radius: 999px; background: rgba(255, 255, 255, 0.82); color: var(--text-soft); font-size: 0.7rem; font-weight: 700; letter-spacing: 0.08em; }
+        .chart-panel { min-width: 0; }
+        .chart-panel > div { min-width: 0; }
+        .chart-panel canvas { width: 100% !important; height: 130px !important; display: block; }
+        .status-badge { display: inline-flex; align-items: center; gap: 8px; width: fit-content; padding: 6px 10px; border: 1px solid rgba(16, 185, 129, 0.2); border-radius: 999px; background: rgba(16, 185, 129, 0.1); color: #047857; font-size: 0.72rem; font-weight: 800; }
+        .status-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--green); box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.12); }
+        .description-panel { padding: 18px 18px 16px; }
+        .experiment-name { margin: 6px 0 10px; color: var(--text); font-size: clamp(1.5rem, 1.6vw, 2rem); line-height: 1.15; }
+        .description-copy { margin: 0 0 16px; color: var(--text-soft); font-size: 0.95rem; line-height: 1.6; }
+        .metric-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; margin: 16px 0 18px; }
+        .metric-card { display: flex; flex-direction: column; justify-content: space-between; min-height: 84px; padding: 10px 12px; border: 1px solid var(--line); border-radius: 12px; background: linear-gradient(180deg, rgba(255,255,255,0.7), rgba(248,250,252,0.9)); }
+        .metric-card span { color: var(--text-soft); font-size: 0.72rem; }
+        .metric-card strong { font-family: 'JetBrains Mono', monospace; font-size: 1.2rem; }
+        .metric-card.blue strong { color: var(--primary); } .metric-card.orange strong { color: var(--orange); } .metric-card.green strong { color: var(--green); }
+        .notes-block h3 { margin: 0 0 8px; color: var(--text-soft); font-size: 0.72rem; letter-spacing: 0.14em; text-transform: uppercase; }
+        .notes-list { list-style: none; margin: 0; padding: 0; }
+        .notes-list li { color: var(--text-soft); font-size: 0.82rem; line-height: 1.55; }
+        .notes-list strong { color: var(--text); }
+        .formula-box { margin-top: 10px; padding: 10px 12px; border: 1px solid rgba(37, 99, 235, 0.1); border-radius: 10px; background: rgba(219, 234, 254, 0.5); color: var(--primary-deep); line-height: 1.6; }
+        .export-btn { width: 100%; margin-top: 16px; }
+
+        @media (max-width: 820px) {
+            .app-grid { grid-template-columns: 1fr; }
+            .topbar { flex-wrap: wrap; justify-content: center; }
+            .topbar-left, .topbar-right { width: 100%; justify-content: center; }
+            .page-title-block { align-items: center; text-align: center; }
+        }
+
+        @media (max-width: 768px) {
+            body { padding: 14px; }
+            .topbar { padding: 12px; border-radius: 12px; }
+            .nav-tabs { width: 100%; justify-content: space-between; overflow-x: auto; }
+            .header-actions { width: 100%; justify-content: center; flex-wrap: wrap; }
+            .sim-canvas-wrap { height: 340px; }
+            .chart-panel { grid-template-columns: 1fr !important; }
+        }
+    </style>
 </head>
 
 <body class="bg-slate-50 text-slate-800 min-h-screen font-sans">
-
-    <div class="max-w-7xl mx-auto px-4 py-6">
-        <!-- Header -->
-        <header class="mb-6 flex flex-col md:flex-row items-center justify-between gap-4">
-            <div>
-                <h1 class="text-3xl font-black text-purple-600">直線加速度運動：電梯模擬</h1>
-                <p class="text-slate-500 text-sm mt-1">互動式教學工具：電梯從1樓到25樓的運動模擬</p>
+    <div class="app-shell">
+        <header class="topbar" aria-label="Top navigation">
+            <div class="topbar-left">
+                <div class="logo-mark" aria-hidden="true"></div>
+                <div class="lab-name">物理實驗室</div>
             </div>
-            <div class="flex gap-2">
-                <button id="run" class="btn btn-primary">開始</button>
-                <button id="pause" class="btn btn-secondary">暫停</button>
-                <button id="reset" class="btn btn-danger">重置</button>
+            <nav class="nav-tabs" aria-label="主要導覽">
+                <button class="nav-tab active" type="button">儀表板</button>
+                <button class="nav-tab" type="button">模擬</button>
+                <button class="nav-tab" type="button">結果</button>
+                <button class="nav-tab" type="button">設定</button>
+            </nav>
+            <div class="topbar-right">
+                <div class="page-title-block">
+                    <div class="page-title">電梯運動模擬</div>
+                    <div class="page-path">物理 / 力學 / 直線運動</div>
+                </div>
+                <div class="header-actions">
+                    <span class="rounded-pill">Rounding: 6px</span>
+                    <button id="run" class="action-btn" type="button">▶ 開始</button>
+                    <button id="pause" class="secondary-btn" type="button">⏸ 暫停</button>
+                    <button id="reset" class="secondary-btn" type="button">↺ 重置</button>
+                </div>
             </div>
         </header>
-         <!-- 主要內容：左側(動畫+圖表) + 右側參數 -->
-          <div class="grid lg:grid-cols-12 gap-6 mb-6 items-stretch">
-              <!-- 左側合併卡片：電梯情境動畫 + 運動圖表 (佔 9/12) -->
-              <div class="lg:col-span-9">
-                  <div class="card flex flex-col lg:flex-row gap-6 lg:h-[700px]">
-                      <!-- 左半部：電梯情境動畫 -->
-                      <div class="flex-1 flex flex-col">
-                          <h2 class="text-lg font-bold mb-3 flex items-center gap-2 text-slate-700">
-                              <span class="w-1.5 h-6 bg-purple-500 rounded-full"></span>
-                            電梯運動模擬
-                          </h2>
-                          <div class="relative w-full h-[460px] lg:h-[500px] bg-slate-50 rounded-xl overflow-hidden border border-slate-200 flex items-center justify-center">
-                              <canvas id="anim" width="360" height="480" class="w-full h-full flex items-center justify-center"></canvas>
-                          </div>
-                          <!-- 即時數據面板 -->
-                          <div id="overlay" class="mt-3 font-mono text-sm bg-white p-3 rounded-lg border border-slate-200 shadow-sm grid grid-cols-2 gap-x-4 gap-y-1">
-                              <div id="ov-floor" class="text-purple-600 font-bold">樓層: 1</div>
-                              <div id="ov-time" class="text-cyan-600 text-right">時間: 0.00 s</div>
-                              <div id="ov-pos" class="text-blue-600">位置: 0.00 m</div>
-                              <div id="ov-acc" class="text-amber-600 text-right">加速度: 0.00 m/s²</div>
-                              <div id="ov-vel" class="text-emerald-600 col-span-2">速度: 0.00 m/s</div>
-                          </div>
-                      </div>
 
-                      <!-- 右半部：運動圖表 -->
-                      <div class="w-full lg:w-80 flex flex-col gap-3 overflow-y-auto pr-2">
-                          <h2 class="text-lg font-bold mb-1 flex items-center gap-2 text-slate-700">
-                              <span class="w-1.5 h-6 bg-purple-500 rounded-full"></span>
-                              運動圖表
-                          </h2>
-                          <div>
-                              <h3 class="text-sm font-bold mb-1 text-slate-700">位置-時間圖 (\(x-t\))</h3>
-                              <div class="w-full h-42 bg-slate-50 rounded-xl border border-slate-200 p-1">
-                                  <canvas id="chartX" width="500" height="400" class="w-full h-full"></canvas>
-                              </div>
-                          </div>
-                          <div>
-                              <h3 class="text-sm font-bold mb-1 text-slate-700">速度-時間圖 (\(v-t\))</h3>
-                              <div class="w-full h-42 bg-slate-50 rounded-xl border border-slate-200 p-1">
-                                  <canvas id="chartV" width="500" height="400" class="w-full h-full"></canvas>
-                              </div>
-                          </div>
-                          <div>
-                              <h3 class="text-sm font-bold mb-1 text-slate-700">加速度-時間圖 (\(a-t\))</h3>
-                              <div class="w-full h-42 bg-slate-50 rounded-xl border border-slate-200 p-1">
-                                  <canvas id="chartA" width="500" height="400" class="w-full h-full"></canvas>
-                              </div>
-                          </div>
-                      </div>
-                  </div>
-              </div>
+        <main class="app-grid">
+            <aside class="left-panel panel" aria-label="模擬參數控制面板">
+                <div class="panel-header"><h2>模擬參數</h2></div>
+                <div class="control-list">
+                    <div class="field-group">
+                        <div class="field-header">
+                            <div class="field-label-wrap">
+                                <label class="field-label" for="acceleration">加速度</label>
+                                <button class="tooltip-btn" type="button" title="電梯沿豎直方向的加速度，決定起步與制動的加速度大小。" aria-label="加速度說明">?</button>
+                            </div>
+                            <div class="field-value"><span class="unit-tag">m/s²</span><span id="accelValue">1.5</span></div>
+                        </div>
+                        <input type="number" id="acceleration" class="input-field" value="1.5" min="0.1" max="5" step="0.1">
+                        <input type="range" id="accelSlider" min="0.1" max="5" value="1.5" step="0.1" aria-label="電梯加速度">
+                    </div>
+                    <div class="field-group">
+                        <div class="field-header">
+                            <div class="field-label-wrap">
+                                <label class="field-label" for="maxVel">最大速度</label>
+                                <button class="tooltip-btn" type="button" title="電梯進入等速階段時的極限速度。" aria-label="最大速度說明">?</button>
+                            </div>
+                            <div class="field-value"><span class="unit-tag">m/s</span><span id="maxVelValue">3</span></div>
+                        </div>
+                        <input type="number" id="maxVel" class="input-field" value="3" min="0.5" max="10" step="0.5">
+                        <input type="range" id="maxVelSlider" min="0.5" max="10" value="3" step="0.5" aria-label="最大速度">
+                    </div>
+                    <div class="field-group">
+                        <div class="field-header">
+                            <div class="field-label-wrap">
+                                <label class="field-label" for="simSpeed">播放速度</label>
+                                <button class="tooltip-btn" type="button" title="控制模擬時間流逝速率。" aria-label="播放速度說明">?</button>
+                            </div>
+                            <div class="field-value"><span class="unit-tag">x</span><span id="speedValue">1</span></div>
+                        </div>
+                        <input type="range" id="simSpeed" min="0.1" max="3" value="1" step="0.1" aria-label="播放速度">
+                    </div>
+                </div>
+                <div class="secondary-panel" style="padding:12px; border-radius: 16px; background: linear-gradient(180deg, rgba(248,250,255,0.95), rgba(255,255,255,0.75)); border:1px solid rgba(226,230,234,0.8);">
+                    <div class="panel-header" style="margin-bottom:10px;"><h2>動畫說明</h2></div>
+                    <div class="notes-list" style="gap:8px;">
+                        <div class="p-3 bg-slate-50 rounded-lg border border-slate-200">1. 電梯依序經過加速、等速、減速三個階段。</div>
+                        <div class="p-3 bg-slate-50 rounded-lg border border-slate-200">2. x-t、v-t、a-t 圖會即時描繪運動變化。</div>
+                        <div class="p-3 bg-slate-50 rounded-lg border border-slate-200">3. 右側參數可調整加速度、最大速度與播放速度。</div>
+                    </div>
+                </div>
+            </aside>
 
-              <!-- 右側：參數設定 + 動畫說明 (佔 3/12) -->
-              <div class="lg:col-span-3 flex flex-col gap-4">
-                  <div class="card">
-                      <h2 class="text-lg font-bold mb-4 flex items-center gap-2 text-slate-700">
-                          <span class="w-1.5 h-6 bg-purple-500 rounded-full"></span>
-                        參數設定
-                      </h2>
-                      <div class="flex flex-col gap-4">
-                          <div class="input-group">
-                              <label class="text-sm font-medium text-slate-600">
-                              電梯加速度 \( a \) (m/s²)
-                              </label>
-                              <input type="number" id="acceleration" class="input-field" value="1.5" min="0.1" max="5" step="0.1">
-                              <input type="range" id="accelSlider" min="0.1" max="5" value="1.5" step="0.1" class="w-full accent-purple-500 mt-1">
-                          </div>
-                          <div class="input-group">
-                              <label class="text-sm font-medium text-slate-600">
-                              最大速度 \( v_{\max} \) (m/s)
-                              </label>
-                              <input type="number" id="maxVel" class="input-field" value="3" min="0.5" max="10" step="0.5">
-                              <input type="range" id="maxVelSlider" min="0.5" max="10" value="3" step="0.5" class="w-full accent-purple-500 mt-1">
-                          </div>
-                          <div class="input-group">
-                              <label class="text-sm font-medium text-slate-600">
-                              播放速度
-                              </label>
-                              <input type="range" id="simSpeed" min="0.1" max="3" value="1" step="0.1" class="w-full accent-purple-500 mt-1">
-                          </div>
-                      </div>
-                  </div>
+            <section class="sim-panel panel" aria-label="模擬視覺區">
+                <div class="sim-header"><h2>模擬</h2><span class="time-badge" id="ov-time">時間: 0.00 s</span></div>
+                <div class="sim-canvas-wrap">
+                    <canvas id="anim" width="360" height="480" aria-label="電梯運動動畫"></canvas>
+                    <div class="canvas-badge">運動視覺化</div>
+                </div>
+                <div class="chart-panel" style="margin-top:12px; display:grid; grid-template-columns: repeat(3, minmax(0,1fr)); gap: 10px;">
+                    <div style="background: rgba(255,255,255,0.75); border:1px solid var(--line); border-radius:12px; padding:10px; min-height:180px;">
+                        <h3 style="margin:0 0 8px; font-size:0.74rem; letter-spacing:0.08em; text-transform:uppercase; color:var(--text-soft);">x-t</h3>
+                        <canvas id="chartX" width="500" height="400" style="width:100%; height:130px; display:block;"></canvas>
+                    </div>
+                    <div style="background: rgba(255,255,255,0.75); border:1px solid var(--line); border-radius:12px; padding:10px; min-height:180px;">
+                        <h3 style="margin:0 0 8px; font-size:0.74rem; letter-spacing:0.08em; text-transform:uppercase; color:var(--text-soft);">v-t</h3>
+                        <canvas id="chartV" width="500" height="400" style="width:100%; height:130px; display:block;"></canvas>
+                    </div>
+                    <div style="background: rgba(255,255,255,0.75); border:1px solid var(--line); border-radius:12px; padding:10px; min-height:180px;">
+                        <h3 style="margin:0 0 8px; font-size:0.74rem; letter-spacing:0.08em; text-transform:uppercase; color:var(--text-soft);">a-t</h3>
+                        <canvas id="chartA" width="500" height="400" style="width:100%; height:130px; display:block;"></canvas>
+                    </div>
+                </div>
+            </section>
 
-                  <!-- 動畫說明：放在參數設定下方 -->
-                  <div class="card">
-                      <h2 class="text-lg font-bold mb-4 flex items-center gap-2 text-slate-700">
-                          <span class="w-1.5 h-6 bg-purple-500 rounded-full"></span>
-                        動畫說明
-                      </h2>
-                      <div class="space-y-3 text-sm text-slate-700 leading-relaxed">
-                          <div class="p-3 bg-slate-50 rounded-lg border border-slate-200">
-                            <ol class="list-decimal list-inside space-y-1">
-                              <li>按下「開始」後，電梯會依序經過加速、等速、減速三個階段，最後停在 25 樓。</li>
-                              <li>中間 \(x-t、v-t、a-t\) 圖會即時描繪運動變化；\(a-t\) 圖包含正、零、負加速度區段。</li>
-                              <li>可透過右側參數調整加速度、最大速度與模擬速度，重置後重新觀察差異。</li>
-                            </ol>
-                          </div>
-                      </div>
-                  </div>
-              </div>
-          </div>
-
-         
+            <aside class="right-panel panel description-panel" aria-label="說明與數據面板">
+                <div class="status-badge"><span class="status-dot" aria-hidden="true"></span> 執行中</div>
+                <h1 class="experiment-name">直線加速度運動</h1>
+                <p class="description-copy">此模擬展示電梯在起步、等速與制動過程中的位置、速度與加速度如何隨時間變化。</p>
+                <p class="description-copy">透過調整加速度、最大速度與播放速度，可觀察不同動力學設定下的運動週期與圖像變化。</p>
+                <div class="metric-grid">
+                    <div class="metric-card blue"><span>樓層</span><strong id="ov-floor">1</strong></div>
+                    <div class="metric-card black"><span>位置</span><strong id="ov-pos">0.00 m</strong></div>
+                    <div class="metric-card orange"><span>速度</span><strong id="ov-vel">0.00 m/s</strong></div>
+                    <div class="metric-card green"><span>加速度</span><strong id="ov-acc">0.00 m/s²</strong></div>
+                </div>
+                <div class="notes-block">
+                    <h3>物理筆記</h3>
+                    <ul class="notes-list">
+                        <li><strong>加速階段：</strong> 速度以固定加速度增大，位置呈拋物線變化。</li>
+                        <li><strong>等速階段：</strong> 加速度為零，速度維持定值。</li>
+                        <li><strong>核心關係：</strong> \(v = v_0 + at\), \(x = x_0 + v_0 t + \tfrac{1}{2} at^2\)</li>
+                    </ul>
+                    <div class="formula-box">\(v = v_0 + at\) ；  \(x = x_0 + v_0 t + \frac{1}{2}at^2\)</div>
+                </div>
+                <button class="secondary-btn export-btn" type="button">⬇ 匯出 CSV</button>
+            </aside>
+        </main>
     </div>
 
     <script>
@@ -200,10 +386,10 @@
                 this.v = 0;
                 this.a_curr = 0;
                 this.phase = 0; // 0: 等待, 1: 加速, 2: 等速, 3: 減速, 4: 到達
-                this.data = [];
                 this.landed = false;
                 this.running = false;
                 this.cachedPhases = null;
+                this.data = [];
             }
 
             calcPhases() {
@@ -585,6 +771,19 @@
             document.getElementById('ov-time').textContent = `時間: ${simInstance.t.toFixed(2)} s`;
         }
 
+        function renderCurrentFrame() {
+            if (!simInstance || !renderer) return;
+
+            renderer.drawAnimation(simInstance);
+
+            const phases = simInstance.calcPhases();
+            renderer.drawChart(renderer.chartXCtx, renderer.chartXCanvas, simInstance.data, 't', 'x', '#a855f7', '位置 x (m)', phases.totalTime, simInstance.TOTAL_HEIGHT);
+            renderer.drawChart(renderer.chartVCtx, renderer.chartVCanvas, simInstance.data, 't', 'v', '#22c55e', '速度 v (m/s)', phases.totalTime, simInstance.vMax * 1.2);
+            renderer.drawChart(renderer.chartACtx, renderer.chartACanvas, simInstance.data, 't', 'a', '#f59e0b', '加速度 a (m/s²)', phases.totalTime, simInstance.a * 1.5, -simInstance.a * 1.5);
+
+            updateOverlay();
+        }
+
         let simInstance;
         let renderer;
 
@@ -596,15 +795,7 @@
             lastTime = timestamp;
 
             simInstance.update(dt);
-            renderer.drawAnimation(simInstance);
-
-            // 繪製三個圖表
-            const phases = simInstance.calcPhases();
-            renderer.drawChart(renderer.chartXCtx, renderer.chartXCanvas, simInstance.data, 't', 'x', '#a855f7', '位置 x (m)', phases.totalTime, simInstance.TOTAL_HEIGHT);
-            renderer.drawChart(renderer.chartVCtx, renderer.chartVCanvas, simInstance.data, 't', 'v', '#22c55e', '速度 v (m/s)', phases.totalTime, simInstance.vMax * 1.2);
-            renderer.drawChart(renderer.chartACtx, renderer.chartACanvas, simInstance.data, 't', 'a', '#f59e0b', '加速度 a (m/s²)', phases.totalTime, simInstance.a * 1.5, -simInstance.a * 1.5);
-
-            updateOverlay();
+            renderCurrentFrame();
 
             requestAnimationFrame(mainLoop);
         }
@@ -624,6 +815,8 @@
                 vMax: parseFloat(maxVelInput.value),
                 speed: parseFloat(document.getElementById('simSpeed').value)
             });
+            lastTime = 0;
+            renderCurrentFrame();
         });
 
         // 參數變更時重置
@@ -634,7 +827,9 @@
                 speed: parseFloat(document.getElementById('simSpeed').value) || 1
             };
             simInstance.reset(params);
+            lastTime = 0;
             renderer.updateChartBackgrounds(simInstance);
+            renderCurrentFrame();
         }
 
         accelInput.addEventListener('change', onParamChange);
@@ -649,12 +844,12 @@
                 vMax: parseFloat(maxVelInput.value),
                 speed: parseFloat(document.getElementById('simSpeed').value)
             });
+            lastTime = 0;
 
             renderer.resizeAll();
             renderer.updateChartBackgrounds(simInstance);
 
-            renderer.drawAnimation(simInstance);
-            updateOverlay();
+            renderCurrentFrame();
             requestAnimationFrame(mainLoop);
         }
 
