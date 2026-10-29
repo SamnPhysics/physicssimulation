@@ -415,34 +415,52 @@
             });
             
             // --- 質量控制同步邏輯 (滑桿與輸入框) ---
-            function syncMass(val) {
-                let v = Math.max(1, Math.min(300, parseFloat(val) || 100)); // 限制範圍 1~300
+            const massSlider = document.getElementById('massSlider');
+            const massInput = document.getElementById('massInput');
+
+            function syncMass(val, updateInputField = true) {
+                let parsed = parseFloat(val);
+                if (isNaN(parsed)) {
+                    if (!updateInputField) return; // 輸入中允許暫時為空
+                    parsed = 100;
+                }
+                let v = Math.max(1, Math.min(300, parsed)); // 限制範圍 1~300
                 currentMass = v;
-                document.getElementById('massSlider').value = v;
-                document.getElementById('massInput').value = v;
+                massSlider.value = v;
+                if (updateInputField) {
+                    massInput.value = v;
+                }
                 updatePhysics();
             }
             
-            document.getElementById('massSlider').addEventListener('input', (e) => syncMass(e.target.value));
-            document.getElementById('massInput').addEventListener('change', (e) => syncMass(e.target.value));
-            document.getElementById('massInput').addEventListener('input', (e) => {
-                if (e.target.value !== '') syncMass(e.target.value);
-            });
+            massSlider.addEventListener('input', (e) => syncMass(e.target.value, true));
+            massInput.addEventListener('input', (e) => syncMass(e.target.value, false));
+            massInput.addEventListener('change', (e) => syncMass(e.target.value, true));
+            massInput.addEventListener('blur', (e) => syncMass(e.target.value, true));
 
             // --- 光線數量控制同步邏輯 (滑桿與輸入框) ---
-            function syncRays(val) {
-                let v = Math.max(1, Math.min(4, parseInt(val) || 4)); // 限制範圍 1~4
+            const raySlider = document.getElementById('raySlider');
+            const rayInput = document.getElementById('rayInput');
+
+            function syncRays(val, updateInputField = true) {
+                let parsed = parseInt(val, 10);
+                if (isNaN(parsed)) {
+                    if (!updateInputField) return; // 輸入中允許暫時為空
+                    parsed = 4;
+                }
+                let v = Math.max(1, Math.min(4, parsed)); // 限制範圍 1~4
                 currentRaysCount = v;
-                document.getElementById('raySlider').value = v;
-                document.getElementById('rayInput').value = v;
+                raySlider.value = v;
+                if (updateInputField) {
+                    rayInput.value = v;
+                }
                 updatePhysics();
             }
 
-            document.getElementById('raySlider').addEventListener('input', (e) => syncRays(e.target.value));
-            document.getElementById('rayInput').addEventListener('change', (e) => syncRays(e.target.value));
-            document.getElementById('rayInput').addEventListener('input', (e) => {
-                if (e.target.value !== '') syncRays(e.target.value);
-            });
+            raySlider.addEventListener('input', (e) => syncRays(e.target.value, true));
+            rayInput.addEventListener('input', (e) => syncRays(e.target.value, false));
+            rayInput.addEventListener('change', (e) => syncRays(e.target.value, true));
+            rayInput.addEventListener('blur', (e) => syncRays(e.target.value, true));
 
             // --- 新增：重置按鈕邏輯 ---
             document.getElementById('resetBtn').addEventListener('click', () => {
@@ -532,8 +550,10 @@
                 material
             );
             
+            // 釋放建立時遺留的原始 PlaneGeometry
+            geometry.dispose();
+            
             spacetimeGrid.position.y = -6; 
-            spacetimeGrid.userData.originalVertices = Array.from(geometry.attributes.position.array);
             
             scene.add(spacetimeGrid);
         }
@@ -704,24 +724,26 @@
         }
 
         // 統一定義光線分佈的角度
-        function getRayAngle(index, total) {
-            // 根據您的客觀分析，真實影像的大亮點 (外側模糊光斑) 角度分布為：
+        function getRayAngle(index, total = currentRaysCount) {
+            // 當光線數量為 4 道時，對齊 HE 0435−1223 真實影像的大亮點角度分布：
             // 第一象限 (右上)：約 55°
             // 第二象限 (左上)：約 145°
             // 第三象限 (左下)：約 235°
             // 第四象限 (右下)：約 325°
-            //
             // 由於 3D 空間的 YZ 軸映射到 2D 畫布時，具有 90 度的相位差
             // 轉換公式為： 3D繪圖角度 θ = 畫布角度 α - 90°
-            const he0435Angles = [
-                Math.PI * 1.922, // 右上 (55° - 90° = -35° = 325° -> 1.806π)
-                Math.PI * 0.321, // 左上 (145° - 90° = 55° -> 0.306π)
-                Math.PI * 0.906, // 左下 (235° - 90° = 145° -> 0.806π)
-                Math.PI * 1.5  // 右下 (325° - 90° = 235° -> 1.306π)
-            ];
+            if (total === 4) {
+                const he0435Angles = [
+                    Math.PI * 1.922, // 右上
+                    Math.PI * 0.321, // 左上
+                    Math.PI * 0.906, // 左下
+                    Math.PI * 1.5    // 右下
+                ];
+                return he0435Angles[index % 4];
+            }
             
-            // 取消均分邏輯，依照真實投影位置逐一增加或減少
-            return he0435Angles[index % 4]; 
+            // 非 4 道光線時，採用均勻對稱的角度分佈
+            return (index / Math.max(1, total)) * Math.PI * 2;
         }
 
         function getPathPoint(t, mass, angle) {
@@ -743,6 +765,19 @@
             return new THREE.Vector3(x, radius * Math.cos(angle), radius * Math.sin(angle));
         }
 
+        // 釋放 Three.js 物件的 GPU 資源，防止 WebGL 記憶體洩漏
+        function disposeObject(obj) {
+            if (!obj) return;
+            if (obj.geometry) obj.geometry.dispose();
+            if (obj.material) {
+                if (Array.isArray(obj.material)) {
+                    obj.material.forEach(mat => mat.dispose());
+                } else {
+                    obj.material.dispose();
+                }
+            }
+        }
+
         function updatePhysics() {
             // 將實際質量映射為視覺上的適當比例
             const effectiveMass = currentMass / 40;
@@ -750,7 +785,10 @@
             const scale = 0.5 + effectiveMass * 0.2;
             lensStar.scale.set(scale, scale, scale);
 
-            scene.remove(spacetimeGrid);
+            if (spacetimeGrid) {
+                scene.remove(spacetimeGrid);
+                disposeObject(spacetimeGrid);
+            }
             
             const size = 40;
             const divisions = 80;
@@ -767,19 +805,27 @@
             }
             newGeo.computeVertexNormals();
             
+            const wireframeGeo = new THREE.WireframeGeometry(newGeo);
+            newGeo.dispose(); // 釋放中間產物的 PlaneGeometry 記憶體
             const material = new THREE.LineBasicMaterial({ color: 0x44ccff, transparent: true, opacity: 0.4 });
-            spacetimeGrid = new THREE.LineSegments(new THREE.WireframeGeometry(newGeo), material);
+            spacetimeGrid = new THREE.LineSegments(wireframeGeo, material);
             spacetimeGrid.position.y = -6;
             scene.add(spacetimeGrid);
 
-            rayLines.forEach(line => scene.remove(line));
+            rayLines.forEach(line => {
+                scene.remove(line);
+                disposeObject(line);
+            });
             rayLines = [];
-            virtualRayLines.forEach(line => scene.remove(line)); 
+            virtualRayLines.forEach(line => {
+                scene.remove(line);
+                disposeObject(line);
+            }); 
             virtualRayLines = [];
             projectedPoints = []; // 清空投影點
             
             for (let i = 0; i < currentRaysCount; i++) {
-                const rayAngle = getRayAngle(i); // 直接取用固定陣列角度
+                const rayAngle = getRayAngle(i, currentRaysCount);
                 const points = [];
                 for (let j = 0; j <= 100; j++) {
                     points.push(getPathPoint(j / 100, effectiveMass, rayAngle));
@@ -829,7 +875,10 @@
                 scene.add(virtualLine);
             }
 
-            photonParticles.forEach(p => scene.remove(p));
+            photonParticles.forEach(p => {
+                scene.remove(p);
+                disposeObject(p);
+            });
             photonParticles = [];
             const photonGeo = new THREE.SphereGeometry(0.15, 8, 8);
             const photonMat = new THREE.MeshBasicMaterial({ color: 0xffccaa });
@@ -937,7 +986,7 @@
             photonParticles.forEach(photon => {
                 let t = ((time * speed) + photon.userData.offset) % 1.0;
                 
-                const rayAngle = getRayAngle(photon.userData.rayIndex); // 套用固定的照片方位角
+                const rayAngle = getRayAngle(photon.userData.rayIndex, currentRaysCount); // 依據當前光線數量計算方位角
                 const pos = getPathPoint(t, effectiveMass, rayAngle);
                 photon.position.copy(pos);
                 
