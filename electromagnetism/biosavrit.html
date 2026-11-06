@@ -37,6 +37,7 @@
             top: 0;
             left: 0;
             z-index: 1;
+            touch-action: none;
         }
 
         /* 3D 空間標籤樣式 (CSS2D) */
@@ -94,9 +95,51 @@
             backdrop-filter: blur(10px);
             border: 1px solid #dce4ec;
             border-radius: 12px;
-            padding: 16px 20px;
+            padding: 14px 18px;
             box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
             z-index: 10;
+            transition: max-height 0.3s ease, opacity 0.2s ease, width 0.2s ease;
+        }
+
+        .panel-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            cursor: pointer;
+            gap: 10px;
+        }
+
+        .panel-toggle-btn {
+            background: #f1f5f9;
+            border: 1px solid #cbd5e1;
+            color: #455a64;
+            width: 26px;
+            height: 26px;
+            border-radius: 6px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 11px;
+            transition: transform 0.25s ease, background 0.2s ease;
+            flex-shrink: 0;
+        }
+
+        .panel-toggle-btn:hover {
+            background: #e2e8f0;
+        }
+
+        .panel.collapsed .panel-toggle-btn {
+            transform: rotate(-90deg);
+        }
+
+        .panel.collapsed .panel-content {
+            display: none;
+        }
+
+        .panel.collapsed {
+            padding-bottom: 12px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06);
         }
 
         #theory-panel {
@@ -106,12 +149,12 @@
         }
 
         #theory-panel h1 {
-            font-size: 21px;
+            font-size: 19px;
             color: #0288d1;
             display: flex;
             align-items: center;
             gap: 8px;
-            margin-bottom: 6px;
+            margin: 0;
         }
 
         .formula-box {
@@ -129,6 +172,8 @@
             bottom: 20px;
             right: 20px;
             width: 330px;
+            max-height: calc(100vh - 220px);
+            overflow-y: auto;
         }
 
         /* 視角切換區塊樣式 */
@@ -250,6 +295,51 @@
             border: 1px dashed #81c784;
             line-height: 1.4;
         }
+
+        /* 行動端與窄螢幕響應式適配 */
+        @media (max-width: 820px) {
+            #theory-panel {
+                top: 12px;
+                left: 12px;
+                right: 12px;
+                max-width: none;
+                width: auto;
+            }
+
+            #readout-panel {
+                top: auto;
+                bottom: 80px;
+                left: 12px;
+                right: 12px;
+                width: auto;
+            }
+
+            #control-panel {
+                bottom: 12px;
+                left: 12px;
+                right: 12px;
+                width: auto;
+                max-height: 48vh;
+            }
+
+            /* 手機端預設折疊理論面板以露出 3D 空間 */
+            #theory-panel.auto-collapsed-mobile .panel-content {
+                display: none;
+            }
+            #theory-panel.auto-collapsed-mobile .panel-toggle-btn {
+                transform: rotate(-90deg);
+            }
+        }
+
+        @media (max-height: 520px) {
+            #theory-panel {
+                max-height: 90vh;
+                overflow-y: auto;
+            }
+            #control-panel {
+                max-height: 70vh;
+            }
+        }
     </style>
 </head>
 
@@ -259,86 +349,102 @@
 
     <!-- 左上：理論與公式 -->
     <div class="panel" id="theory-panel">
-        <h1>必歐-沙伐定律 <span style="font-size: 16px; color:#546e7a;">Biot-Savart law</span></h1>
-        <p style="font-size: 13px; color: #546e7a; margin-top: 4px;">
-            載流導線微元 <span id="eq-dl-intro"></span> 在空間 <span id="eq-p-intro"></span> 點建立的微小磁場：
-        </p>
-        <div class="formula-box" id="eq-cross"></div>
-        <div class="formula-box" style="background:#fff3e0; border-left-color: #ff9800;" id="eq-mag"></div>
-        <div class="drag-tip">
-            🖐️ <b>滑鼠互動：</b> 直接用滑鼠按住畫面中的「黑點 <span id="tip-p"></span>」即可在三維空間拖曳移動！
+        <div class="panel-header" id="header-theory">
+            <h1>必歐-沙伐定律 <span style="font-size: 14px; color:#546e7a;">Biot-Savart law</span></h1>
+            <button class="panel-toggle-btn" aria-label="切換展開">▼</button>
+        </div>
+        <div class="panel-content">
+            <p style="font-size: 13px; color: #546e7a; margin-top: 6px;">
+                載流導線微元 <span data-latex="I \Delta\vec{\ell}"></span> 在空間 <span data-latex="P"></span> 點建立的微小磁場：
+            </p>
+            <div class="formula-box" data-latex-display="\Delta \vec{B} = \frac{\mu_0}{4\pi} \frac{I \Delta\vec{\ell} \times \hat{r}}{r^2}"></div>
+            <div class="formula-box" style="background:#fff3e0; border-left-color: #ff9800;" data-latex-display="|\Delta B| = \frac{\mu_0}{4\pi} \frac{I \Delta\ell \sin\theta}{r^2}"></div>
+            <div class="drag-tip">
+                🖐️ <b>滑鼠互動：</b> 直接用滑鼠按住畫面中的「黑點 <span data-latex="P"></span>」即可在三維空間拖曳移動！
+            </div>
         </div>
     </div>
 
     <!-- 右上：實測物理量觀測 (寬度 330px，與下方等寬) -->
     <div class="panel" id="readout-panel">
-        <h3 style="font-size: 14px; margin-bottom: 8px; color: #37474f;">實測物理量觀測</h3>
-        <div class="readout-item">
-            <span>電流大小 <span id="ro-lbl-i"></span>:</span>
-            <span id="val-i">2.0 A</span>
+        <div class="panel-header" id="header-readout">
+            <h3 style="font-size: 14px; color: #37474f; margin: 0;">實測物理量觀測</h3>
+            <button class="panel-toggle-btn" aria-label="切換展開">▼</button>
         </div>
-        <div class="readout-item">
-            <span>微元長度 <span id="ro-lbl-dl"></span>:</span>
-            <span id="val-dl">0.80 m</span>
-        </div>
-        <div class="readout-item">
-            <span>距離 <span id="ro-lbl-r"></span>:</span>
-            <span id="val-r">3.00 m</span>
-        </div>
-        <div class="readout-item">
-            <span>夾角 <span id="ro-lbl-theta"></span>:</span>
-            <span id="val-theta">45.0°</span>
-        </div>
-        <div class="readout-item">
-            <span>幾何因子 <span id="ro-lbl-sin"></span>:</span>
-            <span id="val-sin">0.707</span>
-        </div>
-        <div class="readout-item highlight-b">
-            <span>磁場強度 <span id="ro-lbl-b"></span>:</span>
-            <span id="val-b">0.157 a.u.</span>
+        <div class="panel-content">
+            <div class="readout-item">
+                <span>電流大小 <span data-latex="i"></span>:</span>
+                <span id="val-i">2.0 A</span>
+            </div>
+            <div class="readout-item">
+                <span>微元長度 <span data-latex="\Delta\ell"></span>:</span>
+                <span id="val-dl">0.80 m</span>
+            </div>
+            <div class="readout-item">
+                <span>距離 <span data-latex="r"></span>:</span>
+                <span id="val-r">3.00 m</span>
+            </div>
+            <div class="readout-item">
+                <span>夾角 <span data-latex="\theta"></span>:</span>
+                <span id="val-theta">45.0°</span>
+            </div>
+            <div class="readout-item">
+                <span>幾何因子 <span data-latex="\sin\theta"></span>:</span>
+                <span id="val-sin">0.707</span>
+            </div>
+            <div class="readout-item highlight-b">
+                <span>磁場強度 <span data-latex="|\Delta B|"></span>:</span>
+                <span id="val-b">0.157 a.u.</span>
+            </div>
         </div>
     </div>
 
     <!-- 右下：控制選項與滑桿 -->
     <div class="panel" id="control-panel">
-        <!-- 視角切換按鈕區 -->
-        <div class="view-section">
-            <label style="font-size: 13px; font-weight: 600; color: #455a64;">視角切換 (Perspective)</label>
-            <div class="view-grid">
-                <button class="view-btn" id="btn-view-front">正視圖</button>
-                <button class="view-btn" id="btn-view-side">側視圖</button>
-                <button class="view-btn" id="btn-view-top">上視圖</button>
-                <button class="view-btn active" id="btn-view-iso">立體</button>
+        <div class="panel-header" id="header-control">
+            <h3 style="font-size: 14px; color: #37474f; margin: 0;">控制選項與滑桿</h3>
+            <button class="panel-toggle-btn" aria-label="切換展開">▼</button>
+        </div>
+        <div class="panel-content">
+            <!-- 視角切換按鈕區 -->
+            <div class="view-section">
+                <label style="font-size: 13px; font-weight: 600; color: #455a64;">視角切換 (Perspective)</label>
+                <div class="view-grid">
+                    <button class="view-btn" id="btn-view-front">正視圖</button>
+                    <button class="view-btn" id="btn-view-side">側視圖</button>
+                    <button class="view-btn" id="btn-view-top">上視圖</button>
+                    <button class="view-btn active" id="btn-view-iso">立體</button>
+                </div>
             </div>
-        </div>
 
-        <div class="control-group">
-            <label><span>距離 <span id="ctrl-lbl-r"></span></span><span id="lbl-r">3.00 m</span></label>
-            <input type="range" id="slider-r" min="1.5" max="5.0" step="0.05" value="3.0">
-        </div>
-        <div class="control-group">
-            <label><span>夾角 <span id="ctrl-lbl-theta"></span></span><span id="lbl-theta">45.0°</span></label>
-            <input type="range" id="slider-theta" min="5" max="175" step="0.5" value="45">
-        </div>
-        <div class="control-group">
-            <label><span>方位角 <span id="ctrl-lbl-phi"></span></span><span id="lbl-phi">90.0°</span></label>
-            <input type="range" id="slider-phi" min="0" max="360" step="1" value="90">
-        </div>
-        <div class="control-group">
-            <label><span>電流強度 <span id="ctrl-lbl-i"></span></span><span id="lbl-i">2.0 A</span></label>
-            <input type="range" id="slider-i" min="0.5" max="5.0" step="0.1" value="2.0">
-        </div>
+            <div class="control-group">
+                <label><span>距離 <span data-latex="r"></span></span><span id="lbl-r">3.00 m</span></label>
+                <input type="range" id="slider-r" min="1.5" max="5.0" step="0.05" value="3.0">
+            </div>
+            <div class="control-group">
+                <label><span>夾角 <span data-latex="\theta"></span></span><span id="lbl-theta">45.0°</span></label>
+                <input type="range" id="slider-theta" min="5" max="175" step="0.5" value="45">
+            </div>
+            <div class="control-group">
+                <label><span>方位角 <span data-latex="\phi"></span></span><span id="lbl-phi">90.0°</span></label>
+                <input type="range" id="slider-phi" min="0" max="360" step="1" value="90">
+            </div>
+            <div class="control-group">
+                <label><span>電流強度 <span data-latex="i"></span></span><span id="lbl-i">2.0 A</span></label>
+                <input type="range" id="slider-i" min="0.5" max="5.0" step="0.1" value="2.0">
+            </div>
 
-        <div class="toggle-group">
-            <button class="toggle-btn active" id="btn-perp-plane">垂直截面</button>
-            <button class="toggle-btn active" id="btn-lr-plane"><span id="btn-lbl-lr"></span> 平面</button>
-            <button class="toggle-btn active" id="btn-field-line">同心圓磁力線</button>
-            <button class="toggle-btn active" id="btn-current-flow">動態電流</button>
+            <div class="toggle-group">
+                <button class="toggle-btn active" id="btn-perp-plane">垂直截面</button>
+                <button class="toggle-btn active" id="btn-lr-plane"><span data-latex="\Delta\ell - \vec{r}"></span> 平面</button>
+                <button class="toggle-btn active" id="btn-field-line">同心圓磁力線</button>
+                <button class="toggle-btn active" id="btn-current-flow">動態電流</button>
+            </div>
         </div>
     </div>
 
     <script>
-        // ==================== 1. KaTeX 嚴格直接渲染器 ====================
+        // ==================== 1. KaTeX 數學渲染與 3D 標籤 ====================
         function renderLatex(tex, displayMode = false) {
             try {
                 return katex.renderToString(tex, { displayMode: displayMode, throwOnError: false });
@@ -348,28 +454,15 @@
             }
         }
 
-        // 靜態面板 LaTeX 渲染
-        document.getElementById('eq-dl-intro').innerHTML = renderLatex('I \\Delta\\vec{\\ell}');
-        document.getElementById('eq-p-intro').innerHTML = renderLatex('P');
-        document.getElementById('tip-p').innerHTML = renderLatex('P');
-        document.getElementById('eq-cross').innerHTML = renderLatex('\\Delta \\vec{B} = \\frac{\\mu_0}{4\\pi} \\frac{I \\Delta\\vec{\\ell} \\times \\hat{r}}{r^2}', true);
-        document.getElementById('eq-mag').innerHTML = renderLatex('|\\Delta B| = \\frac{\\mu_0}{4\\pi} \\frac{I \\Delta\\ell \\sin\\theta}{r^2}', true);
+        function initDataLatex() {
+            document.querySelectorAll('[data-latex]').forEach(el => {
+                el.innerHTML = renderLatex(el.getAttribute('data-latex'), false);
+            });
+            document.querySelectorAll('[data-latex-display]').forEach(el => {
+                el.innerHTML = renderLatex(el.getAttribute('data-latex-display'), true);
+            });
+        }
 
-        // 讀數與控制面板 LaTeX 渲染
-        document.getElementById('ro-lbl-i').innerHTML = renderLatex('i');
-        document.getElementById('ro-lbl-dl').innerHTML = renderLatex('\\Delta\\ell');
-        document.getElementById('ro-lbl-r').innerHTML = renderLatex('r');
-        document.getElementById('ro-lbl-theta').innerHTML = renderLatex('\\theta');
-        document.getElementById('ro-lbl-sin').innerHTML = renderLatex('\\sin\\theta');
-        document.getElementById('ro-lbl-b').innerHTML = renderLatex('|\\Delta B|');
-
-        document.getElementById('ctrl-lbl-r').innerHTML = renderLatex('r');
-        document.getElementById('ctrl-lbl-theta').innerHTML = renderLatex('\\theta');
-        document.getElementById('ctrl-lbl-phi').innerHTML = renderLatex('\\phi');
-        document.getElementById('ctrl-lbl-i').innerHTML = renderLatex('i');
-        document.getElementById('btn-lbl-lr').innerHTML = renderLatex('\\Delta\\ell - \\vec{r}');
-
-        // 建立 3D 空間專用 LaTeX 標籤物件
         function create3DMathLabel(latexString, className = '') {
             const div = document.createElement('div');
             div.className = `annotation-label ${className}`;
@@ -377,520 +470,755 @@
             return new THREE.CSS2DObject(div);
         }
 
-        // ==================== 2. Three.js 場景建置 ====================
-        const container = document.getElementById('canvas-container');
-        const scene = new THREE.Scene();
-        scene.background = new THREE.Color(0xf6f9fc);
-
-        const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 1000);
-        const defaultCamPos = new THREE.Vector3(7.5, 4.2, 8.5);
-        camera.position.copy(defaultCamPos);
-
-        const renderer = new THREE.WebGLRenderer({ antialias: true });
-        renderer.setSize(window.innerWidth, window.innerHeight);
-        renderer.setPixelRatio(window.devicePixelRatio);
-        container.appendChild(renderer.domElement);
-
-        const labelRenderer = new THREE.CSS2DRenderer();
-        labelRenderer.setSize(window.innerWidth, window.innerHeight);
-        labelRenderer.domElement.style.position = 'absolute';
-        labelRenderer.domElement.style.top = '0px';
-        labelRenderer.domElement.style.pointerEvents = 'none';
-        container.appendChild(labelRenderer.domElement);
-
-        const controls = new THREE.OrbitControls(camera, renderer.domElement);
-        controls.enableDamping = true;
-        controls.dampingFactor = 0.05;
-        controls.target.set(0, 0, 0);
-
-        scene.add(new THREE.AmbientLight(0xffffff, 0.9));
-        const dirLight = new THREE.DirectionalLight(0xffffff, 0.6);
-        dirLight.position.set(10, 20, 15);
-        scene.add(dirLight);
-
-        // ==================== 3. 左下方座標軸 (y 軸與 ΔL 同向) ====================
-        const axisOrigin = new THREE.Vector3(-4.0, -1.8, -1.5);
-        const axisLen = 1.6;
-
-        function createDashedAxis(start, end, labelLatex) {
-            const geo = new THREE.BufferGeometry().setFromPoints([start, end]);
-            const mat = new THREE.LineDashedMaterial({ color: 0x455a64, dashSize: 0.12, gapSize: 0.08, linewidth: 1.5 });
-            const line = new THREE.Line(geo, mat);
-            line.computeLineDistances();
-            scene.add(line);
-
-            const dir = end.clone().sub(start).normalize();
-            const cone = new THREE.Mesh(
-                new THREE.ConeGeometry(0.045, 0.14, 12),
-                new THREE.MeshBasicMaterial({ color: 0x455a64 })
-            );
-            cone.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), dir);
-            cone.position.copy(end);
-            scene.add(cone);
-
-            const lbl = create3DMathLabel(labelLatex, 'label-axis');
-            lbl.position.copy(end.clone().add(dir.clone().multiplyScalar(0.25)));
-            scene.add(lbl);
-        }
-
-        // Z 軸 (垂直朝上)
-        createDashedAxis(axisOrigin, axisOrigin.clone().add(new THREE.Vector3(0, axisLen, 0)), 'z');
-        // Y 軸 (與 ΔL 同向：沿 (1, 0, 0) 朝右)
-        createDashedAxis(axisOrigin, axisOrigin.clone().add(new THREE.Vector3(axisLen, 0, 0)), 'y');
-        // X 軸 (沿 (0, 0, 1) 朝前)
-        createDashedAxis(axisOrigin, axisOrigin.clone().add(new THREE.Vector3(0, 0, axisLen)), 'x');
-
-        // 負軸延長虛線
-        const negAxisGeo = new THREE.BufferGeometry().setFromPoints([
-            axisOrigin.clone().add(new THREE.Vector3(0, -axisLen * 0.8, 0)),
-            axisOrigin.clone().add(new THREE.Vector3(0, axisLen, 0)),
-            axisOrigin.clone().add(new THREE.Vector3(-axisLen * 0.8, 0, 0)),
-            axisOrigin.clone().add(new THREE.Vector3(axisLen, 0, 0)),
-            axisOrigin.clone().add(new THREE.Vector3(0, 0, -axisLen * 0.8)),
-            axisOrigin.clone().add(new THREE.Vector3(0, 0, axisLen))
-        ]);
-        const negLine = new THREE.LineSegments(negAxisGeo, new THREE.LineDashedMaterial({ color: 0xb0bec5, dashSize: 0.1, gapSize: 0.1 }));
-        negLine.computeLineDistances();
-        scene.add(negLine);
-
-        // ==================== 4. 導線、微元與物理向量標籤 ====================
-        const axisDir = new THREE.Vector3(1, 0, 0);
-
-        const wireCurve = new THREE.CatmullRomCurve3([
-            new THREE.Vector3(-3.8, -1.2, -0.9),
-            new THREE.Vector3(-2.2, -0.5, -0.3),
-            new THREE.Vector3(-0.8, 0, 0),
-            new THREE.Vector3(0.8, 0, 0),
-            new THREE.Vector3(2.2, 0.5, 0.3),
-            new THREE.Vector3(3.8, 1.2, 0.9)
-        ]);
-        const wireMesh = new THREE.Mesh(
-            new THREE.TubeGeometry(wireCurve, 64, 0.08, 16, false),
-            new THREE.MeshStandardMaterial({ color: 0x00838f, roughness: 0.3 })
-        );
-        scene.add(wireMesh);
-
-        const iLabel = create3DMathLabel('i', 'label-current');
-        iLabel.position.set(-2.8, -0.2, -0.5);
-        scene.add(iLabel);
-
-        scene.add(new THREE.ArrowHelper(wireCurve.getTangent(0.18).normalize(), wireCurve.getPoint(0.18), 0.5, 0xd32f2f, 0.2, 0.12));
-        scene.add(new THREE.ArrowHelper(wireCurve.getTangent(0.82).normalize(), wireCurve.getPoint(0.82), 0.5, 0xd32f2f, 0.2, 0.12));
-
-        const dlMesh = new THREE.Mesh(
-            new THREE.CylinderGeometry(0.12, 0.12, 0.9, 16),
-            new THREE.MeshStandardMaterial({ color: 0xfbc02d, roughness: 0.2 })
-        );
-        dlMesh.rotateZ(Math.PI / 2);
-        scene.add(dlMesh);
-
-        const axisLineGeo = new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(-6, 0, 0), new THREE.Vector3(6, 0, 0)]);
-        const axisLine = new THREE.Line(axisLineGeo, new THREE.LineDashedMaterial({ color: 0x546e7a, dashSize: 0.2, gapSize: 0.15 }));
-        axisLine.computeLineDistances();
-        scene.add(axisLine);
-
-        const dlArrow = new THREE.ArrowHelper(axisDir, new THREE.Vector3(0, -0.4, 0), 1.2, 0x2e7d32, 0.25, 0.15);
-        scene.add(dlArrow);
-        const dlLabel = create3DMathLabel('\\Delta\\vec{\\ell}', 'label-dl');
-        dlLabel.position.set(0.3, -0.85, 0);
-        scene.add(dlLabel);
-
-        const oLabel = create3DMathLabel('O', 'label-axis');
-        oLabel.position.set(0, -0.3, 0);
-        scene.add(oLabel);
-
-        // ==================== 5. 觀測點 P 與拖曳交互群組 ====================
-        const pGroup = new THREE.Group();
-        const pMesh = new THREE.Mesh(
-            new THREE.SphereGeometry(0.11, 32, 32),
-            new THREE.MeshStandardMaterial({ color: 0x111111, roughness: 0.2 })
-        );
-        pGroup.add(pMesh);
-
-        const hitSphere = new THREE.Mesh(
-            new THREE.SphereGeometry(0.42, 16, 16),
-            new THREE.MeshBasicMaterial({ visible: false })
-        );
-        pGroup.add(hitSphere);
-
-        const hoverRing = new THREE.Mesh(
-            new THREE.RingGeometry(0.18, 0.25, 32),
-            new THREE.MeshBasicMaterial({ color: 0x0288d1, side: THREE.DoubleSide, transparent: true, opacity: 0 })
-        );
-        pGroup.add(hoverRing);
-        scene.add(pGroup);
-
-        const pLabel = create3DMathLabel('P', 'label-p');
-        pLabel.position.set(0, 0.35, 0);
-        pGroup.add(pLabel);
-
-        const rArrow = new THREE.ArrowHelper(axisDir, new THREE.Vector3(0, 0, 0), 1, 0x37474f, 0.25, 0.14);
-        scene.add(rArrow);
-        const rLabel = create3DMathLabel('\\vec{r}', 'label-r');
-        scene.add(rLabel);
-
-        const bArrow = new THREE.ArrowHelper(new THREE.Vector3(0, 1, 0), new THREE.Vector3(0, 0, 0), 1, 0xd32f2f, 0.3, 0.2);
-        scene.add(bArrow);
-        const bLabel = create3DMathLabel('\\Delta\\vec{B}', 'label-b');
-        scene.add(bLabel);
-
-        const thetaArc = new THREE.Line(new THREE.BufferGeometry(), new THREE.LineBasicMaterial({ color: 0xd84315, linewidth: 2 }));
-        scene.add(thetaArc);
-        const thetaLabel = create3DMathLabel('\\theta', 'label-theta');
-        scene.add(thetaLabel);
-
-        // ==================== 6. 幾何輔助面與同心圓磁力線 ====================
-        const perpPlaneGroup = new THREE.Group();
-        const perpPlaneGeo = new THREE.PlaneGeometry(5, 5);
-        const perpPlaneMesh = new THREE.Mesh(
-            perpPlaneGeo,
-            new THREE.MeshBasicMaterial({ color: 0x00bcd4, transparent: true, opacity: 0.12, side: THREE.DoubleSide, depthWrite: false })
-        );
-        const perpPlaneEdges = new THREE.LineSegments(
-            new THREE.EdgesGeometry(perpPlaneGeo),
-            new THREE.LineBasicMaterial({ color: 0x00bcd4, linewidth: 2 })
-        );
-        perpPlaneGroup.add(perpPlaneMesh);
-        perpPlaneGroup.add(perpPlaneEdges);
-        perpPlaneGroup.rotateY(Math.PI / 2);
-        scene.add(perpPlaneGroup);
-
-        const crossGeo = new THREE.BufferGeometry().setFromPoints([
-            new THREE.Vector3(0, -2.5, 0), new THREE.Vector3(0, 2.5, 0),
-            new THREE.Vector3(0, 0, -2.5), new THREE.Vector3(0, 0, 2.5)
-        ]);
-        perpPlaneGroup.add(new THREE.LineSegments(crossGeo, new THREE.LineBasicMaterial({ color: 0x80deea })));
-
-        const fieldLine = new THREE.Line(new THREE.BufferGeometry(), new THREE.LineBasicMaterial({ color: 0x0288d1, linewidth: 2 }));
-        scene.add(fieldLine);
-
-        const lrPlaneGeo = new THREE.BufferGeometry();
-        const lrPlaneMesh = new THREE.Mesh(
-            lrPlaneGeo,
-            new THREE.MeshBasicMaterial({ color: 0xffa000, transparent: true, opacity: 0.18, side: THREE.DoubleSide, depthWrite: false })
-        );
-        scene.add(lrPlaneMesh);
-
-        const particleCount = 20;
-        const particleGeo = new THREE.BufferGeometry();
-        const particlePos = new Float32Array(particleCount * 3);
-        particleGeo.setAttribute('position', new THREE.BufferAttribute(particlePos, 3));
-        const particles = new THREE.Points(particleGeo, new THREE.PointsMaterial({ color: 0xff5252, size: 0.14 }));
-        scene.add(particles);
-        let particleOffsets = Array.from({ length: particleCount }, (_, i) => i / particleCount);
-
-        // ==================== 7. 物理計算更新 ====================
-        const state = {
-            r: 3.0,
-            thetaDeg: 45.0,
-            phiDeg: 90.0,
-            I: 2.0,
-            dl: 0.8,
-            showPerpPlane: true,
-            showLRPlane: true,
-            showFieldLine: true,
-            animateCurrent: true
+        // ==================== 2. SimulationStore 集中狀態管理 ====================
+        const SimulationStore = {
+            state: {
+                r: 3.0,
+                thetaDeg: 45.0,
+                phiDeg: 90.0,
+                I: 2.0,
+                dl: 0.8,
+                showPerpPlane: true,
+                showLRPlane: true,
+                showFieldLine: true,
+                animateCurrent: true
+            },
+            listeners: new Set(),
+            subscribe(fn) {
+                this.listeners.add(fn);
+                return () => this.listeners.delete(fn);
+            },
+            setState(updates, source = null) {
+                let changed = false;
+                for (const key in updates) {
+                    if (this.state[key] !== updates[key]) {
+                        this.state[key] = updates[key];
+                        changed = true;
+                    }
+                }
+                if (changed) {
+                    for (const fn of this.listeners) {
+                        fn(this.state, source);
+                    }
+                }
+            },
+            getState() {
+                return this.state;
+            }
         };
 
-        function updatePhysics() {
-            const thetaRad = THREE.MathUtils.degToRad(state.thetaDeg);
-            const phiRad = THREE.MathUtils.degToRad(state.phiDeg);
+        // ==================== 3. PhysicsEngine 物理計算引擎 ====================
+        const PhysicsEngine = {
+            compute(state) {
+                const thetaRad = THREE.MathUtils.degToRad(state.thetaDeg);
+                const phiRad = THREE.MathUtils.degToRad(state.phiDeg);
+                const sinTheta = Math.sin(thetaRad);
+                const cosTheta = Math.cos(thetaRad);
+                const sinPhi = Math.sin(phiRad);
+                const cosPhi = Math.cos(phiRad);
 
-            const px = state.r * Math.cos(thetaRad);
-            const py = state.r * Math.sin(thetaRad) * Math.sin(phiRad);
-            const pz = state.r * Math.sin(thetaRad) * Math.cos(phiRad);
-            const P = new THREE.Vector3(px, py, pz);
+                const px = state.r * cosTheta;
+                const py = state.r * sinTheta * sinPhi;
+                const pz = state.r * sinTheta * cosPhi;
 
-            pGroup.position.copy(P);
+                // Biot-Savart 定律: |ΔB| = (μ0/4π) * (I * Δℓ * sinθ) / r^2
+                const bMagnitude = (state.I * state.dl * sinTheta) / (state.r * state.r);
+                const circleRadius = Math.sqrt(py * py + pz * pz);
 
-            const rDir = P.clone().normalize();
-            rArrow.setDirection(rDir);
-            rArrow.setLength(state.r, 0.25, 0.14);
-            rLabel.position.copy(P.clone().multiplyScalar(0.55).add(new THREE.Vector3(0, 0.25, 0)));
-
-            const bDir = new THREE.Vector3().crossVectors(axisDir, rDir).normalize();
-            const sinTheta = Math.sin(thetaRad);
-            const bMagnitude = (state.I * state.dl * sinTheta) / (state.r * state.r);
-
-            const visualScale = 6.0;
-            const bVisualLength = Math.max(0.15, bMagnitude * visualScale);
-            bArrow.position.copy(P);
-            bArrow.setDirection(bDir);
-            bArrow.setLength(bVisualLength, bVisualLength * 0.28, bVisualLength * 0.16);
-            bLabel.position.copy(P.clone().add(bDir.clone().multiplyScalar(bVisualLength + 0.38)));
-
-            perpPlaneGroup.position.set(px, 0, 0);
-
-            const circleRadius = Math.sqrt(py * py + pz * pz);
-            const circlePoints = [];
-            for (let i = 0; i <= 64; i++) {
-                const angle = (i / 64) * Math.PI * 2;
-                circlePoints.push(new THREE.Vector3(px, circleRadius * Math.sin(angle), circleRadius * Math.cos(angle)));
+                return {
+                    thetaRad,
+                    phiRad,
+                    sinTheta,
+                    cosTheta,
+                    sinPhi,
+                    cosPhi,
+                    px,
+                    py,
+                    pz,
+                    bMagnitude,
+                    circleRadius
+                };
             }
-            fieldLine.geometry.dispose();
-            fieldLine.geometry = new THREE.BufferGeometry().setFromPoints(circlePoints);
+        };
 
-            const lrVertices = new Float32Array([
-                0, 0, 0, 2.2, 0, 0, P.x, P.y, P.z,
-                0, 0, 0, P.x, P.y, P.z, -1.2, 0, 0
-            ]);
-            lrPlaneGeo.setAttribute('position', new THREE.BufferAttribute(lrVertices, 3));
-            lrPlaneGeo.computeVertexNormals();
+        // ==================== 4. SceneManager 3D 場景管理 ====================
+        const SceneManager = {
+            scene: null,
+            camera: null,
+            renderer: null,
+            labelRenderer: null,
+            controls: null,
 
-            const arcRadius = Math.min(1.2, state.r * 0.38);
-            const arcPts = [];
-            for (let i = 0; i <= 24; i++) {
-                const stepTheta = (i / 24) * thetaRad;
-                arcPts.push(new THREE.Vector3(
-                    arcRadius * Math.cos(stepTheta),
-                    arcRadius * Math.sin(stepTheta) * Math.sin(phiRad),
-                    arcRadius * Math.sin(stepTheta) * Math.cos(phiRad)
-                ));
-            }
-            thetaArc.geometry.dispose();
-            thetaArc.geometry = new THREE.BufferGeometry().setFromPoints(arcPts);
+            // 物件引用
+            pGroup: null,
+            pMesh: null,
+            hitSphere: null,
+            hoverRing: null,
+            rArrow: null,
+            rLabel: null,
+            bArrow: null,
+            bLabel: null,
+            thetaArc: null,
+            thetaArcGeo: null,
+            thetaLabel: null,
+            perpPlaneGroup: null,
+            fieldLine: null,
+            fieldLineGeo: null,
+            lrPlaneMesh: null,
+            lrPlaneGeo: null,
+            particles: null,
+            wireCurve: null,
+            particleOffsets: [],
+            axisDir: new THREE.Vector3(1, 0, 0),
 
-            const halfTheta = thetaRad * 0.5;
-            thetaLabel.position.set(
-                (arcRadius + 0.32) * Math.cos(halfTheta),
-                (arcRadius + 0.32) * Math.sin(halfTheta) * Math.sin(phiRad),
-                (arcRadius + 0.32) * Math.sin(halfTheta) * Math.cos(phiRad)
-            );
+            // 常數配置
+            thetaArcSegments: 32,
+            fieldLineSegments: 64,
+            particleCount: 20,
 
-            document.getElementById('slider-r').value = state.r;
-            document.getElementById('slider-theta').value = state.thetaDeg;
-            document.getElementById('slider-phi').value = state.phiDeg;
+            // 運算暫存向量池
+            _vecP: new THREE.Vector3(),
+            _vecRDir: new THREE.Vector3(),
+            _vecBDir: new THREE.Vector3(),
+            _vecTemp: new THREE.Vector3(),
 
-            document.getElementById('lbl-r').innerText = `${state.r.toFixed(2)} m`;
-            document.getElementById('lbl-theta').innerText = `${state.thetaDeg.toFixed(1)}°`;
-            document.getElementById('lbl-phi').innerText = `${state.phiDeg.toFixed(1)}°`;
-            document.getElementById('lbl-i').innerText = `${state.I.toFixed(1)} A`;
+            init(container) {
+                this.scene = new THREE.Scene();
+                this.scene.background = new THREE.Color(0xf6f9fc);
 
-            document.getElementById('val-i').innerText = `${state.I.toFixed(1)} A`;
-            document.getElementById('val-dl').innerText = `${state.dl.toFixed(2)} m`;
-            document.getElementById('val-r').innerText = `${state.r.toFixed(2)} m`;
-            document.getElementById('val-theta').innerText = `${state.thetaDeg.toFixed(1)}°`;
-            document.getElementById('val-sin').innerText = sinTheta.toFixed(3);
-            document.getElementById('val-b').innerText = `${(bMagnitude * 10).toFixed(3)} a.u.`;
-        }
+                this.camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 1000);
+                this.defaultCamPos = new THREE.Vector3(7.5, 4.2, 8.5);
+                this.camera.position.copy(this.defaultCamPos);
 
-        // ==================== 8. 滑鼠直接選取與拖曳黑點 P ====================
-        const raycaster = new THREE.Raycaster();
-        const mouse = new THREE.Vector2();
-        let isHovered = false;
-        let isDragging = false;
-        const dragPlane = new THREE.Plane();
-        const planeIntersect = new THREE.Vector3();
+                this.renderer = new THREE.WebGLRenderer({ antialias: true });
+                this.renderer.setSize(window.innerWidth, window.innerHeight);
+                this.renderer.setPixelRatio(window.devicePixelRatio);
+                container.appendChild(this.renderer.domElement);
 
-        function getPointerPos(e) {
-            return {
-                x: (e.clientX / window.innerWidth) * 2 - 1,
-                y: -(e.clientY / window.innerHeight) * 2 + 1
-            };
-        }
+                this.labelRenderer = new THREE.CSS2DRenderer();
+                this.labelRenderer.setSize(window.innerWidth, window.innerHeight);
+                this.labelRenderer.domElement.style.position = 'absolute';
+                this.labelRenderer.domElement.style.top = '0px';
+                this.labelRenderer.domElement.style.pointerEvents = 'none';
+                container.appendChild(this.labelRenderer.domElement);
 
-        window.addEventListener('pointermove', (e) => {
-            const p = getPointerPos(e);
-            mouse.x = p.x;
-            mouse.y = p.y;
+                this.controls = new THREE.OrbitControls(this.camera, this.renderer.domElement);
+                this.controls.enableDamping = true;
+                this.controls.dampingFactor = 0.05;
+                this.controls.target.set(0, 0, 0);
 
-            if (isDragging) {
-                raycaster.setFromCamera(mouse, camera);
-                if (raycaster.ray.intersectPlane(dragPlane, planeIntersect)) {
-                    const newP = planeIntersect.clone();
+                this.scene.add(new THREE.AmbientLight(0xffffff, 0.9));
+                const dirLight = new THREE.DirectionalLight(0xffffff, 0.6);
+                dirLight.position.set(10, 20, 15);
+                this.scene.add(dirLight);
 
-                    let newR = newP.length();
-                    newR = THREE.MathUtils.clamp(newR, 1.5, 5.5);
+                this._setupAxes();
+                this._setupWireAndElements();
+                this._setupObservationPoint();
+                this._setupHelpersAndParticles();
+            },
 
-                    let cosTheta = newP.x / newR;
-                    cosTheta = THREE.MathUtils.clamp(cosTheta, -0.996, 0.996);
-                    const newThetaRad = Math.acos(cosTheta);
+            _setupAxes() {
+                const axisOrigin = new THREE.Vector3(-4.0, -1.8, -1.5);
+                const axisLen = 1.6;
 
-                    let newPhiRad = Math.atan2(newP.y, newP.z);
-                    if (newPhiRad < 0) newPhiRad += Math.PI * 2;
+                const createDashedAxis = (start, end, labelLatex) => {
+                    const geo = new THREE.BufferGeometry().setFromPoints([start, end]);
+                    const mat = new THREE.LineDashedMaterial({ color: 0x455a64, dashSize: 0.12, gapSize: 0.08, linewidth: 1.5 });
+                    const line = new THREE.Line(geo, mat);
+                    line.computeLineDistances();
+                    this.scene.add(line);
 
-                    state.r = newR;
-                    state.thetaDeg = THREE.MathUtils.radToDeg(newThetaRad);
-                    state.phiDeg = THREE.MathUtils.radToDeg(newPhiRad);
-                    updatePhysics();
+                    const dir = end.clone().sub(start).normalize();
+                    const cone = new THREE.Mesh(
+                        new THREE.ConeGeometry(0.045, 0.14, 12),
+                        new THREE.MeshBasicMaterial({ color: 0x455a64 })
+                    );
+                    cone.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), dir);
+                    cone.position.copy(end);
+                    this.scene.add(cone);
+
+                    const lbl = create3DMathLabel(labelLatex, 'label-axis');
+                    lbl.position.copy(end.clone().add(dir.clone().multiplyScalar(0.25)));
+                    this.scene.add(lbl);
+                };
+
+                createDashedAxis(axisOrigin, axisOrigin.clone().add(new THREE.Vector3(0, axisLen, 0)), 'z');
+                createDashedAxis(axisOrigin, axisOrigin.clone().add(new THREE.Vector3(axisLen, 0, 0)), 'y');
+                createDashedAxis(axisOrigin, axisOrigin.clone().add(new THREE.Vector3(0, 0, axisLen)), 'x');
+
+                const negAxisGeo = new THREE.BufferGeometry().setFromPoints([
+                    axisOrigin.clone().add(new THREE.Vector3(0, -axisLen * 0.8, 0)),
+                    axisOrigin.clone().add(new THREE.Vector3(0, axisLen, 0)),
+                    axisOrigin.clone().add(new THREE.Vector3(-axisLen * 0.8, 0, 0)),
+                    axisOrigin.clone().add(new THREE.Vector3(axisLen, 0, 0)),
+                    axisOrigin.clone().add(new THREE.Vector3(0, 0, -axisLen * 0.8)),
+                    axisOrigin.clone().add(new THREE.Vector3(0, 0, axisLen))
+                ]);
+                const negLine = new THREE.LineSegments(negAxisGeo, new THREE.LineDashedMaterial({ color: 0xb0bec5, dashSize: 0.1, gapSize: 0.1 }));
+                negLine.computeLineDistances();
+                this.scene.add(negLine);
+            },
+
+            _setupWireAndElements() {
+                this.wireCurve = new THREE.CatmullRomCurve3([
+                    new THREE.Vector3(-3.8, -1.2, -0.9),
+                    new THREE.Vector3(-2.2, -0.5, -0.3),
+                    new THREE.Vector3(-0.8, 0, 0),
+                    new THREE.Vector3(0.8, 0, 0),
+                    new THREE.Vector3(2.2, 0.5, 0.3),
+                    new THREE.Vector3(3.8, 1.2, 0.9)
+                ]);
+                const wireMesh = new THREE.Mesh(
+                    new THREE.TubeGeometry(this.wireCurve, 64, 0.08, 16, false),
+                    new THREE.MeshStandardMaterial({ color: 0x00838f, roughness: 0.3 })
+                );
+                this.scene.add(wireMesh);
+
+                const iLabel = create3DMathLabel('i', 'label-current');
+                iLabel.position.set(-2.8, -0.2, -0.5);
+                this.scene.add(iLabel);
+
+                this.scene.add(new THREE.ArrowHelper(this.wireCurve.getTangent(0.18).normalize(), this.wireCurve.getPoint(0.18), 0.5, 0xd32f2f, 0.2, 0.12));
+                this.scene.add(new THREE.ArrowHelper(this.wireCurve.getTangent(0.82).normalize(), this.wireCurve.getPoint(0.82), 0.5, 0xd32f2f, 0.2, 0.12));
+
+                const dlMesh = new THREE.Mesh(
+                    new THREE.CylinderGeometry(0.12, 0.12, 0.9, 16),
+                    new THREE.MeshStandardMaterial({ color: 0xfbc02d, roughness: 0.2 })
+                );
+                dlMesh.rotateZ(Math.PI / 2);
+                this.scene.add(dlMesh);
+
+                const axisLineGeo = new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(-6, 0, 0), new THREE.Vector3(6, 0, 0)]);
+                const axisLine = new THREE.Line(axisLineGeo, new THREE.LineDashedMaterial({ color: 0x546e7a, dashSize: 0.2, gapSize: 0.15 }));
+                axisLine.computeLineDistances();
+                this.scene.add(axisLine);
+
+                const dlArrow = new THREE.ArrowHelper(this.axisDir, new THREE.Vector3(0, -0.4, 0), 1.2, 0x2e7d32, 0.25, 0.15);
+                this.scene.add(dlArrow);
+                const dlLabel = create3DMathLabel('\\Delta\\vec{\\ell}', 'label-dl');
+                dlLabel.position.set(0.3, -0.85, 0);
+                this.scene.add(dlLabel);
+
+                const oLabel = create3DMathLabel('O', 'label-axis');
+                oLabel.position.set(0, -0.3, 0);
+                this.scene.add(oLabel);
+            },
+
+            _setupObservationPoint() {
+                this.pGroup = new THREE.Group();
+                this.pMesh = new THREE.Mesh(
+                    new THREE.SphereGeometry(0.11, 32, 32),
+                    new THREE.MeshStandardMaterial({ color: 0x111111, roughness: 0.2 })
+                );
+                this.pGroup.add(this.pMesh);
+
+                this.hitSphere = new THREE.Mesh(
+                    new THREE.SphereGeometry(0.42, 16, 16),
+                    new THREE.MeshBasicMaterial({ visible: false })
+                );
+                this.pGroup.add(this.hitSphere);
+
+                this.hoverRing = new THREE.Mesh(
+                    new THREE.RingGeometry(0.18, 0.25, 32),
+                    new THREE.MeshBasicMaterial({ color: 0x0288d1, side: THREE.DoubleSide, transparent: true, opacity: 0 })
+                );
+                this.pGroup.add(this.hoverRing);
+                this.scene.add(this.pGroup);
+
+                const pLabel = create3DMathLabel('P', 'label-p');
+                pLabel.position.set(0, 0.35, 0);
+                this.pGroup.add(pLabel);
+
+                this.rArrow = new THREE.ArrowHelper(this.axisDir, new THREE.Vector3(0, 0, 0), 1, 0x37474f, 0.25, 0.14);
+                this.scene.add(this.rArrow);
+                this.rLabel = create3DMathLabel('\\vec{r}', 'label-r');
+                this.scene.add(this.rLabel);
+
+                this.bArrow = new THREE.ArrowHelper(new THREE.Vector3(0, 1, 0), new THREE.Vector3(0, 0, 0), 1, 0xd32f2f, 0.3, 0.2);
+                this.scene.add(this.bArrow);
+                this.bLabel = create3DMathLabel('\\Delta\\vec{B}', 'label-b');
+                this.scene.add(this.bLabel);
+
+                // 夾角弧線 (固定緩衝區)
+                const thetaArcPos = new Float32Array((this.thetaArcSegments + 1) * 3);
+                this.thetaArcGeo = new THREE.BufferGeometry();
+                this.thetaArcGeo.setAttribute('position', new THREE.BufferAttribute(thetaArcPos, 3));
+                this.thetaArc = new THREE.Line(this.thetaArcGeo, new THREE.LineBasicMaterial({ color: 0xd84315, linewidth: 2 }));
+                this.scene.add(this.thetaArc);
+                this.thetaLabel = create3DMathLabel('\\theta', 'label-theta');
+                this.scene.add(this.thetaLabel);
+            },
+
+            _setupHelpersAndParticles() {
+                this.perpPlaneGroup = new THREE.Group();
+                const perpPlaneGeo = new THREE.PlaneGeometry(5, 5);
+                const perpPlaneMesh = new THREE.Mesh(
+                    perpPlaneGeo,
+                    new THREE.MeshBasicMaterial({ color: 0x00bcd4, transparent: true, opacity: 0.12, side: THREE.DoubleSide, depthWrite: false })
+                );
+                const perpPlaneEdges = new THREE.LineSegments(
+                    new THREE.EdgesGeometry(perpPlaneGeo),
+                    new THREE.LineBasicMaterial({ color: 0x00bcd4, linewidth: 2 })
+                );
+                this.perpPlaneGroup.add(perpPlaneMesh);
+                this.perpPlaneGroup.add(perpPlaneEdges);
+                this.perpPlaneGroup.rotateY(Math.PI / 2);
+                this.scene.add(this.perpPlaneGroup);
+
+                const crossGeo = new THREE.BufferGeometry().setFromPoints([
+                    new THREE.Vector3(0, -2.5, 0), new THREE.Vector3(0, 2.5, 0),
+                    new THREE.Vector3(0, 0, -2.5), new THREE.Vector3(0, 0, 2.5)
+                ]);
+                this.perpPlaneGroup.add(new THREE.LineSegments(crossGeo, new THREE.LineBasicMaterial({ color: 0x80deea })));
+
+                // 同心圓磁力線 (固定緩衝區)
+                const fieldLinePos = new Float32Array((this.fieldLineSegments + 1) * 3);
+                this.fieldLineGeo = new THREE.BufferGeometry();
+                this.fieldLineGeo.setAttribute('position', new THREE.BufferAttribute(fieldLinePos, 3));
+                this.fieldLine = new THREE.Line(this.fieldLineGeo, new THREE.LineBasicMaterial({ color: 0x0288d1, linewidth: 2 }));
+                this.scene.add(this.fieldLine);
+
+                // 微元平面 lrPlane (固定 2 個三角形 = 6 頂點緩衝區)
+                const lrPlanePos = new Float32Array(18);
+                this.lrPlaneGeo = new THREE.BufferGeometry();
+                this.lrPlaneGeo.setAttribute('position', new THREE.BufferAttribute(lrPlanePos, 3));
+                this.lrPlaneMesh = new THREE.Mesh(
+                    this.lrPlaneGeo,
+                    new THREE.MeshBasicMaterial({ color: 0xffa000, transparent: true, opacity: 0.18, side: THREE.DoubleSide, depthWrite: false })
+                );
+                this.scene.add(this.lrPlaneMesh);
+
+                // 動態電流粒子
+                const particleGeo = new THREE.BufferGeometry();
+                const particlePos = new Float32Array(this.particleCount * 3);
+                particleGeo.setAttribute('position', new THREE.BufferAttribute(particlePos, 3));
+                this.particles = new THREE.Points(particleGeo, new THREE.PointsMaterial({ color: 0xff5252, size: 0.14 }));
+                this.scene.add(this.particles);
+                this.particleOffsets = Array.from({ length: this.particleCount }, (_, i) => i / this.particleCount);
+            },
+
+            update(computed, state) {
+                const { px, py, pz, thetaRad, phiRad, sinTheta, sinPhi, cosPhi, bMagnitude, circleRadius } = computed;
+
+                // 1. 更新 P 點群組
+                this._vecP.set(px, py, pz);
+                this.pGroup.position.copy(this._vecP);
+
+                // 2. 更新距離向量 r
+                this._vecRDir.copy(this._vecP).normalize();
+                this.rArrow.setDirection(this._vecRDir);
+                this.rArrow.setLength(state.r, 0.25, 0.14);
+                this._vecTemp.copy(this._vecP).multiplyScalar(0.55);
+                this._vecTemp.y += 0.25;
+                this.rLabel.position.copy(this._vecTemp);
+
+                // 3. 更新磁場向量 B
+                this._vecBDir.crossVectors(this.axisDir, this._vecRDir).normalize();
+                const visualScale = 6.0;
+                const bVisualLength = Math.max(0.15, bMagnitude * visualScale);
+                this.bArrow.position.copy(this._vecP);
+                this.bArrow.setDirection(this._vecBDir);
+                this.bArrow.setLength(bVisualLength, bVisualLength * 0.28, bVisualLength * 0.16);
+
+                this._vecTemp.copy(this._vecBDir).multiplyScalar(bVisualLength + 0.38).add(this._vecP);
+                this.bLabel.position.copy(this._vecTemp);
+
+                // 4. 更新輔助面位置
+                this.perpPlaneGroup.position.set(px, 0, 0);
+
+                // 5. 就地更新同心圓磁力線
+                const flPositions = this.fieldLineGeo.attributes.position.array;
+                for (let i = 0; i <= this.fieldLineSegments; i++) {
+                    const angle = (i / this.fieldLineSegments) * Math.PI * 2;
+                    const idx = i * 3;
+                    flPositions[idx] = px;
+                    flPositions[idx + 1] = circleRadius * Math.sin(angle);
+                    flPositions[idx + 2] = circleRadius * Math.cos(angle);
                 }
-                return;
-            }
+                this.fieldLineGeo.attributes.position.needsUpdate = true;
 
-            raycaster.setFromCamera(mouse, camera);
-            const intersects = raycaster.intersectObject(hitSphere);
+                // 6. 就地更新微元平面 lrPlane
+                const lrPositions = this.lrPlaneGeo.attributes.position.array;
+                lrPositions[0] = 0;   lrPositions[1] = 0; lrPositions[2] = 0;
+                lrPositions[3] = 2.2; lrPositions[4] = 0; lrPositions[5] = 0;
+                lrPositions[6] = px;  lrPositions[7] = py; lrPositions[8] = pz;
+                lrPositions[9] = 0;    lrPositions[10] = 0; lrPositions[11] = 0;
+                lrPositions[12] = px;  lrPositions[13] = py; lrPositions[14] = pz;
+                lrPositions[15] = -1.2; lrPositions[16] = 0; lrPositions[17] = 0;
+                this.lrPlaneGeo.attributes.position.needsUpdate = true;
 
-            if (intersects.length > 0) {
-                if (!isHovered) {
-                    isHovered = true;
-                    document.body.style.cursor = 'grab';
-                    pMesh.scale.set(1.4, 1.4, 1.4);
-                    hoverRing.material.opacity = 0.8;
+                // 7. 就地更新夾角弧線
+                const arcRadius = Math.min(1.2, state.r * 0.38);
+                const taPositions = this.thetaArcGeo.attributes.position.array;
+                for (let i = 0; i <= this.thetaArcSegments; i++) {
+                    const stepTheta = (i / this.thetaArcSegments) * thetaRad;
+                    const sinStep = Math.sin(stepTheta);
+                    const idx = i * 3;
+                    taPositions[idx] = arcRadius * Math.cos(stepTheta);
+                    taPositions[idx + 1] = arcRadius * sinStep * sinPhi;
+                    taPositions[idx + 2] = arcRadius * sinStep * cosPhi;
                 }
-            } else {
-                if (isHovered) {
-                    isHovered = false;
-                    document.body.style.cursor = 'default';
-                    pMesh.scale.set(1.0, 1.0, 1.0);
-                    hoverRing.material.opacity = 0;
-                }
-            }
-        });
+                this.thetaArcGeo.attributes.position.needsUpdate = true;
 
-        window.addEventListener('pointerdown', (e) => {
-            if (e.button !== 0) return;
-            const p = getPointerPos(e);
-            mouse.x = p.x;
-            mouse.y = p.y;
+                const halfTheta = thetaRad * 0.5;
+                this.thetaLabel.position.set(
+                    (arcRadius + 0.32) * Math.cos(halfTheta),
+                    (arcRadius + 0.32) * Math.sin(halfTheta) * sinPhi,
+                    (arcRadius + 0.32) * Math.sin(halfTheta) * cosPhi
+                );
 
-            raycaster.setFromCamera(mouse, camera);
-            const intersects = raycaster.intersectObject(hitSphere);
+                // 8. 顯隱同步
+                this.perpPlaneGroup.visible = state.showPerpPlane;
+                this.lrPlaneMesh.visible = state.showLRPlane;
+                this.fieldLine.visible = state.showFieldLine;
+                this.particles.visible = state.animateCurrent;
+            },
 
-            if (intersects.length > 0) {
-                isDragging = true;
-                controls.enabled = false;
-                document.body.style.cursor = 'grabbing';
-
-                const cameraDir = new THREE.Vector3();
-                camera.getWorldDirection(cameraDir);
-                dragPlane.setFromNormalAndCoplanarPoint(cameraDir.negate(), pGroup.position);
-            }
-        });
-
-        window.addEventListener('pointerup', () => {
-            if (isDragging) {
-                isDragging = false;
-                controls.enabled = true;
-                document.body.style.cursor = isHovered ? 'grab' : 'default';
-            }
-        });
-
-        // ==================== 9. 視角切換控制 (平滑過渡) ====================
-        let targetCamPos = null;
-        let targetCamUp = null;
-
-        function setView(pos, up = new THREE.Vector3(0, 1, 0), activeBtnId = null) {
-            targetCamPos = pos.clone();
-            targetCamUp = up.clone();
-            controls.target.set(0, 0, 0);
-
-            // 更新按鈕高亮狀態
-            document.querySelectorAll('.view-btn').forEach(btn => btn.classList.remove('active'));
-            if (activeBtnId) {
-                document.getElementById(activeBtnId).classList.add('active');
-            }
-        }
-
-        // 正視圖：垂直於 X-Y 平面 (自 +Z 軸向前觀看，觀察 Δℓ 與 r 夾角 θ)
-        document.getElementById('btn-view-front').addEventListener('click', () => {
-            setView(new THREE.Vector3(0, 0, 11), new THREE.Vector3(0, 1, 0), 'btn-view-front');
-        });
-
-        // 側視圖：沿微元軸向正視 (自 +X 軸看向原點，正視垂直截面與圓形磁力線)
-        document.getElementById('btn-view-side').addEventListener('click', () => {
-            setView(new THREE.Vector3(11, 0, 0), new THREE.Vector3(0, 1, 0), 'btn-view-side');
-        });
-
-        // 上視圖：自上方俯視 (自 +Y 軸向下看)
-        document.getElementById('btn-view-top').addEventListener('click', () => {
-            setView(new THREE.Vector3(0, 11, 0.001), new THREE.Vector3(0, 0, -1), 'btn-view-top');
-        });
-
-        // 立體視角：還原至預設 3D 透視角
-        document.getElementById('btn-view-iso').addEventListener('click', () => {
-            setView(defaultCamPos, new THREE.Vector3(0, 1, 0), 'btn-view-iso');
-        });
-
-        // 使用者手動旋轉場景時，取消固定視角的高亮
-        controls.addEventListener('start', () => {
-            targetCamPos = null;
-            targetCamUp = null;
-            document.querySelectorAll('.view-btn').forEach(btn => btn.classList.remove('active'));
-        });
-
-        // ==================== 10. UI 控制項監聽 ====================
-        document.getElementById('slider-r').addEventListener('input', (e) => {
-            state.r = parseFloat(e.target.value);
-            updatePhysics();
-        });
-        document.getElementById('slider-theta').addEventListener('input', (e) => {
-            state.thetaDeg = parseFloat(e.target.value);
-            updatePhysics();
-        });
-        document.getElementById('slider-phi').addEventListener('input', (e) => {
-            state.phiDeg = parseFloat(e.target.value);
-            updatePhysics();
-        });
-        document.getElementById('slider-i').addEventListener('input', (e) => {
-            state.I = parseFloat(e.target.value);
-            updatePhysics();
-        });
-
-        function setupToggle(btnId, targetObj, stateKey) {
-            const btn = document.getElementById(btnId);
-            btn.addEventListener('click', () => {
-                state[stateKey] = !state[stateKey];
-                targetObj.visible = state[stateKey];
-                btn.classList.toggle('active', state[stateKey]);
-            });
-        }
-        setupToggle('btn-perp-plane', perpPlaneGroup, 'showPerpPlane');
-        setupToggle('btn-lr-plane', lrPlaneMesh, 'showLRPlane');
-        setupToggle('btn-field-line', fieldLine, 'showFieldLine');
-
-        document.getElementById('btn-current-flow').addEventListener('click', (e) => {
-            state.animateCurrent = !state.animateCurrent;
-            particles.visible = state.animateCurrent;
-            e.target.classList.toggle('active', state.animateCurrent);
-        });
-
-        window.addEventListener('resize', () => {
-            camera.aspect = window.innerWidth / window.innerHeight;
-            camera.updateProjectionMatrix();
-            renderer.setSize(window.innerWidth, window.innerHeight);
-            labelRenderer.setSize(window.innerWidth, window.innerHeight);
-        });
-
-        // ==================== 11. 渲染迴圈 ====================
-        const clock = new THREE.Clock();
-        function animate() {
-            requestAnimationFrame(animate);
-            const delta = clock.getDelta();
-
-            // 鏡頭平滑插值轉向過渡
-            if (targetCamPos) {
-                camera.position.lerp(targetCamPos, 0.08);
-                camera.up.lerp(targetCamUp, 0.08);
-                controls.update();
-                if (camera.position.distanceTo(targetCamPos) < 0.04) {
-                    camera.position.copy(targetCamPos);
-                    camera.up.copy(targetCamUp);
-                    targetCamPos = null;
-                    targetCamUp = null;
-                }
-            }
-
-            if (state.animateCurrent) {
-                const positions = particles.geometry.attributes.position.array;
-                const flowSpeed = 0.22 * (state.I / 2.0);
-                for (let i = 0; i < particleCount; i++) {
-                    particleOffsets[i] = (particleOffsets[i] + flowSpeed * delta) % 1.0;
-                    const pt = wireCurve.getPoint(particleOffsets[i]);
+            updateParticles(delta, I) {
+                const positions = this.particles.geometry.attributes.position.array;
+                const flowSpeed = 0.22 * (I / 2.0);
+                for (let i = 0; i < this.particleCount; i++) {
+                    this.particleOffsets[i] = (this.particleOffsets[i] + flowSpeed * delta) % 1.0;
+                    const pt = this.wireCurve.getPoint(this.particleOffsets[i]);
                     positions[i * 3] = pt.x;
                     positions[i * 3 + 1] = pt.y;
                     positions[i * 3 + 2] = pt.z;
                 }
-                particles.geometry.attributes.position.needsUpdate = true;
+                this.particles.geometry.attributes.position.needsUpdate = true;
             }
+        };
 
-            hoverRing.lookAt(camera.position);
-            controls.update();
+        // ==================== 5. UIManager 界面互動管理 ====================
+        const UIManager = {
+            dom: {},
 
-            renderer.render(scene, camera);
-            labelRenderer.render(scene, camera);
+            init() {
+                initDataLatex();
+
+                this.dom = {
+                    sliderR: document.getElementById('slider-r'),
+                    sliderTheta: document.getElementById('slider-theta'),
+                    sliderPhi: document.getElementById('slider-phi'),
+                    sliderI: document.getElementById('slider-i'),
+                    lblR: document.getElementById('lbl-r'),
+                    lblTheta: document.getElementById('lbl-theta'),
+                    lblPhi: document.getElementById('lbl-phi'),
+                    lblI: document.getElementById('lbl-i'),
+                    valI: document.getElementById('val-i'),
+                    valDl: document.getElementById('val-dl'),
+                    valR: document.getElementById('val-r'),
+                    valTheta: document.getElementById('val-theta'),
+                    valSin: document.getElementById('val-sin'),
+                    valB: document.getElementById('val-b'),
+                    btnPerpPlane: document.getElementById('btn-perp-plane'),
+                    btnLRPlane: document.getElementById('btn-lr-plane'),
+                    btnFieldLine: document.getElementById('btn-field-line'),
+                    btnCurrentFlow: document.getElementById('btn-current-flow')
+                };
+
+                this._bindInputs();
+                this._bindToggles();
+                this._bindCollapsiblePanels();
+            },
+
+            _bindCollapsiblePanels() {
+                const setupCollapsible = (headerId, panelId) => {
+                    const header = document.getElementById(headerId);
+                    const panel = document.getElementById(panelId);
+                    if (!header || !panel) return;
+                    header.addEventListener('click', () => {
+                        panel.classList.toggle('collapsed');
+                    });
+                };
+                setupCollapsible('header-theory', 'theory-panel');
+                setupCollapsible('header-readout', 'readout-panel');
+                setupCollapsible('header-control', 'control-panel');
+
+                // 手機窄螢幕時 (width <= 820px) 預設折疊理論面板，留出最大 3D 視野
+                if (window.innerWidth <= 820) {
+                    const theoryPanel = document.getElementById('theory-panel');
+                    if (theoryPanel) theoryPanel.classList.add('collapsed');
+                }
+            },
+
+            _bindInputs() {
+                this.dom.sliderR.addEventListener('input', (e) => {
+                    SimulationStore.setState({ r: parseFloat(e.target.value) }, 'slider-r');
+                });
+                this.dom.sliderTheta.addEventListener('input', (e) => {
+                    SimulationStore.setState({ thetaDeg: parseFloat(e.target.value) }, 'slider-theta');
+                });
+                this.dom.sliderPhi.addEventListener('input', (e) => {
+                    SimulationStore.setState({ phiDeg: parseFloat(e.target.value) }, 'slider-phi');
+                });
+                this.dom.sliderI.addEventListener('input', (e) => {
+                    SimulationStore.setState({ I: parseFloat(e.target.value) }, 'slider-i');
+                });
+            },
+
+            _bindToggles() {
+                const setupToggle = (btn, key) => {
+                    btn.addEventListener('click', () => {
+                        const cur = SimulationStore.getState()[key];
+                        SimulationStore.setState({ [key]: !cur });
+                        btn.classList.toggle('active', !cur);
+                    });
+                };
+                setupToggle(this.dom.btnPerpPlane, 'showPerpPlane');
+                setupToggle(this.dom.btnLRPlane, 'showLRPlane');
+                setupToggle(this.dom.btnFieldLine, 'showFieldLine');
+                setupToggle(this.dom.btnCurrentFlow, 'animateCurrent');
+            },
+
+            update(computed, state, source) {
+                // 只有不是該 slider 主動觸發時，才回寫 slider 的 value (防衝突與卡頓)
+                if (source !== 'slider-r') this.dom.sliderR.value = state.r;
+                if (source !== 'slider-theta') this.dom.sliderTheta.value = state.thetaDeg;
+                if (source !== 'slider-phi') this.dom.sliderPhi.value = state.phiDeg;
+                if (source !== 'slider-i') this.dom.sliderI.value = state.I;
+
+                this.dom.lblR.innerText = `${state.r.toFixed(2)} m`;
+                this.dom.lblTheta.innerText = `${state.thetaDeg.toFixed(1)}°`;
+                this.dom.lblPhi.innerText = `${state.phiDeg.toFixed(1)}°`;
+                this.dom.lblI.innerText = `${state.I.toFixed(1)} A`;
+
+                this.dom.valI.innerText = `${state.I.toFixed(1)} A`;
+                this.dom.valDl.innerText = `${state.dl.toFixed(2)} m`;
+                this.dom.valR.innerText = `${state.r.toFixed(2)} m`;
+                this.dom.valTheta.innerText = `${state.thetaDeg.toFixed(1)}°`;
+                this.dom.valSin.innerText = computed.sinTheta.toFixed(3);
+                this.dom.valB.innerText = `${(computed.bMagnitude * 10).toFixed(3)} a.u.`;
+            }
+        };
+
+        // ==================== 6. InteractionManager 互動與視角管理 ====================
+        const InteractionManager = {
+            raycaster: new THREE.Raycaster(),
+            mouse: new THREE.Vector2(),
+            isHovered: false,
+            isDragging: false,
+            dragPlane: new THREE.Plane(),
+            planeIntersect: new THREE.Vector3(),
+            targetCamPos: null,
+            targetCamUp: null,
+
+            init(camera, controls, hitSphere, pMesh, hoverRing, pGroup) {
+                this.camera = camera;
+                this.controls = controls;
+                this.hitSphere = hitSphere;
+                this.pMesh = pMesh;
+                this.hoverRing = hoverRing;
+                this.pGroup = pGroup;
+
+                this._bindPointerEvents();
+                this._bindViewControls();
+            },
+
+            _getPointerPos(e) {
+                return {
+                    x: (e.clientX / window.innerWidth) * 2 - 1,
+                    y: -(e.clientY / window.innerHeight) * 2 + 1
+                };
+            },
+
+            _bindPointerEvents() {
+                window.addEventListener('pointermove', (e) => {
+                    const p = this._getPointerPos(e);
+                    this.mouse.x = p.x;
+                    this.mouse.y = p.y;
+
+                    if (this.isDragging) {
+                        this.raycaster.setFromCamera(this.mouse, this.camera);
+                        if (this.raycaster.ray.intersectPlane(this.dragPlane, this.planeIntersect)) {
+                            let newR = this.planeIntersect.length();
+                            newR = THREE.MathUtils.clamp(newR, 1.5, 5.5);
+
+                            let cosTheta = this.planeIntersect.x / newR;
+                            cosTheta = THREE.MathUtils.clamp(cosTheta, -0.996, 0.996);
+                            const newThetaRad = Math.acos(cosTheta);
+
+                            let newPhiRad = Math.atan2(this.planeIntersect.y, this.planeIntersect.z);
+                            if (newPhiRad < 0) newPhiRad += Math.PI * 2;
+
+                            SimulationStore.setState({
+                                r: newR,
+                                thetaDeg: THREE.MathUtils.radToDeg(newThetaRad),
+                                phiDeg: THREE.MathUtils.radToDeg(newPhiRad)
+                            }, 'drag');
+                        }
+                        return;
+                    }
+
+                    this.raycaster.setFromCamera(this.mouse, this.camera);
+                    const intersects = this.raycaster.intersectObject(this.hitSphere);
+
+                    if (intersects.length > 0) {
+                        if (!this.isHovered) {
+                            this.isHovered = true;
+                            document.body.style.cursor = 'grab';
+                            this.pMesh.scale.set(1.4, 1.4, 1.4);
+                            this.hoverRing.material.opacity = 0.8;
+                        }
+                    } else {
+                        if (this.isHovered) {
+                            this.isHovered = false;
+                            document.body.style.cursor = 'default';
+                            this.pMesh.scale.set(1.0, 1.0, 1.0);
+                            this.hoverRing.material.opacity = 0;
+                        }
+                    }
+                });
+
+                window.addEventListener('pointerdown', (e) => {
+                    if (e.button !== 0) return;
+                    const p = this._getPointerPos(e);
+                    this.mouse.x = p.x;
+                    this.mouse.y = p.y;
+
+                    this.raycaster.setFromCamera(this.mouse, this.camera);
+                    const intersects = this.raycaster.intersectObject(this.hitSphere);
+
+                    if (intersects.length > 0) {
+                        this.isDragging = true;
+                        this.controls.enabled = false;
+                        document.body.style.cursor = 'grabbing';
+
+                        const cameraDir = new THREE.Vector3();
+                        this.camera.getWorldDirection(cameraDir);
+                        this.dragPlane.setFromNormalAndCoplanarPoint(cameraDir.negate(), this.pGroup.position);
+                    }
+                });
+
+                window.addEventListener('pointerup', () => {
+                    if (this.isDragging) {
+                        this.isDragging = false;
+                        this.controls.enabled = true;
+                        document.body.style.cursor = this.isHovered ? 'grab' : 'default';
+                    }
+                });
+            },
+
+            _bindViewControls() {
+                const setView = (pos, up = new THREE.Vector3(0, 1, 0), activeBtnId = null) => {
+                    this.targetCamPos = pos.clone();
+                    this.targetCamUp = up.clone();
+                    this.controls.target.set(0, 0, 0);
+
+                    document.querySelectorAll('.view-btn').forEach(btn => btn.classList.remove('active'));
+                    if (activeBtnId) {
+                        document.getElementById(activeBtnId).classList.add('active');
+                    }
+                };
+
+                document.getElementById('btn-view-front').addEventListener('click', () => {
+                    setView(new THREE.Vector3(0, 0, 11), new THREE.Vector3(0, 1, 0), 'btn-view-front');
+                });
+                document.getElementById('btn-view-side').addEventListener('click', () => {
+                    setView(new THREE.Vector3(11, 0, 0), new THREE.Vector3(0, 1, 0), 'btn-view-side');
+                });
+                document.getElementById('btn-view-top').addEventListener('click', () => {
+                    setView(new THREE.Vector3(0, 11, 0.001), new THREE.Vector3(0, 0, -1), 'btn-view-top');
+                });
+                document.getElementById('btn-view-iso').addEventListener('click', () => {
+                    setView(SceneManager.defaultCamPos, new THREE.Vector3(0, 1, 0), 'btn-view-iso');
+                });
+
+                this.controls.addEventListener('start', () => {
+                    this.targetCamPos = null;
+                    this.targetCamUp = null;
+                    document.querySelectorAll('.view-btn').forEach(btn => btn.classList.remove('active'));
+                });
+            },
+
+            updateCameraTransition() {
+                if (this.targetCamPos) {
+                    this.camera.position.lerp(this.targetCamPos, 0.08);
+                    this.camera.up.lerp(this.targetCamUp, 0.08);
+                    this.controls.update();
+                    if (this.camera.position.distanceTo(this.targetCamPos) < 0.04) {
+                        this.camera.position.copy(this.targetCamPos);
+                        this.camera.up.copy(this.targetCamUp);
+                        this.targetCamPos = null;
+                        this.targetCamUp = null;
+                    }
+                }
+            }
+        };
+
+        // ==================== 7. 生命週期與資源清理 ====================
+        function disposeThreeObject(obj) {
+            if (!obj) return;
+            if (obj.geometry) obj.geometry.dispose();
+            if (obj.material) {
+                if (Array.isArray(obj.material)) obj.material.forEach(m => m.dispose());
+                else obj.material.dispose();
+            }
+            if (obj.children && obj.children.length > 0) {
+                for (let i = obj.children.length - 1; i >= 0; i--) {
+                    disposeThreeObject(obj.children[i]);
+                }
+            }
         }
 
-        updatePhysics();
+        // ==================== 8. 系統啟動與主循環 ====================
+        const container = document.getElementById('canvas-container');
+        SceneManager.init(container);
+        UIManager.init();
+        InteractionManager.init(
+            SceneManager.camera,
+            SceneManager.controls,
+            SceneManager.hitSphere,
+            SceneManager.pMesh,
+            SceneManager.hoverRing,
+            SceneManager.pGroup
+        );
+
+        // 訂閱狀態變更：單向數據流
+        SimulationStore.subscribe((state, source) => {
+            const computed = PhysicsEngine.compute(state);
+            SceneManager.update(computed, state);
+            UIManager.update(computed, state, source);
+        });
+
+        // 視窗縮放
+        window.addEventListener('resize', () => {
+            SceneManager.camera.aspect = window.innerWidth / window.innerHeight;
+            SceneManager.camera.updateProjectionMatrix();
+            SceneManager.renderer.setSize(window.innerWidth, window.innerHeight);
+            SceneManager.labelRenderer.setSize(window.innerWidth, window.innerHeight);
+        });
+
+        window.addEventListener('beforeunload', () => {
+            SceneManager.scene.traverse(disposeThreeObject);
+            SceneManager.renderer.dispose();
+        });
+
+        // 主渲染循環
+        const clock = new THREE.Clock();
+        function animate() {
+            requestAnimationFrame(animate);
+            const delta = clock.getDelta();
+            const state = SimulationStore.getState();
+
+            InteractionManager.updateCameraTransition();
+
+            if (state.animateCurrent) {
+                SceneManager.updateParticles(delta, state.I);
+            }
+
+            SceneManager.hoverRing.lookAt(SceneManager.camera.position);
+            SceneManager.controls.update();
+
+            SceneManager.renderer.render(SceneManager.scene, SceneManager.camera);
+            SceneManager.labelRenderer.render(SceneManager.scene, SceneManager.camera);
+        }
+
+        // 初始首次更新
+        const initialComputed = PhysicsEngine.compute(SimulationStore.getState());
+        SceneManager.update(initialComputed, SimulationStore.getState());
+        UIManager.update(initialComputed, SimulationStore.getState(), null);
+
         animate();
     </script>
 </body>
