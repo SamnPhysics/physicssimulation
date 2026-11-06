@@ -1,0 +1,474 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+
+<head>
+    <meta charset="UTF-8">
+    <title>必歐-沙伐定律 (Biot-Savart Law) 步驟拆解</title>
+
+    <!-- 引入 KaTeX 以呈現優美的數學公式 -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/katex.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/katex.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/contrib/auto-render.min.js"></script>
+
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif, 'Microsoft JhengHei';
+            background-color: #f0f2f5;
+            margin: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            height: 100vh;
+        }
+
+        #app-container {
+            background-color: #ffffff;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+            border-radius: 8px;
+            overflow: hidden;
+            width: 100%;
+            max-width: 900px;
+            margin-top: 20px;
+            display: flex;
+            flex-direction: column;
+        }
+
+        #canvas-container {
+            position: relative;
+            width: 100%;
+            height: 500px;
+            background-color: #fafafa;
+            cursor: grab;
+            border-bottom: 2px solid #eee;
+        }
+
+        #canvas-container:active {
+            cursor: grabbing;
+        }
+
+        canvas {
+            display: block;
+            width: 100%;
+            height: 100%;
+        }
+
+        #instruction {
+            position: absolute;
+            top: 15px;
+            left: 15px;
+            color: #666;
+            font-size: 14px;
+            pointer-events: none;
+            background: rgba(255, 255, 255, 0.8);
+            padding: 4px 8px;
+            border-radius: 4px;
+        }
+
+        #ui-panel {
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        #step-text {
+            font-size: 18px;
+            line-height: 1.5;
+            color: #333;
+            min-height: 60px;
+        }
+
+        #controls {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .btn {
+            background-color: #1976d2;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            font-size: 16px;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+
+        .btn:hover {
+            background-color: #1565c0;
+        }
+
+        .btn:disabled {
+            background-color: #ccc;
+            cursor: not-allowed;
+        }
+
+        #progress {
+            font-weight: bold;
+            color: #555;
+        }
+    </style>
+</head>
+
+<body>
+
+    <div id="app-container">
+        <div id="canvas-container">
+            <div id="instruction">💡 滑鼠拖曳可旋轉 3D 視角</div>
+            <canvas id="simCanvas"></canvas>
+        </div>
+        <div id="ui-panel">
+            <div id="step-text"></div>
+            <div id="controls">
+                <button id="btn-prev" class="btn" onclick="changeStep(-1)">⬅ 上一步</button>
+                <span id="progress">1 / 7</span>
+                <button id="btn-next" class="btn" onclick="changeStep(1)">下一步 ➡</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // --- 文本與公式設定 ---
+        const stepsData = [
+            "1. 在空間中有一段彎曲的導線，載有電流 $I$。",
+            "2. 取一小段電流，長度 $\\Delta \\vec{\\ell}$。",
+            "3. 考慮此段電流在空間中一點 $P$ 所產生的磁場。",
+            "4. 將 $\\Delta \\vec{\\ell}$ 延長，過 $P$ 點作一平面垂直於 $\\Delta \\vec{\\ell}$，兩者相交於 $O$ 點。",
+            "5. 以右手拇指表示 $\\Delta \\vec{\\ell}$ 的方向，則其他四指彎曲的方向即為磁場 $\\Delta \\vec{B}$ 繞 $I\\Delta \\vec{\\ell}$ 的方向。",
+            "6. $P$ 點的磁場 $\\Delta \\vec{B}$ 之方向，即為以 $O$ 為圓心，$\\overline{OP}$ 為半徑的圓之切線方向。",
+            "7. 不管任何形狀，載流導線都可視為許多電流小單元 $I\\Delta \\vec{\\ell}$ 相接而成，每一小單元都可使用必歐-沙伐定律來計算，再算所有磁場的向量和，即可得知整條導線在該點產生的總磁場。"
+        ];
+
+        let currentStep = 0;
+
+        // --- 3D 向量數學函式庫 ---
+        const Vec = {
+            add: (a, b) => ({ x: a.x + b.x, y: a.y + b.y, z: a.z + b.z }),
+            sub: (a, b) => ({ x: a.x - b.x, y: a.y - b.y, z: a.z - b.z }),
+            dot: (a, b) => a.x * b.x + a.y * b.y + a.z * b.z,
+            scale: (a, s) => ({ x: a.x * s, y: a.y * s, z: a.z * s }),
+            cross: (a, b) => ({ x: a.y * b.z - a.z * b.y, y: a.z * b.x - a.x * b.z, z: a.x * b.y - a.y * b.x }),
+            mag: (a) => Math.hypot(a.x, a.y, a.z),
+            norm: (a) => Vec.scale(a, 1 / Vec.mag(a))
+        };
+
+        // --- 畫布與攝影機設定 ---
+        const canvas = document.getElementById('simCanvas');
+        const ctx = canvas.getContext('2d');
+        let width, height, cx, cy;
+        let yaw = 0.5, pitch = 0.3, zoom = 1.2;
+
+        function resize() {
+            width = canvas.parentElement.clientWidth;
+            height = canvas.parentElement.clientHeight;
+            canvas.width = width;
+            canvas.height = height;
+            cx = width / 2;
+            cy = height / 2;
+        }
+        window.addEventListener('resize', resize);
+        resize();
+
+        // 滑鼠互動控制旋轉
+        let isDragging = false, lastMouse = { x: 0, y: 0 };
+        canvas.addEventListener('mousedown', e => { isDragging = true; lastMouse = { x: e.clientX, y: e.clientY }; });
+        window.addEventListener('mouseup', () => isDragging = false);
+        window.addEventListener('mousemove', e => {
+            if (!isDragging) return;
+            let dx = e.clientX - lastMouse.x;
+            let dy = e.clientY - lastMouse.y;
+            yaw += dx * 0.01;
+            pitch += dy * 0.01;
+            pitch = Math.max(-Math.PI / 2, Math.min(Math.PI / 2, pitch));
+            lastMouse = { x: e.clientX, y: e.clientY };
+        });
+        // 支援觸控
+        canvas.addEventListener('touchstart', e => { isDragging = true; lastMouse = { x: e.touches[0].clientX, y: e.touches[0].clientY }; });
+        window.addEventListener('touchend', () => isDragging = false);
+        window.addEventListener('touchmove', e => {
+            if (!isDragging) return;
+            let dx = e.touches[0].clientX - lastMouse.x;
+            let dy = e.touches[0].clientY - lastMouse.y;
+            yaw += dx * 0.01;
+            pitch += dy * 0.01;
+            pitch = Math.max(-Math.PI / 2, Math.min(Math.PI / 2, pitch));
+            lastMouse = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+        });
+
+        // --- 3D 投影引擎 ---
+        function project(p) {
+            // 先繞 Y 軸旋轉 (Yaw)
+            let x1 = p.x * Math.cos(yaw) - p.z * Math.sin(yaw);
+            let z1 = p.x * Math.sin(yaw) + p.z * Math.cos(yaw);
+            // 再繞 X 軸旋轉 (Pitch)
+            let y1 = p.y * Math.cos(pitch) - z1 * Math.sin(pitch);
+            let z2 = p.y * Math.sin(pitch) + z1 * Math.cos(pitch);
+            // 投影到 2D
+            return { x: cx + x1 * zoom, y: cy - y1 * zoom, z: z2 };
+        }
+
+        // --- 物理常數與幾何設定 ---
+        // 導線參數方程式: t = [-1.5, 1.5]
+        function getWirePos(t) { return { x: 40 * t * t - 10, y: 100 * t, z: 20 * t * t * t }; }
+        function getWireTangent(t) { return { x: 80 * t, y: 100, z: 60 * t * t }; }
+
+        const A = getWirePos(0); // 基準小段的位置 (t=0)
+        const dl = getWireTangent(0); // 在 A 點的切線方向
+        const dl_scaled = Vec.scale(Vec.norm(dl), 40); // 顯示用的長度向量
+        const P = { x: 100, y: 0, z: 80 }; // 目標點 P
+
+        // 計算 O 點 (P 投影在 dl 延伸線上)
+        // dl 的單位向量
+        const u = Vec.norm(dl);
+        const AP = Vec.sub(P, A);
+        const proj_len = Vec.dot(AP, u);
+        const O = Vec.add(A, Vec.scale(u, proj_len));
+
+        // 計算 OP 向量與半徑
+        const OP = Vec.sub(P, O);
+        const R = Vec.mag(OP);
+
+        // 計算磁場方向 dB (利用外積 dl x r)
+        let dB_dir = Vec.cross(dl_scaled, OP);
+        dB_dir = Vec.scale(Vec.norm(dB_dir), 50); // 視覺化長度
+
+        // --- 繪製系統 (Z-Sorting) ---
+        let renderQueue = [];
+
+        function addLine(p1, p2, color, width, dashed = false) {
+            let pr1 = project(p1), pr2 = project(p2);
+            renderQueue.push({ type: 'line', z: (pr1.z + pr2.z) / 2, pr1, pr2, color, width, dashed });
+        }
+
+        function addVector(p1, p2, color, width) {
+            let pr1 = project(p1), pr2 = project(p2);
+            renderQueue.push({ type: 'vector', z: (pr1.z + pr2.z) / 2, pr1, pr2, color, width });
+        }
+
+        function addDot(p, color, radius, label = "", labelOffset = { x: 10, y: -10 }) {
+            let pr = project(p);
+            renderQueue.push({ type: 'dot', z: pr.z, pr, color, radius, label, labelOffset });
+        }
+
+        function addPlane(center, size, color, borderColor) {
+            // 此平面垂直於 Y 軸 (法向量 = u = (0,1,0))
+            const s = size / 2;
+            const pts = [
+                Vec.add(center, { x: -s, y: 0, z: -s }),
+                Vec.add(center, { x: s, y: 0, z: -s }),
+                Vec.add(center, { x: s, y: 0, z: s }),
+                Vec.add(center, { x: -s, y: 0, z: s })
+            ];
+            let prPts = pts.map(project);
+            let zAvg = prPts.reduce((sum, p) => sum + p.z, 0) / 4;
+            renderQueue.push({ type: 'poly', z: zAvg, prPts, color, borderColor });
+        }
+
+        // --- 主要渲染迴圈 ---
+        function draw() {
+            ctx.clearRect(0, 0, width, height);
+            renderQueue = [];
+
+            // 1. 繪製導線
+            const wirePts = [];
+            for (let t = -1.5; t <= 1.5; t += 0.05) {
+                wirePts.push(getWirePos(t));
+            }
+            for (let i = 0; i < wirePts.length - 1; i++) {
+                addLine(wirePts[i], wirePts[i + 1], '#555', 4);
+            }
+            // 導線上的電流箭頭
+            if (currentStep < 6) {
+                let p_arr1 = getWirePos(-0.8), p_arr2 = getWirePos(-0.7);
+                addVector(p_arr1, p_arr2, '#ff9800', 3);
+                let p_arr3 = getWirePos(0.8), p_arr4 = getWirePos(0.9);
+                addVector(p_arr3, p_arr4, '#ff9800', 3);
+            }
+
+            // 2. 小段電流 I dt (Step 1+)
+            if (currentStep >= 1 && currentStep < 6) {
+                let A_start = Vec.sub(A, Vec.scale(dl_scaled, 0.5));
+                let A_end = Vec.add(A, Vec.scale(dl_scaled, 0.5));
+                addVector(A_start, A_end, '#d32f2f', 6);
+            }
+
+            // 3. 點 P 與距離向量 r (Step 2+)
+            if (currentStep >= 2 && currentStep < 6) {
+                addDot(P, '#000', 4, "P");
+                addLine(A, P, '#888', 2, true);
+            }
+
+            // 4. 延伸線、點 O、與垂直平面 (Step 3+)
+            if (currentStep >= 3 && currentStep < 6) {
+                addLine(Vec.sub(A, Vec.scale(u, 100)), Vec.add(A, Vec.scale(u, 150)), '#d32f2f', 2, true);
+                addDot(O, '#1976d2', 4, "O", { x: -20, y: -10 });
+                addPlane(O, 250, 'rgba(25, 118, 210, 0.15)', '#1976d2');
+            }
+
+            // 5. 右手定則磁場方向圈 (Step 4+)
+            if (currentStep >= 4 && currentStep < 6) {
+                const circlePts = [];
+                const segments = 40;
+                for (let i = 0; i <= segments; i++) {
+                    let theta = (i / segments) * Math.PI * 2;
+                    // 在垂直平面 (XZ平面) 上畫圓
+                    let pt = Vec.add(O, { x: R * Math.cos(theta), y: 0, z: -R * Math.sin(theta) });
+                    circlePts.push(pt);
+                }
+                for (let i = 0; i < circlePts.length - 1; i++) {
+                    addLine(circlePts[i], circlePts[i + 1], '#1976d2', 2, true);
+                }
+                // 加上旋轉箭頭 (右手定則)
+                for (let i = 0; i < 4; i++) {
+                    let theta = (i / 4) * Math.PI * 2;
+                    let pt1 = Vec.add(O, { x: R * Math.cos(theta), y: 0, z: -R * Math.sin(theta) });
+                    let pt2 = Vec.add(O, { x: R * Math.cos(theta + 0.1), y: 0, z: -R * Math.sin(theta + 0.1) });
+                    addVector(pt1, pt2, '#ff9800', 3);
+                }
+            }
+
+            // 6. 磁場向量 dB (Step 5+)
+            if (currentStep >= 5 && currentStep < 6) {
+                let B_end = Vec.add(P, dB_dir);
+                addVector(P, B_end, '#2e7d32', 5);
+            }
+
+            // 7. 疊加原理 (Biot-Savart 積分) (Step 6)
+            if (currentStep === 6) {
+                addDot(P, '#000', 4, "P");
+                let t_samples = [-1.2, -0.6, 0, 0.6, 1.2];
+                let B_total = { x: 0, y: 0, z: 0 };
+
+                t_samples.forEach(t => {
+                    let pos = getWirePos(t);
+                    let tan = getWireTangent(t);
+                    let dl_i = Vec.scale(Vec.norm(tan), 30);
+
+                    // 畫小段電流
+                    addVector(Vec.sub(pos, Vec.scale(dl_i, 0.5)), Vec.add(pos, Vec.scale(dl_i, 0.5)), '#d32f2f', 4);
+                    // 畫 r
+                    addLine(pos, P, 'rgba(136, 136, 136, 0.5)', 1, true);
+
+                    let r_vec = Vec.sub(P, pos);
+                    let dB_i = Vec.cross(dl_i, r_vec);
+                    dB_i = Vec.scale(Vec.norm(dB_i), 3000 / (Vec.mag(r_vec) + 50)); // 簡單的距離衰減視覺化
+
+                    B_total = Vec.add(B_total, dB_i);
+
+                    // 畫個別的 dB
+                    addVector(P, Vec.add(P, dB_i), 'rgba(46, 125, 50, 0.6)', 3);
+                });
+
+                // 畫總合 B
+                addVector(P, Vec.add(P, B_total), '#6a1b9a', 6);
+            }
+
+            // --- 執行 Z-Sorting 並渲染到 2D Canvas ---
+            renderQueue.sort((a, b) => a.z - b.z);
+
+            renderQueue.forEach(item => {
+                if (item.type === 'line') {
+                    ctx.beginPath();
+                    ctx.moveTo(item.pr1.x, item.pr1.y);
+                    ctx.lineTo(item.pr2.x, item.pr2.y);
+                    ctx.strokeStyle = item.color;
+                    ctx.lineWidth = item.width;
+                    ctx.setLineDash(item.dashed ? [5, 5] : []);
+                    ctx.stroke();
+                }
+                else if (item.type === 'vector') {
+                    ctx.setLineDash([]);
+                    ctx.beginPath();
+                    ctx.moveTo(item.pr1.x, item.pr1.y);
+                    ctx.lineTo(item.pr2.x, item.pr2.y);
+                    ctx.strokeStyle = item.color;
+                    ctx.lineWidth = item.width;
+                    ctx.stroke();
+
+                    // 畫箭頭
+                    let dx = item.pr2.x - item.pr1.x, dy = item.pr2.y - item.pr1.y;
+                    let len = Math.hypot(dx, dy);
+                    if (len > 0.1) {
+                        let ux = dx / len, uy = dy / len;
+                        let headLen = item.width * 3;
+                        ctx.beginPath();
+                        ctx.moveTo(item.pr2.x, item.pr2.y);
+                        ctx.lineTo(item.pr2.x - ux * headLen - uy * headLen * 0.6, item.pr2.y - uy * headLen + ux * headLen * 0.6);
+                        ctx.lineTo(item.pr2.x - ux * headLen + uy * headLen * 0.6, item.pr2.y - uy * headLen - ux * headLen * 0.6);
+                        ctx.closePath();
+                        ctx.fillStyle = item.color;
+                        ctx.fill();
+                    }
+                }
+                else if (item.type === 'dot') {
+                    ctx.beginPath();
+                    ctx.arc(item.pr.x, item.pr.y, item.radius, 0, Math.PI * 2);
+                    ctx.fillStyle = item.color;
+                    ctx.fill();
+                    if (item.label) {
+                        ctx.font = "italic 18px 'Times New Roman', serif";
+                        ctx.fillStyle = '#000';
+                        ctx.fillText(item.label, item.pr.x + item.labelOffset.x, item.pr.y + item.labelOffset.y);
+                    }
+                }
+                else if (item.type === 'poly') {
+                    ctx.beginPath();
+                    ctx.moveTo(item.prPts[0].x, item.prPts[0].y);
+                    for (let i = 1; i < item.prPts.length; i++) ctx.lineTo(item.prPts[i].x, item.prPts[i].y);
+                    ctx.closePath();
+                    ctx.fillStyle = item.color;
+                    ctx.fill();
+                    if (item.borderColor) {
+                        ctx.strokeStyle = item.borderColor;
+                        ctx.lineWidth = 1;
+                        ctx.setLineDash([5, 5]);
+                        ctx.stroke();
+                    }
+                }
+            });
+
+            // 持續呼叫迴圈
+            requestAnimationFrame(draw);
+        }
+
+        // --- UI 與步驟控制 ---
+        function updateUI() {
+            document.getElementById('btn-prev').disabled = (currentStep === 0);
+            document.getElementById('btn-next').disabled = (currentStep === stepsData.length - 1);
+            document.getElementById('progress').innerText = `${currentStep + 1} / ${stepsData.length}`;
+
+            const stepTextEl = document.getElementById('step-text');
+            stepTextEl.innerHTML = stepsData[currentStep];
+
+            // 透過 KaTeX auto-render 渲染含有公式與說明的文字
+            if (typeof renderMathInElement === 'function') {
+                renderMathInElement(stepTextEl, {
+                    delimiters: [
+                        { left: "$$", right: "$$", display: true },
+                        { left: "$", right: "$", display: false }
+                    ],
+                    throwOnError: false
+                });
+            }
+        }
+
+        window.addEventListener('load', () => {
+            updateUI();
+        });
+
+        window.changeStep = function (delta) {
+            currentStep += delta;
+            if (currentStep < 0) currentStep = 0;
+            if (currentStep >= stepsData.length) currentStep = stepsData.length - 1;
+            updateUI();
+        };
+
+        // 初始化
+        updateUI();
+        draw();
+
+    </script>
+</body>
+
+</html>
